@@ -7,6 +7,7 @@ import 'package:abyss_chat/screens/chat_screen.dart';
 import 'package:abyss_chat/services/mdns_service.dart';
 import 'package:abyss_chat/widgets/abyss_snackbar.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
+import 'package:abyss_chat/services/notification_service.dart';
 import 'package:intl/intl.dart';
 import 'package:abyss_chat/screens/contact_profile_screen.dart';
 import 'package:abyss_chat/screens/create_group_screen.dart';
@@ -162,19 +163,45 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
-        title: GestureDetector(
-          onTap: () {
-            Clipboard.setData(ClipboardData(text: myId ?? ''));
-            AbyssSnackBar.show(context, 'Copied UUID to clipboard', type: SnackBarType.success);
-          },
+        title: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Abyss Chat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-              if (myId != null) 
-                Text('ID: $myId', style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            ],
-          ),
+          children: [
+            const Text('Abyss Chat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+            if (myId != null) 
+              GestureDetector(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: myId));
+                  NotificationService.showMessageNotification('Abyss Chat', 'Copied ID to clipboard');
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(top: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.copy, size: 10, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                      const SizedBox(width: 4),
+                      Text(
+                        'ID: $myId', 
+                        style: TextStyle(
+                          fontSize: 11, 
+                          fontWeight: FontWeight.bold, 
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
         ),
         centerTitle: false,
         actions: [

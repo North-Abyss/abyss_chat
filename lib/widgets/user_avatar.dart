@@ -32,26 +32,23 @@ class UserAvatar extends StatelessWidget {
 
     return Stack(
       children: [
-        Hero(
-          tag: 'avatar_${user.id}',
-          child: Container(
-            width: radius * 2,
-            height: radius * 2,
-            decoration: BoxDecoration(
-              color: Color(user.avatarColor),
-              borderRadius: BorderRadius.circular(radius * 0.5),
-              image: imageProvider != null
-                  ? DecorationImage(image: imageProvider, fit: BoxFit.cover)
-                  : null,
-            ),
-            child: imageProvider == null
-                ? Icon(
-                    _getIconData(user.avatarIcon),
-                    color: Colors.white,
-                    size: radius * 1.2,
-                  )
+        Container(
+          width: radius * 2,
+          height: radius * 2,
+          decoration: BoxDecoration(
+            color: Color(user.avatarColor),
+            borderRadius: BorderRadius.circular(radius * 0.5),
+            image: imageProvider != null
+                ? DecorationImage(image: imageProvider, fit: BoxFit.cover)
                 : null,
           ),
+          child: imageProvider == null
+              ? Icon(
+                  _getIconData(user.avatarIcon),
+                  color: Colors.white,
+                  size: radius * 1.2,
+                )
+              : null,
         ),
         if (user.isOnline)
           Positioned(

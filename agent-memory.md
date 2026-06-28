@@ -114,3 +114,17 @@ abyss_chat/
   - Built `InAppNotificationService` for floating toast alerts
   - Built `MiniCallOverlay` to show a floating draggable pill when minimizing calls
   - Integrated `flutter_webrtc` media streams into `PeerDartService`
+
+### 2026-06-28 — Session 2 (Phase 9 Polish & WebRTC)
+- Implemented True P2P Audio/Video streaming using `RTCVideoRenderer` and `getUserMedia`.
+- Added Desktop/Web specific UI polishes:
+  - Floating left-pane layout without harsh divider lines.
+  - Interactive "Copy ID" chip on the Home screen App Bar.
+  - Added WhatsApp-style keyboard shortcuts (Enter to send, Shift+Enter to newline).
+- Polished Notifications:
+  - Smart Notification Silencer (mutes toast if the user is in the active chat or active call).
+  - Swapped bottom snackbars for slide-in notifications globally.
+- Fixed Web Platform bugs:
+  - Bypassed `path_provider` `MissingPluginException` by using `SharedPreferences` for Web encrypted file storage.
+  - Removed duplicate `Hero` tags in the desktop split-pane layout to prevent exceptions.
+  - Fixed `pubspec.yaml` to correctly serve web assets.

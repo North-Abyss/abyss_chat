@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:abyss_chat/providers/layout_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:abyss_chat/services/notification_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -472,7 +473,7 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text('Chat Wallpaper'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  AbyssSnackBar.show(context, 'Wallpaper coming soon', type: SnackBarType.info);
+                  NotificationService.showMessageNotification('Chat Wallpaper', 'Coming soon in a future update!');
                 },
               ),
               ListTile(
@@ -480,7 +481,7 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text('Notifications'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  AbyssSnackBar.show(context, 'Notifications coming soon', type: SnackBarType.info);
+                  NotificationService.showMessageNotification('Notifications', 'Coming soon in a future update!');
                 },
               ),
               ListTile(
@@ -488,7 +489,7 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text('Storage and Data'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  AbyssSnackBar.show(context, 'Storage coming soon', type: SnackBarType.info);
+                  NotificationService.showMessageNotification('Storage and Data', 'Coming soon in a future update!');
                 },
               ),
               const Divider(height: 32),
@@ -503,13 +504,22 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: Icon(Icons.info_outline, color: cs.primary),
+                leading: const Icon(Icons.info_outline),
                 title: const Text('About Abyss Chat'),
                 subtitle: const Text('v1.0.0'),
-                onTap: () {},
               ),
               ListTile(
-                leading: Icon(Icons.privacy_tip_outlined, color: cs.primary),
+                leading: const Icon(Icons.code),
+                title: const Text('Source Code (GitHub)'),
+                subtitle: const Text('github.com/North-Abyss/abyss_chat'),
+                trailing: const Icon(Icons.copy, size: 20),
+                onTap: () {
+                  Clipboard.setData(const ClipboardData(text: 'https://github.com/North-Abyss/abyss_chat'));
+                  AbyssSnackBar.show(context, 'Repository link copied to clipboard', type: SnackBarType.success);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.privacy_tip_outlined),
                 title: const Text('Privacy Policy'),
                 onTap: () {},
               ),

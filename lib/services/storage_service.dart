@@ -29,6 +29,13 @@ class StorageService {
 
   Future<String?> _readEncryptedFile(String filename) async {
     try {
+      if (kIsWeb) {
+        final prefs = await SharedPreferences.getInstance();
+        final ciphertext = prefs.getString('web_$filename');
+        if (ciphertext == null || ciphertext.isEmpty) return null;
+        return CryptoService.decryptData(ciphertext);
+      }
+      
       final file = await _getFile(filename);
       if (!await file.exists()) return null;
       final ciphertext = await file.readAsString();
@@ -42,9 +49,14 @@ class StorageService {
 
   Future<void> _writeEncryptedFile(String filename, String plaintext) async {
     try {
-      final file = await _getFile(filename);
       final ciphertext = CryptoService.encryptData(plaintext);
-      await file.writeAsString(ciphertext);
+      if (kIsWeb) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('web_$filename', ciphertext);
+      } else {
+        final file = await _getFile(filename);
+        await file.writeAsString(ciphertext);
+      }
     } catch (e) {
       debugPrint('Error writing encrypted file $filename: $e');
     }
@@ -106,6 +118,9 @@ class StorageService {
 
   // --- Profile Image ---
   Future<String> saveProfileImage(String userId, File imageFile) async {
+    if (kIsWeb) {
+      return imageFile.path; // Web typically returns an object URL from FilePicker
+    }
     final path = await _getAppDirPath();
     final profileDir = Directory('$path/profiles');
     if (!await profileDir.exists()) {

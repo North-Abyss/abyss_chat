@@ -45,6 +45,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ref.read(chatThreadsProvider.notifier).sendTypingIndicator(widget.threadId);
       }
     });
+
+    _focusNode.onKeyEvent = (node, event) {
+      if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
+        if (!HardwareKeyboard.instance.isShiftPressed) {
+          _sendMessage();
+          return KeyEventResult.handled;
+        }
+      }
+      return KeyEventResult.ignored;
+    };
   }
 
   @override
@@ -495,6 +505,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             child: TextField(
                               controller: _textController,
                               focusNode: _focusNode,
+                              keyboardType: TextInputType.multiline,
+                              textInputAction: TextInputAction.newline,
                               decoration: const InputDecoration(
                                 hintText: 'Message',
                                 border: InputBorder.none,
@@ -502,7 +514,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               ),
                               minLines: 1,
                               maxLines: 5,
-                              onSubmitted: (_) => _sendMessage(),
                             ),
                           ),
                           IconButton(

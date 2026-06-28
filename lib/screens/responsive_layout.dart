@@ -117,11 +117,19 @@ class ResponsiveLayout extends ConsumerWidget {
           return Row(
             key: const ValueKey('chats_2pane'),
             children: [
-              const SizedBox(
-                width: 350,
-                child: HomeScreen(isDesktop: true),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
+                child: Container(
+                  width: 350,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: const HomeScreen(isDesktop: true),
+                ),
               ),
-              VerticalDivider(width: 1, thickness: 1, color: Theme.of(context).dividerColor),
               Expanded(
                 child: selectedThreadId == null
                     ? Center(

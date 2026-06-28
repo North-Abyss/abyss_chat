@@ -11,15 +11,16 @@ A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clo
 
 ## 📱 Features
 
-- **P2P Communication** - Uses WebRTC for peer-to-peer data channels and audio/video calling.
+- **P2P Communication** - Uses WebRTC for true peer-to-peer data channels and audio/video calling with `getUserMedia`.
 - **Local Network Discovery** - Uses mDNS (Multicast DNS) and LAN TCP sockets to find and connect to peers on the same local network, working completely offline.
-- **Material 3 Design** - Fully customized dynamic theming support with beautiful UI following Material 3 guidelines.
-- **Persistent Storage** - Saves chats, settings, profiles, and call logs persistently using `shared_preferences`.
-- **Group Chats** - Create and manage group chats.
+- **Material 3 Design** - Fully customized dynamic theming support with beautiful UI following Material 3 guidelines, including desktop/web responsive split-pane layouts.
+- **Persistent Storage** - Saves chats, settings, profiles, and call logs securely (using `path_provider` on native and `shared_preferences` gracefully falling back on Web).
+- **Group Chats** - Create and manage local group chats.
 - **Profile Customization** - Users can customize their names, avatar icons, and colors (including pure black/white).
 - **Theming Engine** - Includes 12 curated themes plus the ability to pick any custom hex color.
-- **In-App Notifications** - Get floating toasts when you receive messages while navigating the app.
-- **Floating Mini-Call Window** - Picture-in-picture style floating pill when you navigate away from an active call.
+- **Smart Notifications** - Slide-in floating toasts for incoming messages that automatically silence themselves if you're actively speaking to the sender.
+- **Floating Mini-Call Window** - Picture-in-picture style floating pill when you navigate away from an active call, plus full Answer/Decline call screens.
+- **Desktop Keyboard Support** - Use `Enter` to seamlessly send messages and `Shift+Enter` for multiline text, just like WhatsApp Web.
 - **Cloud CI/CD Pipeline** - Automated GitHub Actions release builds for Android, Windows, and Linux on every `v*` tag.
 
 ## 🏗️ Architecture
