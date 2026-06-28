@@ -127,7 +127,9 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                           Text(
                             isConnected 
                               ? '${(callState?.currentDuration?.inMinutes ?? 0).toString().padLeft(2, '0')}:${((callState?.currentDuration?.inSeconds ?? 0) % 60).toString().padLeft(2, '0')}' 
-                              : (widget.isIncoming ? 'Incoming...' : 'Ringing...'),
+                              : callState?.state == CallState.ended 
+                                  ? '⚠️ Connection failed!'
+                                  : (widget.isIncoming ? 'Incoming...' : 'Ringing...'),
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 16,

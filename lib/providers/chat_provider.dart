@@ -127,6 +127,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   String? _myName;
   String? get myName => _myName;
   Timer? _retryTimer;
+  final Map<String, DateTime> _lastConnectAttempt = {};
 
   @override
   Future<List<ChatThread>> build() async {
@@ -170,10 +171,15 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   void _flushAllPendingQueues() {
     if (!state.hasValue) return;
     final threads = state.value!;
+    final now = DateTime.now();
     for (final thread in threads) {
       if (thread.messages.any((m) => m.status == MessageStatus.pending)) {
-        // Try connecting if not connected, then flush
-        connectToPeer(thread.id);
+        final lastAttempt = _lastConnectAttempt[thread.id];
+        // Only try to reconnect if we haven't tried in the last 30 seconds
+        if (lastAttempt == null || now.difference(lastAttempt).inSeconds > 30) {
+          _lastConnectAttempt[thread.id] = now;
+          connectToPeer(thread.id);
+        }
         _flushQueueForPeer(thread.id);
       }
     }

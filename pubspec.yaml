@@ -53,6 +53,9 @@ dependencies:
   mobile_scanner: ^7.2.0
   qr_flutter: ^4.1.0
   just_audio: ^0.10.5
+  url_launcher: ^6.3.2
+  any_link_preview: ^3.0.3
+  video_player: ^2.11.1
 
 dev_dependencies:
   flutter_test:

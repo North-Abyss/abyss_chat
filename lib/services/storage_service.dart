@@ -63,6 +63,23 @@ class StorageService {
     }
   }
 
+  Future<void> clearAllData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    
+    if (!kIsWeb) {
+      try {
+        final path = await _getAppDirPath();
+        final dir = Directory(path);
+        if (await dir.exists()) {
+          await dir.delete(recursive: true);
+        }
+      } catch (e) {
+        debugPrint('Error clearing app data dir: $e');
+      }
+    }
+  }
+
   // --- Threads ---
   Future<List<ChatThread>> loadThreads() async {
     final jsonStr = await _readEncryptedFile(_threadsFile);

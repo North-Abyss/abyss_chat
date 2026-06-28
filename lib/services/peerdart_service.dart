@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 class PeerDartService {
   Peer? _peer;
   final Map<String, DataConnection> _activeConnections = {};
+  final Map<String, List<StreamSubscription>> _subscriptions = {};
   
   // Stream controllers for different events
   final StreamController<Message> _incomingMessages = StreamController<Message>.broadcast();
@@ -35,6 +36,9 @@ class PeerDartService {
 
   final StreamController<Map<String, dynamic>> _profileSyncs = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onProfileSyncReceived => _profileSyncs.stream;
+
+  final StreamController<Map<String, dynamic>> _callRequests = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onCallRequest => _callRequests.stream;
 
   String? _myId;
   String? get myId => _myId;
@@ -64,24 +68,46 @@ class PeerDartService {
     });
   }
 
+  bool isConnected(String peerId) {
+    return _activeConnections.containsKey(peerId) && _activeConnections[peerId]!.open;
+  }
+
   void connectToPeer(String peerId) {
     if (_peer == null) return;
-    if (_activeConnections.containsKey(peerId) && _activeConnections[peerId]!.open) return;
+    if (_activeConnections.containsKey(peerId)) {
+      if (_activeConnections[peerId]!.open) return;
+      // Close stale connection to trigger cleanup
+      _activeConnections[peerId]!.close();
+      _cancelSubscriptions(peerId);
+      _activeConnections.remove(peerId);
+    }
     
     debugPrint('🔄 Attempting to connect to $peerId...');
     final conn = _peer!.connect(peerId);
     _setupConnection(conn);
   }
 
+  void _cancelSubscriptions(String peerId) {
+    if (_subscriptions.containsKey(peerId)) {
+      for (final sub in _subscriptions[peerId]!) {
+        sub.cancel();
+      }
+      _subscriptions.remove(peerId);
+    }
+  }
+
   void _setupConnection(DataConnection conn) {
-    conn.on("open").listen((_) {
+    _cancelSubscriptions(conn.peer);
+    final subs = <StreamSubscription>[];
+
+    subs.add(conn.on("open").listen((_) {
       debugPrint('🤝 Data connection established with ${conn.peer}');
       _activeConnections[conn.peer] = conn;
       if (!_connectionStatus.isClosed) _connectionStatus.add('Connected to ${conn.peer}');
       if (!_connectionOpened.isClosed) _connectionOpened.add(conn.peer);
-    });
+    }));
 
-    conn.on("data").listen((data) {
+    subs.add(conn.on("data").listen((data) {
       try {
         final decoded = jsonDecode(data.toString());
         final type = decoded['type'];
@@ -103,16 +129,27 @@ class PeerDartService {
           if (!_typingIndicators.isClosed) _typingIndicators.add(decoded['peerId']);
         } else if (type == 'profile_sync') {
           if (!_profileSyncs.isClosed) _profileSyncs.add(decoded);
+        } else if (type == 'call_request') {
+          if (!_callRequests.isClosed) _callRequests.add(decoded);
         }
       } catch (e) {
         debugPrint('Error parsing incoming P2P data: $e');
       }
-    });
+    }));
 
-    conn.on("close").listen((_) {
+    subs.add(conn.on("close").listen((_) {
       debugPrint('🛑 Connection closed with ${conn.peer}');
       _activeConnections.remove(conn.peer);
-    });
+      _cancelSubscriptions(conn.peer);
+    }));
+
+    subs.add(conn.on("error").listen((err) {
+      debugPrint('❌ Connection error with ${conn.peer}: $err');
+      _activeConnections.remove(conn.peer);
+      _cancelSubscriptions(conn.peer);
+    }));
+
+    _subscriptions[conn.peer] = subs;
   }
 
   bool _sendPayload(String peerId, Map<String, dynamic> payload) {
@@ -148,6 +185,15 @@ class PeerDartService {
     });
   }
 
+  void sendCallRequest(String peerId, bool isVideo, String callerName) {
+    _sendPayload(peerId, {
+      'type': 'call_request',
+      'peerId': _myId,
+      'callerName': callerName,
+      'isVideo': isVideo,
+    });
+  }
+
   void sendTypingIndicator(String peerId) {
     _sendPayload(peerId, {
       'type': 'typing',
@@ -179,5 +225,13 @@ class PeerDartService {
     _typingIndicators.close();
     _connectionOpened.close();
     _profileSyncs.close();
+    _callRequests.close();
+    
+    for (final subs in _subscriptions.values) {
+      for (final sub in subs) {
+        sub.cancel();
+      }
+    }
+    _subscriptions.clear();
   }
 }

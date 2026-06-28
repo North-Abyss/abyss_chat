@@ -28,6 +28,10 @@ class CryptoService {
     _key = encrypt.Key(Uint8List.fromList(digest.bytes));
   }
 
+  static void reset() {
+    _key = null;
+  }
+
   static String encryptData(String plaintext) {
     if (_key == null) throw Exception('CryptoService not initialized');
     

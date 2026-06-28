@@ -70,6 +70,7 @@ class CallNotifier extends Notifier<CallSession?> {
     // Subscribe to incoming calls from PeerDartService
     Future.microtask(() {
       ref.read(peerServiceProvider).onCallReceived.listen(_handleIncomingCall);
+      ref.read(peerServiceProvider).onCallRequest.listen(_handleCallRequest);
     });
     
     return null;
@@ -92,6 +93,31 @@ class CallNotifier extends Notifier<CallSession?> {
 
   Future<void> startCall(User peer, bool isVideo) async {
     if (state != null) return; // Already in a call
+    
+    final peerService = ref.read(peerServiceProvider);
+    
+    // Check if connected
+    if (!peerService.isConnected(peer.id)) {
+      // Connect first
+      ref.read(chatThreadsProvider.notifier).connectToPeer(peer.id);
+      
+      // Wait a bit to let it connect
+      await Future.delayed(const Duration(seconds: 2));
+      
+      if (!peerService.isConnected(peer.id)) {
+        // Still not connected
+        state = CallSession(peer: peer, isVideo: isVideo, state: CallState.ended);
+        _showFullCall();
+        Future.delayed(const Duration(seconds: 2), () {
+          endCall();
+        });
+        return;
+      }
+    }
+    
+    // Send signaling request
+    final myProfile = ref.read(chatThreadsProvider.notifier).myName ?? 'Someone';
+    peerService.sendCallRequest(peer.id, isVideo, myProfile);
     
     state = CallSession(peer: peer, isVideo: isVideo, state: CallState.ringing);
     _showFullCall();
@@ -134,27 +160,62 @@ class CallNotifier extends Notifier<CallSession?> {
     }
   }
 
+  void _handleCallRequest(Map<String, dynamic> request) {
+    if (state != null) return;
+    
+    final peerId = request['peerId'] as String;
+    final callerName = request['callerName'] as String;
+    final isVideo = request['isVideo'] as bool;
+    
+    // Check contacts for real avatar/color
+    User? knownUser;
+    final contacts = ref.read(contactsProvider).value;
+    if (contacts != null) {
+      knownUser = contacts.where((c) => c.id == peerId).firstOrNull;
+    }
+    
+    final peer = knownUser ?? User(id: peerId, name: callerName, avatarIcon: 0xe491, avatarColor: 0xFF6750A4);
+    
+    state = CallSession(
+      peer: peer,
+      isVideo: isVideo,
+      state: CallState.ringing,
+    );
+    
+    _showFullCall();
+    _playRingtone();
+  }
+
   void _handleIncomingCall(MediaConnection mediaConnection) {
-    if (state != null) {
+    if (state != null && state!.mediaConnection != null) {
       // Busy, reject or ignore
       mediaConnection.close();
       return;
     }
     
-    // For now we don't know the exact peer User details just from the ID easily, 
-    // but we can construct a dummy User or find it in contacts.
-    final peerId = mediaConnection.peer;
-    final peer = User(id: peerId, name: 'Peer $peerId', avatarIcon: 0xe491, avatarColor: 0xFF6750A4);
-    
-    state = CallSession(
-      peer: peer, 
-      isVideo: true, // We don't know yet, assume true or check stream
-      state: CallState.ringing,
-      mediaConnection: mediaConnection,
-    );
-    
-    _showFullCall();
-    _playRingtone();
+    // If state is not null but mediaConnection IS null, it means we got the call_request first!
+    if (state != null && state!.mediaConnection == null && state!.peer.id == mediaConnection.peer) {
+      state = state!.copyWith(mediaConnection: mediaConnection);
+    } else {
+      // Fallback if we didn't get call_request
+      final peerId = mediaConnection.peer;
+      User? knownUser;
+      final contacts = ref.read(contactsProvider).value;
+      if (contacts != null) {
+        knownUser = contacts.where((c) => c.id == peerId).firstOrNull;
+      }
+      final peer = knownUser ?? User(id: peerId, name: 'Peer $peerId', avatarIcon: 0xe491, avatarColor: 0xFF6750A4);
+      
+      state = CallSession(
+        peer: peer, 
+        isVideo: true, // assume true until we check
+        state: CallState.ringing,
+        mediaConnection: mediaConnection,
+      );
+      
+      _showFullCall();
+      _playRingtone();
+    }
     
     mediaConnection.on("close").listen((_) {
       endCall();

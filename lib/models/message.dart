@@ -65,6 +65,8 @@ class Message {
   Message copyWith({
     MessageStatus? status,
     String? localFilePath,
+    String? fileData,
+    String? fileName,
   }) {
     return Message(
       id: id,
@@ -75,7 +77,8 @@ class Message {
       status: status ?? this.status,
       type: type,
       localFilePath: localFilePath ?? this.localFilePath,
-      fileName: fileName,
+      fileName: fileName ?? this.fileName,
+      fileData: fileData ?? this.fileData,
     );
   }
 }

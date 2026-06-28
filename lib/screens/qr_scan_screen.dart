@@ -35,16 +35,29 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> {
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Please enter the 5-digit Peer ID directly on the home screen.',
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                      textAlign: TextAlign.center,
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: 250,
+                      child: TextField(
+                        onSubmitted: (val) {
+                          if (val.trim().isNotEmpty) {
+                            Navigator.pop(context, val.trim());
+                          }
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Enter Peer ID manually',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.arrow_forward),
+                            onPressed: () {},
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
-                    FilledButton(
+                    TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Go Back'),
+                      child: const Text('Cancel'),
                     ),
                   ],
                 ),
@@ -52,6 +65,16 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> {
             )
           : MobileScanner(
               controller: cameraController!,
+              placeholderBuilder: (context) => const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Starting Camera...'),
+                  ],
+                ),
+              ),
               onDetect: (capture) {
                 if (!_isScanning) return;
                 final List<Barcode> barcodes = capture.barcodes;

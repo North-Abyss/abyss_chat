@@ -14,6 +14,7 @@ import 'package:flutter/foundation.dart';
 import 'package:abyss_chat/widgets/abyss_snackbar.dart';
 import 'package:abyss_chat/models/message.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:abyss_chat/widgets/message_text_content.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String threadId;
@@ -439,13 +440,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                   ),
                                 )
                               else
-                                Text(
-                                  msg.text,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: isMe ? cs.onPrimaryContainer : cs.onSurface,
-                                  ),
-                                ),
+                                  MessageTextContent(msg: msg, isMe: isMe),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [

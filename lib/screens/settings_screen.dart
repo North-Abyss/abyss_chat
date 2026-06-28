@@ -6,11 +6,11 @@ import 'package:abyss_chat/screens/login_screen.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:abyss_chat/providers/layout_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:abyss_chat/services/notification_service.dart';
+import 'package:abyss_chat/services/crypto_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -528,21 +528,59 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: cs.errorContainer,
-                  foregroundColor: cs.onErrorContainer,
+                  backgroundColor: cs.surfaceContainerHighest,
+                  foregroundColor: cs.onSurface,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 icon: const Icon(Icons.logout),
                 label: const Text('Log Out'),
-                onPressed: () async {
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.clear();
+                onPressed: () {
+                  ref.read(peerServiceProvider).dispose();
                   if (!context.mounted) return;
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (_) => const LoginScreen()),
                     (route) => false,
                   );
+                },
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: cs.errorContainer,
+                  foregroundColor: cs.onErrorContainer,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                icon: const Icon(Icons.delete_forever),
+                label: const Text('Delete Account & Data'),
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (c) => AlertDialog(
+                      title: const Text('Delete Account?'),
+                      content: const Text('This will permanently delete all your chats, contacts, and settings. This cannot be undone.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                        FilledButton(
+                          style: FilledButton.styleFrom(backgroundColor: cs.error),
+                          onPressed: () => Navigator.pop(c, true), 
+                          child: const Text('Delete')
+                        ),
+                      ],
+                    ),
+                  );
+                  
+                  if (confirm == true) {
+                    await ref.read(storageServiceProvider).clearAllData();
+                    CryptoService.reset();
+                    ref.read(peerServiceProvider).dispose();
+                    if (!context.mounted) return;
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
                 },
               ),
               const SizedBox(height: 32),
