@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Clean up legacy Plugin Registrant
+        run: rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java || true
+
       - name: Build Universal APK
         run: flutter build apk --release
 

@@ -18,6 +18,7 @@ echo -e "${BLUE}Starting Abyss Chat git sync...${NC}"
 echo -e "${BLUE}Staging changes...${NC}"
 git add .
 
+commit_message="Auto-update : Fixes "
 # Commit changes
 echo -e "${BLUE}Committing changes...${NC}"
 read -p "Enter commit message: " commit_message
