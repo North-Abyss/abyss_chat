@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:abyss_chat/models/user.dart';
 import 'package:abyss_chat/screens/call_screen.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
@@ -81,8 +81,9 @@ class CallNotifier extends Notifier<CallSession?> {
   }
 
   void _playRingtone() async {
-    await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-    await _audioPlayer.play(AssetSource('audio/ringtone.wav'));
+    await _audioPlayer.setLoopMode(LoopMode.one);
+    await _audioPlayer.setAsset('assets/audio/ringtone.wav');
+    _audioPlayer.play();
   }
 
   void _stopRingtone() {

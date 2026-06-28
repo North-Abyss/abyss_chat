@@ -406,9 +406,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                   margin: const EdgeInsets.only(bottom: 4),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
-                                    child: msg.fileData != null
+                                    child: msg.fileData != null && msg.fileData!.isNotEmpty
                                         ? Image.memory(base64Decode(msg.fileData!), fit: BoxFit.cover)
-                                        : (msg.localFilePath != null 
+                                        : (msg.localFilePath != null && !kIsWeb
                                             ? Image.file(File(msg.localFilePath!), fit: BoxFit.cover) 
                                             : const Icon(Icons.broken_image)),
                                   ),
