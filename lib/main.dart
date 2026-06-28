@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:abyss_chat/screens/login_screen.dart';
 import 'package:abyss_chat/providers/theme_provider.dart';
-import 'package:abyss_chat/services/notification_service.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
 
 void main() {
@@ -34,7 +33,6 @@ class AbyssApp extends ConsumerWidget {
           title: 'Abyss Chat',
           debugShowCheckedModeBanner: false,
           navigatorKey: globalNavigatorKey,
-          scaffoldMessengerKey: scaffoldMessengerKey,
           themeMode: themeState.mode,
           theme: _buildTheme(seedColor, Brightness.light),
           darkTheme: _buildTheme(seedColor, Brightness.dark),
@@ -126,6 +124,7 @@ class AbyssApp extends ConsumerWidget {
         backgroundColor: colorScheme.primaryContainer,
         foregroundColor: colorScheme.onPrimaryContainer,
         elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,

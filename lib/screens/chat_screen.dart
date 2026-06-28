@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:abyss_chat/screens/call_screen.dart';
 import 'package:abyss_chat/screens/group_info_screen.dart';
 import 'package:abyss_chat/screens/contact_profile_screen.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
+import 'package:abyss_chat/providers/call_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:abyss_chat/widgets/abyss_snackbar.dart';
 import 'package:abyss_chat/models/message.dart';
@@ -212,17 +212,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 IconButton(
                   icon: const Icon(Icons.videocam),
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (context) => CallScreen(peer: thread.peer, isVideo: true),
-                    ));
+                    ref.read(callProvider.notifier).startCall(thread.peer, true);
                   },
                 ),
                 IconButton(
                   icon: const Icon(Icons.call),
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (context) => CallScreen(peer: thread.peer, isVideo: false),
-                    ));
+                    ref.read(callProvider.notifier).startCall(thread.peer, false);
                   },
                 ),
                 IconButton(

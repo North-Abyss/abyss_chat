@@ -148,7 +148,7 @@ jobs:
 
           # 4. Create DEBIAN Control File
           cat <<EOF > deb-package/DEBIAN/control
-          Package: abyss_chat
+          Package: abyss-chat
           Version: 1.0.0
           Section: base
           Priority: optional

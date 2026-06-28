@@ -139,7 +139,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     int threadIndex = threads.indexWhere((t) => t.id == senderId);
     
     if (threadIndex != -1) {
-      threads[threadIndex].messages.add(message);
+      final updatedMessages = List<Message>.from(threads[threadIndex].messages)..add(message);
+      threads[threadIndex] = threads[threadIndex].copyWith(messages: updatedMessages);
     } else {
       final newThread = ChatThread(
         id: senderId,
@@ -189,16 +190,18 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   }
 
   void _updateMessageStatus(String messageId, MessageStatus newStatus) {
+    if (!state.hasValue) return;
     final threads = List<ChatThread>.from(state.value!);
     bool updated = false;
     
     for (int i = 0; i < threads.length; i++) {
-      final msgs = threads[i].messages;
+      final msgs = List<Message>.from(threads[i].messages);
       for (int j = msgs.length - 1; j >= 0; j--) {
         if (msgs[j].id == messageId) {
           // Prevent downgrading status (e.g. read -> delivered)
           if (msgs[j].status != MessageStatus.read) {
             msgs[j] = msgs[j].copyWith(status: newStatus);
+            threads[i] = threads[i].copyWith(messages: msgs);
             updated = true;
           }
           break;
@@ -328,7 +331,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     final threadIndex = threads.indexWhere((t) => t.id == threadId);
     
     if (threadIndex != -1) {
-      threads[threadIndex].messages.add(msg);
+      final updatedMessages = List<Message>.from(threads[threadIndex].messages)..add(msg);
+      threads[threadIndex] = threads[threadIndex].copyWith(messages: updatedMessages);
       state = AsyncData(threads);
       ref.read(storageServiceProvider).saveThreads(threads);
       
@@ -366,18 +370,21 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
 
   void sendReadReceipt(String threadId, List<String> messageIds) {
     if (messageIds.isEmpty) return;
+    if (!state.hasValue) return;
     // Update local DB first
     final threads = List<ChatThread>.from(state.value!);
     final threadIndex = threads.indexWhere((t) => t.id == threadId);
     if (threadIndex != -1) {
       bool updated = false;
-      for (int i = 0; i < threads[threadIndex].messages.length; i++) {
-        if (messageIds.contains(threads[threadIndex].messages[i].id)) {
-          threads[threadIndex].messages[i] = threads[threadIndex].messages[i].copyWith(status: MessageStatus.read);
+      final msgs = List<Message>.from(threads[threadIndex].messages);
+      for (int i = 0; i < msgs.length; i++) {
+        if (messageIds.contains(msgs[i].id) && msgs[i].status != MessageStatus.read) {
+          msgs[i] = msgs[i].copyWith(status: MessageStatus.read);
           updated = true;
         }
       }
       if (updated) {
+        threads[threadIndex] = threads[threadIndex].copyWith(messages: msgs);
         state = AsyncData(threads);
         ref.read(storageServiceProvider).saveThreads(threads);
       }
@@ -400,6 +407,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         .toList();
     
     if (unreadIds.isNotEmpty) {
+      // Let sendReadReceipt handle the status updates since it already modifies state.
       sendReadReceipt(threadId, unreadIds);
     }
   }

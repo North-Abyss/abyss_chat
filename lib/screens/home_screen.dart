@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
 import 'package:abyss_chat/screens/chat_screen.dart';
@@ -52,6 +53,43 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showConnectByIdDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Connect to Peer'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: 'Enter Peer ID',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.tonal(
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  ref.read(chatThreadsProvider.notifier).startNewChat(controller.text.trim());
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Connect'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -148,9 +186,26 @@ class HomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.search),
             onPressed: () {},
           ),
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
-            onPressed: () => _showNearbyPeersDialog(context, ref), // TEMPORARY
+            onSelected: (value) {
+              if (value == 'scan') {
+                _showNearbyPeersDialog(context, ref);
+              } else if (value == 'connect') {
+                _showConnectByIdDialog(context, ref);
+              }
+            },
+            itemBuilder: (context) => [
+              if (!kIsWeb)
+                const PopupMenuItem(
+                  value: 'scan',
+                  child: Text('Radar (Local Scan)'),
+                ),
+              const PopupMenuItem(
+                value: 'connect',
+                child: Text('Connect via ID'),
+              ),
+            ],
           ),
         ],
       ),

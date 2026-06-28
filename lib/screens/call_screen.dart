@@ -5,7 +5,6 @@ import 'package:abyss_chat/models/call_log.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
-import 'dart:async';
 import 'package:uuid/uuid.dart';
 
 class CallScreen extends ConsumerStatefulWidget {
@@ -29,43 +28,19 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   bool _isVideoEnabled = false;
   bool _isSpeaker = false;
   
-  Timer? _timer;
-  String _timerText = '00:00';
-
   @override
   void initState() {
     super.initState();
     _isVideoEnabled = widget.isVideo;
-    
-    // Simulate answering a call or connecting after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        final notifier = ref.read(callProvider.notifier);
-        notifier.setConnected();
-        
-        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-          if (!mounted) return;
-          final callState = ref.read(callProvider);
-          if (callState?.startTime != null) {
-            final duration = DateTime.now().difference(callState!.startTime!);
-            setState(() {
-              _timerText = '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
-            });
-          }
-        });
-      }
-    });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
     super.dispose();
   }
 
   void _minimizeCall() {
     ref.read(callProvider.notifier).showMiniCall();
-    Navigator.pop(context);
   }
 
   void _endCall() {
@@ -85,10 +60,6 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     );
     ref.read(callLogsProvider.notifier).addCallLog(log);
     ref.read(callProvider.notifier).endCall();
-    
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
   }
 
   @override
@@ -137,7 +108,9 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      isConnected ? _timerText : (widget.isIncoming ? 'Incoming...' : 'Ringing...'),
+                      isConnected 
+                        ? '${(callState?.currentDuration?.inMinutes ?? 0).toString().padLeft(2, '0')}:${((callState?.currentDuration?.inSeconds ?? 0) % 60).toString().padLeft(2, '0')}' 
+                        : (widget.isIncoming ? 'Incoming...' : 'Ringing...'),
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 16,

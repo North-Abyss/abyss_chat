@@ -21,6 +21,26 @@ class ChatThread {
     this.unreadCount = 0,
   });
 
+  ChatThread copyWith({
+    String? id,
+    User? peer,
+    List<Message>? messages,
+    bool? isGroup,
+    String? groupName,
+    List<User>? members,
+    int? unreadCount,
+  }) {
+    return ChatThread(
+      id: id ?? this.id,
+      peer: peer ?? this.peer,
+      messages: messages ?? this.messages,
+      isGroup: isGroup ?? this.isGroup,
+      groupName: groupName ?? this.groupName,
+      members: members ?? this.members,
+      unreadCount: unreadCount ?? this.unreadCount,
+    );
+  }
+
   factory ChatThread.fromJson(Map<String, dynamic> json) {
     return ChatThread(
       id: json['id'],

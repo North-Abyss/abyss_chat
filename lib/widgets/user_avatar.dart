@@ -34,10 +34,16 @@ class UserAvatar extends StatelessWidget {
       children: [
         Hero(
           tag: 'avatar_${user.id}',
-          child: CircleAvatar(
-            radius: radius,
-            backgroundColor: Color(user.avatarColor),
-            backgroundImage: imageProvider,
+          child: Container(
+            width: radius * 2,
+            height: radius * 2,
+            decoration: BoxDecoration(
+              color: Color(user.avatarColor),
+              borderRadius: BorderRadius.circular(radius * 0.5),
+              image: imageProvider != null
+                  ? DecorationImage(image: imageProvider, fit: BoxFit.cover)
+                  : null,
+            ),
             child: imageProvider == null
                 ? Icon(
                     _getIconData(user.avatarIcon),
@@ -49,14 +55,14 @@ class UserAvatar extends StatelessWidget {
         ),
         if (user.isOnline)
           Positioned(
-            right: 0,
-            bottom: 0,
+            right: -2,
+            bottom: -2,
             child: Container(
-              width: radius * 0.6,
-              height: radius * 0.6,
+              width: radius * 0.7,
+              height: radius * 0.7,
               decoration: BoxDecoration(
                 color: Colors.green,
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(radius * 0.25),
                 border: Border.all(
                   color: Theme.of(context).colorScheme.surface,
                   width: 2,

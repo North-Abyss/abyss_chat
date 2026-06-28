@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/models/user.dart';
@@ -13,47 +14,90 @@ class CallSession {
   final bool isVideo;
   final CallState state;
   final DateTime? startTime;
+  final Duration? currentDuration;
 
   CallSession({
     required this.peer,
     required this.isVideo,
     this.state = CallState.idle,
     this.startTime,
+    this.currentDuration,
   });
 
-  CallSession copyWith({CallState? state, DateTime? startTime}) {
+  CallSession copyWith({CallState? state, DateTime? startTime, Duration? currentDuration}) {
     return CallSession(
       peer: peer,
       isVideo: isVideo,
       state: state ?? this.state,
       startTime: startTime ?? this.startTime,
+      currentDuration: currentDuration ?? this.currentDuration,
     );
   }
 }
 
 class CallNotifier extends Notifier<CallSession?> {
   OverlayEntry? _overlayEntry;
+  Timer? _timer;
 
   @override
   CallSession? build() => null;
 
   void startCall(User peer, bool isVideo) {
+    if (state != null) return; // Already in a call
+    
     state = CallSession(peer: peer, isVideo: isVideo, state: CallState.ringing);
+    _showFullCall();
+    
+    // Simulate answering a call or connecting after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      setConnected();
+    });
+  }
+
+  void _showFullCall() {
+    if (_overlayEntry != null) {
+      _overlayEntry!.remove();
+    }
+    
+    final context = globalNavigatorKey.currentState?.overlay?.context;
+    if (context == null || state == null) return;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => CallScreen(peer: state!.peer, isVideo: state!.isVideo),
+    );
+    globalNavigatorKey.currentState?.overlay?.insert(_overlayEntry!);
   }
 
   void setConnected() {
     if (state != null) {
-      state = state!.copyWith(state: CallState.connected, startTime: DateTime.now());
+      final startTime = DateTime.now();
+      state = state!.copyWith(state: CallState.connected, startTime: startTime, currentDuration: Duration.zero);
+      
+      _timer?.cancel();
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (state != null && state!.startTime != null) {
+          state = state!.copyWith(currentDuration: DateTime.now().difference(state!.startTime!));
+        }
+      });
     }
   }
 
   void endCall() {
+    _timer?.cancel();
+    _timer = null;
     state = null;
-    hideMiniCall();
+    if (_overlayEntry != null) {
+      _overlayEntry!.remove();
+      _overlayEntry = null;
+    }
   }
 
   void showMiniCall() {
-    if (state == null || _overlayEntry != null) return;
+    if (state == null) return;
+    
+    if (_overlayEntry != null) {
+      _overlayEntry!.remove();
+    }
     
     final context = globalNavigatorKey.currentState?.overlay?.context;
     if (context == null) return;
@@ -63,10 +107,9 @@ class CallNotifier extends Notifier<CallSession?> {
     );
     globalNavigatorKey.currentState?.overlay?.insert(_overlayEntry!);
   }
-
-  void hideMiniCall() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
+  
+  void maximizeCall() {
+    _showFullCall();
   }
 }
 
@@ -97,16 +140,8 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
           });
         },
         onTap: () {
-          // Hide overlay and push call screen back
-          ref.read(callProvider.notifier).hideMiniCall();
-          globalNavigatorKey.currentState?.push(
-            MaterialPageRoute(
-              builder: (context) => CallScreen(
-                peer: callState.peer,
-                isVideo: callState.isVideo,
-              ),
-            ),
-          );
+          // Hide overlay and show full call
+          ref.read(callProvider.notifier).maximizeCall();
         },
         child: Material(
           color: Colors.transparent,

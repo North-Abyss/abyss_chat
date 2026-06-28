@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:abyss_chat/providers/call_provider.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
-import 'package:abyss_chat/screens/call_screen.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
 import 'package:intl/intl.dart';
 
@@ -61,11 +61,10 @@ class CallLogScreen extends ConsumerWidget {
                   ],
                 ),
                 trailing: IconButton(
-                  icon: Icon(log.isVideo ? Icons.videocam : Icons.call, color: Theme.of(context).colorScheme.primary),
+                  icon: Icon(log.isVideo ? Icons.videocam : Icons.call),
+                  color: Colors.green,
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => CallScreen(peer: log.peer, isVideo: log.isVideo),
-                    ));
+                    ref.read(callProvider.notifier).startCall(log.peer, log.isVideo);
                   },
                 ),
                 onLongPress: () {

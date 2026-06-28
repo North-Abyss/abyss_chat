@@ -24,6 +24,11 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
     _myId = id;
     _myName = name;
     
+    if (kIsWeb) {
+      debugPrint('🌐 Web browser detected: Skipping mDNS broadcast.');
+      return;
+    }
+    
     if (_registration != null) {
       await unregister(_registration!);
       _registration = null;
@@ -56,6 +61,11 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
   }
 
   Future<void> startScanning(String myId) async {
+    if (kIsWeb) {
+      debugPrint('🌐 Web browser detected: Skipping mDNS scanning.');
+      return;
+    }
+
     try {
       _discovery = await startDiscovery(
         _serviceType,
