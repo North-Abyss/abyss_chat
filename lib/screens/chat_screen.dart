@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
@@ -305,6 +307,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 Color statusColor = cs.onSurfaceVariant;
                 if (isMe) {
                   switch (msg.status) {
+                    case MessageStatus.pending: statusIcon = Icons.schedule; break;
                     case MessageStatus.sending: statusIcon = Icons.schedule; break;
                     case MessageStatus.sent: statusIcon = Icons.check; break;
                     case MessageStatus.delivered: statusIcon = Icons.done_all; break;
@@ -390,7 +393,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             crossAxisAlignment: WrapCrossAlignment.end,
                             spacing: 8,
                             children: [
-                              if (msg.type == MessageType.file && msg.fileName != null)
+                              if (msg.type == MessageType.image)
+                                Container(
+                                  constraints: BoxConstraints(
+                                    maxHeight: 200,
+                                    maxWidth: MediaQuery.of(context).size.width * 0.6,
+                                  ),
+                                  margin: const EdgeInsets.only(bottom: 4),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: msg.fileData != null
+                                        ? Image.memory(base64Decode(msg.fileData!), fit: BoxFit.cover)
+                                        : (msg.localFilePath != null 
+                                            ? Image.file(File(msg.localFilePath!), fit: BoxFit.cover) 
+                                            : const Icon(Icons.broken_image)),
+                                  ),
+                                )
+                              else if (msg.type == MessageType.file && msg.fileName != null)
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
@@ -524,12 +543,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               if (result != null && result.files.single.path != null) {
                                 final path = result.files.single.path!;
                                 final name = result.files.single.name;
+                                final file = File(path);
+                                final bytes = await file.readAsBytes();
+                                
+                                if (bytes.length > 5 * 1024 * 1024) {
+                                  if (context.mounted) {
+                                    AbyssSnackBar.show(context, 'File is larger than 5MB', type: SnackBarType.error);
+                                  }
+                                  return;
+                                }
+                                
+                                final base64Data = base64Encode(bytes);
+                                final isImage = name.toLowerCase().endsWith('.png') || 
+                                                name.toLowerCase().endsWith('.jpg') || 
+                                                name.toLowerCase().endsWith('.jpeg') || 
+                                                name.toLowerCase().endsWith('.gif');
+                                
                                 ref.read(chatThreadsProvider.notifier).sendMessage(
                                   widget.threadId, 
-                                  'Sent a file', 
-                                  type: MessageType.file,
+                                  isImage ? 'Sent an image' : 'Sent a file', 
+                                  type: isImage ? MessageType.image : MessageType.file,
                                   localFilePath: path,
                                   fileName: name,
+                                  fileData: base64Data,
                                 );
                               }
                             },

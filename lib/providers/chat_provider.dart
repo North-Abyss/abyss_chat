@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/models/chat_thread.dart';
 import 'package:abyss_chat/models/message.dart';
 import 'package:abyss_chat/models/user.dart';
+import 'package:abyss_chat/screens/chat_screen.dart';
 import 'package:abyss_chat/services/peerdart_service.dart';
 import 'package:abyss_chat/services/storage_service.dart';
 import 'package:abyss_chat/services/mdns_service.dart';
@@ -36,12 +38,35 @@ class ContactsNotifier extends AsyncNotifier<List<User>> {
     contacts.removeWhere((c) => c.id == id);
     state = AsyncData(contacts);
     ref.read(storageServiceProvider).saveContacts(contacts);
+    
+    // Also delete chat thread history
+    ref.read(chatThreadsProvider.notifier).deleteThread(id);
   }
 
   void blockContact(String id) {
-    deleteContact(id); // For now, blocking just deletes
+    ref.read(blockedContactsProvider.notifier).blockPeer(id);
+    deleteContact(id); // Blocking also removes from contacts and deletes thread
   }
 }
+
+class BlockedContactsNotifier extends AsyncNotifier<List<String>> {
+  @override
+  Future<List<String>> build() async {
+    return await ref.watch(storageServiceProvider).loadBlockedPeers();
+  }
+
+  void blockPeer(String id) {
+    if (!state.hasValue) return;
+    final blocked = List<String>.from(state.value!);
+    if (!blocked.contains(id)) {
+      blocked.add(id);
+      state = AsyncData(blocked);
+      ref.read(storageServiceProvider).saveBlockedPeers(blocked);
+    }
+  }
+}
+
+final blockedContactsProvider = AsyncNotifierProvider<BlockedContactsNotifier, List<String>>(() => BlockedContactsNotifier());
 
 final contactsProvider = AsyncNotifierProvider<ContactsNotifier, List<User>>(() => ContactsNotifier());
 
@@ -122,9 +147,14 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     final sub7 = peer.onTypingReceived.listen(_handleTypingIndicator);
     final sub8 = lan.onTypingReceived.listen(_handleTypingIndicator);
     
+    // PeerDart specialized streams
+    final sub9 = peer.onConnectionOpened.listen(_handleConnectionOpened);
+    final sub10 = peer.onProfileSyncReceived.listen(_handleProfileSync);
+    
     ref.onDispose(() {
       sub1.cancel(); sub2.cancel(); sub3.cancel(); sub4.cancel();
       sub5.cancel(); sub6.cancel(); sub7.cancel(); sub8.cancel();
+      sub9.cancel(); sub10.cancel();
     });
 
     return await storage.loadThreads();
@@ -132,6 +162,11 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
 
   void _handleIncomingMessage(Message message) {
     if (!state.hasValue) return;
+    
+    final blockedList = ref.read(blockedContactsProvider).value ?? [];
+    if (blockedList.contains(message.senderId)) {
+      return; // Ignore messages from blocked peers
+    }
     
     final threads = List<ChatThread>.from(state.value!);
     final senderId = message.senderId;
@@ -171,6 +206,16 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         NotificationService.showMessageNotification(
           thread.isGroup ? (thread.groupName ?? 'Group') : thread.peer.name, 
           message.text,
+          onTap: () {
+            ref.read(selectedThreadIdProvider.notifier).select(thread.id);
+            final ctx = globalNavigatorKey.currentContext;
+            if (ctx != null) {
+              final isDesktop = MediaQuery.of(ctx).size.width >= 800;
+              if (!isDesktop) {
+                Navigator.push(ctx, MaterialPageRoute(builder: (_) => ChatScreen(threadId: thread.id)));
+              }
+            }
+          }
         );
       }
     }
@@ -193,6 +238,52 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   void _handleTypingIndicator(String peerId) {
     // We could add typing state to ChatThread here, e.g., thread.isTyping = true
     // For now, this is a placeholder where UI can watch a typing provider
+  }
+
+  void _handleConnectionOpened(String peerId) async {
+    // Send our profile
+    final myProfile = await ref.read(myProfileProvider.future);
+    if (myProfile != null) {
+      ref.read(peerServiceProvider).sendProfileSync(peerId, {
+        'name': myProfile.name,
+        'avatarIcon': myProfile.avatarIcon,
+        'avatarColor': myProfile.avatarColor,
+      });
+    } else if (_myName != null) {
+      ref.read(peerServiceProvider).sendProfileSync(peerId, {
+        'name': _myName,
+        'avatarIcon': 0xe491,
+        'avatarColor': 0xFF6750A4,
+      });
+    }
+    
+    // Flush pending queue
+    _flushQueueForPeer(peerId);
+  }
+
+  void _handleProfileSync(Map<String, dynamic> data) {
+    final peerId = data['peerId'] as String;
+    final profile = data['profile'] as Map<String, dynamic>;
+    
+    final newUser = User(
+      id: peerId,
+      name: profile['name'],
+      avatarIcon: profile['avatarIcon'],
+      avatarColor: profile['avatarColor'],
+    );
+    
+    ref.read(contactsProvider.notifier).addContact(newUser);
+    
+    // Update thread if exists
+    if (state.hasValue) {
+      final threads = List<ChatThread>.from(state.value!);
+      final threadIndex = threads.indexWhere((t) => t.id == peerId);
+      if (threadIndex != -1) {
+        threads[threadIndex] = threads[threadIndex].copyWith(peer: newUser);
+        state = AsyncData(threads);
+        ref.read(storageServiceProvider).saveThreads(threads);
+      }
+    }
   }
 
   void _updateMessageStatus(String messageId, MessageStatus newStatus) {
@@ -318,7 +409,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     sendMessage(groupId, sysMsg.text, type: MessageType.system);
   }
 
-  Future<void> sendMessage(String threadId, String text, {MessageType type = MessageType.text, String? localFilePath, String? fileName}) async {
+  Future<void> sendMessage(String threadId, String text, {MessageType type = MessageType.text, String? localFilePath, String? fileName, String? fileData}) async {
     if (!state.hasValue) return;
     
     final msg = Message(
@@ -331,6 +422,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       type: type,
       localFilePath: localFilePath,
       fileName: fileName,
+      fileData: fileData,
     );
 
     final threads = List<ChatThread>.from(state.value!);
@@ -361,10 +453,37 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         }
       }
 
-      // Update to sent or failed
-      _updateMessageStatus(msg.id, sent ? MessageStatus.sent : MessageStatus.failed);
+      // Update to sent or pending
+      _updateMessageStatus(msg.id, sent ? MessageStatus.sent : MessageStatus.pending);
+    }
+  }
+
+  Future<void> _flushQueueForPeer(String peerId) async {
+    if (!state.hasValue) return;
+    
+    final threads = List<ChatThread>.from(state.value!);
+    final threadIndex = threads.indexWhere((t) => t.id == peerId);
+    
+    if (threadIndex != -1) {
+      final thread = threads[threadIndex];
+      bool updated = false;
+      final msgs = List<Message>.from(thread.messages);
       
-      // If failed, we could add to a retry queue here
+      for (int i = 0; i < msgs.length; i++) {
+        if (msgs[i].status == MessageStatus.pending || msgs[i].status == MessageStatus.sending) {
+          final sent = ref.read(peerServiceProvider).sendMessage(peerId, msgs[i]);
+          if (sent) {
+            msgs[i] = msgs[i].copyWith(status: MessageStatus.sent);
+            updated = true;
+          }
+        }
+      }
+      
+      if (updated) {
+        threads[threadIndex] = thread.copyWith(messages: msgs);
+        state = AsyncData(threads);
+        ref.read(storageServiceProvider).saveThreads(threads);
+      }
     }
   }
 

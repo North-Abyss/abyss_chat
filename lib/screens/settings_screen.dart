@@ -5,7 +5,6 @@ import 'package:abyss_chat/providers/chat_provider.dart';
 import 'package:abyss_chat/screens/login_screen.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
 import 'package:flutter/services.dart';
-import 'package:abyss_chat/widgets/abyss_snackbar.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:abyss_chat/providers/layout_provider.dart';
@@ -271,7 +270,7 @@ class SettingsScreen extends ConsumerWidget {
                                 GestureDetector(
                                   onTap: () {
                                     Clipboard.setData(ClipboardData(text: profile.id));
-                                    AbyssSnackBar.show(context, 'Copied ID to clipboard', type: SnackBarType.success);
+                                    NotificationService.showMessageNotification('Abyss Chat', 'Copied ID to clipboard');
                                   },
                                   child: Text('#${profile.id}', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: cs.primary)),
                                 ),
@@ -353,23 +352,26 @@ class SettingsScreen extends ConsumerWidget {
                       return ListTile(
                         leading: Icon(Icons.dock, color: cs.primary),
                         title: const Text('Dock Position'),
-                        trailing: SegmentedButton<DockPosition>(
-                          segments: const [
-                            ButtonSegment(
-                              value: DockPosition.bottom,
-                              icon: Icon(Icons.margin),
-                              label: Text('Floating Bottom'),
-                            ),
-                            ButtonSegment(
-                              value: DockPosition.left,
-                              icon: Icon(Icons.vertical_align_center),
-                              label: Text('Floating Left'),
-                            ),
-                          ],
-                          selected: {layoutState.dockPosition},
-                          onSelectionChanged: (Set<DockPosition> newSelection) {
-                            ref.read(layoutProvider.notifier).setDockPosition(newSelection.first);
-                          },
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: SegmentedButton<DockPosition>(
+                            segments: const [
+                              ButtonSegment(
+                                value: DockPosition.bottom,
+                                icon: Icon(Icons.margin),
+                                label: Text('Bottom'),
+                              ),
+                              ButtonSegment(
+                                value: DockPosition.left,
+                                icon: Icon(Icons.vertical_align_center),
+                                label: Text('Left'),
+                              ),
+                            ],
+                            selected: {layoutState.dockPosition},
+                            onSelectionChanged: (Set<DockPosition> newSelection) {
+                              ref.read(layoutProvider.notifier).setDockPosition(newSelection.first);
+                            },
+                          ),
                         ),
                       );
                     },
@@ -515,7 +517,7 @@ class SettingsScreen extends ConsumerWidget {
                 trailing: const Icon(Icons.copy, size: 20),
                 onTap: () {
                   Clipboard.setData(const ClipboardData(text: 'https://github.com/North-Abyss/abyss_chat'));
-                  AbyssSnackBar.show(context, 'Repository link copied to clipboard', type: SnackBarType.success);
+                  NotificationService.showMessageNotification('App Info', 'Repository link copied to clipboard');
                 },
               ),
               ListTile(

@@ -77,7 +77,7 @@ jobs:
           $issContent = @"
           [Setup]
           AppName=Abyss Chat
-          AppVersion=1.0.0
+          AppVersion=0.0.0
           DefaultDirName={autopf}\Abyss Chat
           OutputDir=.\Output
           OutputBaseFilename=AbyssChat-Windows-Setup
@@ -152,12 +152,12 @@ jobs:
           # 4. Create DEBIAN Control File
           cat <<EOF > deb-package/DEBIAN/control
           Package: abyss-chat
-          Version: 1.0.0
+          Version: 0.0.0
           Section: base
           Priority: optional
           Architecture: amd64
           Maintainer: Abyss Chat Developer
-          Description: Abyss Chat - The Time Matrix. Track your habits beautifully.
+          Description: Abyss Chat - A secure P2P chat application.
           EOF
 
           # 5. POST-INSTALL SCRIPT (Forces Linux to refresh cache!)
@@ -171,15 +171,15 @@ jobs:
           # 6. Create Desktop Entry (Dynamic Paths!)
           cat <<EOF > deb-package/usr/share/applications/abyss_chat.desktop
           [Desktop Entry]
-          Version=1.0
+          Version=0.0.0
           Name=Abyss Chat
-          GenericName=Habit Tracker
+          GenericName=Chat Client
           Icon=abyss_chat
           Exec=abyss_chat %U
           Terminal=false
           Type=Application
           Categories=Utility;Productivity;
-          Keywords=Habit;Tracker;Productivity;Flutter;
+          Keywords=Chat;Messaging;P2P;Flutter;
           StartupWMClass=com.abyss.chat
           EOF
 

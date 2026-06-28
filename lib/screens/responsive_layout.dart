@@ -20,6 +20,17 @@ class NavigationIndexNotifier extends Notifier<int> {
 
 final navigationIndexProvider = NotifierProvider<NavigationIndexNotifier, int>(() => NavigationIndexNotifier());
 
+class LeftDockVisibilityNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  
+  void toggle() {
+    state = !state;
+  }
+}
+
+final isLeftDockVisibleProvider = NotifierProvider<LeftDockVisibilityNotifier, bool>(() => LeftDockVisibilityNotifier());
+
 class ResponsiveLayout extends ConsumerWidget {
   const ResponsiveLayout({super.key});
 
@@ -68,12 +79,14 @@ class ResponsiveLayout extends ConsumerWidget {
               ),
             ];
 
+            final isLeftDockVisible = ref.watch(isLeftDockVisibleProvider);
+
             return Scaffold(
               body: Stack(
                 children: [
                   // Main Content
                   Positioned.fill(
-                    left: isLeft && isExpanded ? 80 : 0, // Padding for left dock
+                    left: isLeft && isExpanded && isLeftDockVisible ? 80 : 0, // Padding for left dock
                     bottom: !isLeft ? 80 : 0, // Padding for bottom dock
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
@@ -82,8 +95,10 @@ class ResponsiveLayout extends ConsumerWidget {
                   ),
                   
                   // Dock
-                  Positioned(
-                    left: isLeft ? 12 : 0,
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutCubic,
+                    left: isLeft ? (isLeftDockVisible ? 12 : -100) : 0,
                     right: isLeft ? null : 0,
                     top: isLeft ? 0 : null,
                     bottom: isLeft ? 0 : 12,
@@ -97,6 +112,37 @@ class ResponsiveLayout extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  
+                  // Dock Toggle Button (Arrow)
+                  if (isLeft)
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      left: isLeftDockVisible ? 80 : 0,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: GestureDetector(
+                          onTap: () {
+                            ref.read(isLeftDockVisibleProvider.notifier).toggle();
+                          },
+                          child: Container(
+                            width: 24,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
+                              borderRadius: const BorderRadius.horizontal(right: Radius.circular(12)),
+                              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                            ),
+                            child: Icon(
+                              isLeftDockVisible ? Icons.chevron_left : Icons.chevron_right,
+                              size: 20,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             );

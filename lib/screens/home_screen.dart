@@ -11,7 +11,9 @@ import 'package:abyss_chat/services/notification_service.dart';
 import 'package:intl/intl.dart';
 import 'package:abyss_chat/screens/contact_profile_screen.dart';
 import 'package:abyss_chat/screens/create_group_screen.dart';
-
+import 'package:abyss_chat/widgets/user_search_delegate.dart';
+import 'package:abyss_chat/screens/qr_scan_screen.dart';
+import 'package:abyss_chat/screens/my_qr_screen.dart';
 class HomeScreen extends ConsumerWidget {
   final bool isDesktop;
   const HomeScreen({super.key, this.isDesktop = false});
@@ -206,12 +208,34 @@ class HomeScreen extends ConsumerWidget {
         centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.camera_alt_outlined),
-            onPressed: () {},
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const QRScanScreen()));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.qr_code_2),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const MyQRScreen()));
+            },
           ),
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () {},
+            onPressed: () async {
+              final selectedId = await showSearch(
+                context: context,
+                delegate: UserSearchDelegate(ref, isDesktop: isDesktop),
+              );
+              if (selectedId != null) {
+                if (isDesktop) {
+                  ref.read(selectedThreadIdProvider.notifier).select(selectedId);
+                } else {
+                  if (context.mounted) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(threadId: selectedId)));
+                  }
+                }
+              }
+            },
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),

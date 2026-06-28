@@ -12,6 +12,7 @@ class StorageService {
   static const String _threadsFile = 'conversations.abyss';
   static const String _contactsFile = 'contacts.abyss';
   static const String _callLogsFile = 'call_logs.abyss';
+  static const String _blockedFile = 'blocked.abyss';
 
   Future<String> _getAppDirPath() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -82,20 +83,36 @@ class StorageService {
 
   // --- Contacts ---
   Future<List<User>> loadContacts() async {
-    final jsonStr = await _readEncryptedFile(_contactsFile);
-    if (jsonStr == null) return [];
+    final data = await _readEncryptedFile(_contactsFile);
+    if (data == null) return [];
+    
     try {
-      final List<dynamic> parsed = jsonDecode(jsonStr);
-      return parsed.map((e) => User.fromJson(e)).toList();
+      final List<dynamic> jsonList = jsonDecode(data);
+      return jsonList.map((e) => User.fromJson(e as Map<String, dynamic>)).toList();
     } catch (e) {
-      debugPrint('Error parsing contacts: $e');
       return [];
     }
   }
 
   Future<void> saveContacts(List<User> contacts) async {
-    final jsonStr = jsonEncode(contacts.map((c) => c.toJson()).toList());
-    await _writeEncryptedFile(_contactsFile, jsonStr);
+    final jsonList = contacts.map((c) => c.toJson()).toList();
+    await _writeEncryptedFile(_contactsFile, jsonEncode(jsonList));
+  }
+  
+  Future<List<String>> loadBlockedPeers() async {
+    final data = await _readEncryptedFile(_blockedFile);
+    if (data == null) return [];
+    
+    try {
+      final List<dynamic> jsonList = jsonDecode(data);
+      return jsonList.cast<String>();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<void> saveBlockedPeers(List<String> blockedIds) async {
+    await _writeEncryptedFile(_blockedFile, jsonEncode(blockedIds));
   }
 
   // --- Call Logs ---

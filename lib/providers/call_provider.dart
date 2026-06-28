@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:abyss_chat/models/user.dart';
 import 'package:abyss_chat/screens/call_screen.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
@@ -54,6 +55,7 @@ class CallNotifier extends Notifier<CallSession?> {
   MediaStream? _localStream;
   RTCVideoRenderer localRenderer = RTCVideoRenderer();
   RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   CallSession? build() {
@@ -62,6 +64,7 @@ class CallNotifier extends Notifier<CallSession?> {
     ref.onDispose(() {
       localRenderer.dispose();
       remoteRenderer.dispose();
+      _audioPlayer.dispose();
     });
     
     // Subscribe to incoming calls from PeerDartService
@@ -77,11 +80,21 @@ class CallNotifier extends Notifier<CallSession?> {
     await remoteRenderer.initialize();
   }
 
+  void _playRingtone() async {
+    await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+    await _audioPlayer.play(AssetSource('audio/ringtone.wav'));
+  }
+
+  void _stopRingtone() {
+    _audioPlayer.stop();
+  }
+
   Future<void> startCall(User peer, bool isVideo) async {
     if (state != null) return; // Already in a call
     
     state = CallSession(peer: peer, isVideo: isVideo, state: CallState.ringing);
     _showFullCall();
+    _playRingtone();
     
     try {
       _localStream = await navigator.mediaDevices.getUserMedia({
@@ -132,6 +145,7 @@ class CallNotifier extends Notifier<CallSession?> {
     );
     
     _showFullCall();
+    _playRingtone();
     
     mediaConnection.on("close").listen((_) {
       endCall();
@@ -176,6 +190,7 @@ class CallNotifier extends Notifier<CallSession?> {
 
   void setConnected() {
     if (state != null) {
+      _stopRingtone();
       final startTime = DateTime.now();
       state = state!.copyWith(state: CallState.connected, startTime: startTime, currentDuration: Duration.zero);
       
@@ -191,6 +206,7 @@ class CallNotifier extends Notifier<CallSession?> {
   void endCall() {
     _timer?.cancel();
     _timer = null;
+    _stopRingtone();
     
     if (state?.mediaConnection != null) {
       state!.mediaConnection!.close();

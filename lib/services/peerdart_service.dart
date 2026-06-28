@@ -30,6 +30,12 @@ class PeerDartService {
   final StreamController<String> _typingIndicators = StreamController<String>.broadcast();
   Stream<String> get onTypingReceived => _typingIndicators.stream;
 
+  final StreamController<String> _connectionOpened = StreamController<String>.broadcast();
+  Stream<String> get onConnectionOpened => _connectionOpened.stream;
+
+  final StreamController<Map<String, dynamic>> _profileSyncs = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onProfileSyncReceived => _profileSyncs.stream;
+
   String? _myId;
   String? get myId => _myId;
 
@@ -39,7 +45,7 @@ class PeerDartService {
 
     _peer!.on("open").listen((id) {
       debugPrint('✅ Connected to Signaling Server. My ID: $id');
-      _connectionStatus.add('Connected as $id');
+      if (!_connectionStatus.isClosed) _connectionStatus.add('Connected as $id');
     });
 
     _peer!.on("connection").listen((connection) {
@@ -49,12 +55,12 @@ class PeerDartService {
 
     _peer!.on("call").listen((call) {
       debugPrint('📞 Incoming call from ${call.peer}');
-      _incomingCalls.add(call as MediaConnection);
+      if (!_incomingCalls.isClosed) _incomingCalls.add(call as MediaConnection);
     });
 
     _peer!.on("error").listen((err) {
       debugPrint('❌ Peer Error: $err');
-      _connectionStatus.add('Error: $err');
+      if (!_connectionStatus.isClosed) _connectionStatus.add('Error: $err');
     });
   }
 
@@ -71,7 +77,8 @@ class PeerDartService {
     conn.on("open").listen((_) {
       debugPrint('🤝 Data connection established with ${conn.peer}');
       _activeConnections[conn.peer] = conn;
-      _connectionStatus.add('Connected to ${conn.peer}');
+      if (!_connectionStatus.isClosed) _connectionStatus.add('Connected to ${conn.peer}');
+      if (!_connectionOpened.isClosed) _connectionOpened.add(conn.peer);
     });
 
     conn.on("data").listen((data) {
@@ -81,7 +88,7 @@ class PeerDartService {
 
         if (type == 'p2p_message') {
           final msg = Message.fromJson(decoded['payload']);
-          _incomingMessages.add(msg);
+          if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
           // Auto-send delivery receipt
           _sendPayload(conn.peer, {
             'type': 'delivery_receipt',
@@ -89,11 +96,13 @@ class PeerDartService {
             'peerId': _myId,
           });
         } else if (type == 'delivery_receipt') {
-          _deliveryReceipts.add(decoded);
+          if (!_deliveryReceipts.isClosed) _deliveryReceipts.add(decoded);
         } else if (type == 'read_receipt') {
-          _readReceipts.add(decoded);
+          if (!_readReceipts.isClosed) _readReceipts.add(decoded);
         } else if (type == 'typing') {
-          _typingIndicators.add(decoded['peerId']);
+          if (!_typingIndicators.isClosed) _typingIndicators.add(decoded['peerId']);
+        } else if (type == 'profile_sync') {
+          if (!_profileSyncs.isClosed) _profileSyncs.add(decoded);
         }
       } catch (e) {
         debugPrint('Error parsing incoming P2P data: $e');
@@ -146,6 +155,14 @@ class PeerDartService {
     });
   }
 
+  void sendProfileSync(String peerId, Map<String, dynamic> profileData) {
+    _sendPayload(peerId, {
+      'type': 'profile_sync',
+      'peerId': _myId,
+      'profile': profileData,
+    });
+  }
+
   MediaConnection? makeCall(String peerId, MediaStream stream) {
     if (_peer == null) return null;
     debugPrint('🎥 Initiating call to $peerId...');
@@ -160,5 +177,7 @@ class PeerDartService {
     _deliveryReceipts.close();
     _readReceipts.close();
     _typingIndicators.close();
+    _connectionOpened.close();
+    _profileSyncs.close();
   }
 }

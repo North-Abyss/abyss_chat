@@ -1,5 +1,5 @@
 enum MessageType { text, system, image, file, audio }
-enum MessageStatus { sending, sent, delivered, read, failed }
+enum MessageStatus { pending, sending, sent, delivered, read, failed }
 
 class Message {
   final String id;
@@ -11,6 +11,7 @@ class Message {
   final MessageType type;
   final String? localFilePath;
   final String? fileName;
+  final String? fileData;
 
   Message({
     required this.id,
@@ -22,6 +23,7 @@ class Message {
     this.type = MessageType.text,
     this.localFilePath,
     this.fileName,
+    this.fileData,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -41,6 +43,7 @@ class Message {
       ),
       localFilePath: json['localFilePath'],
       fileName: json['fileName'],
+      fileData: json['fileData'],
     );
   }
 
@@ -55,6 +58,7 @@ class Message {
       'type': type.name,
       'localFilePath': localFilePath,
       'fileName': fileName,
+      'fileData': fileData,
     };
   }
 

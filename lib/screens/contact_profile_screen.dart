@@ -76,16 +76,56 @@ class ContactProfileScreen extends ConsumerWidget {
                   leading: const Icon(Icons.block, color: Colors.red),
                   title: const Text('Block contact', style: TextStyle(color: Colors.red)),
                   onTap: () {
-                    ref.read(contactsProvider.notifier).blockContact(peer.id);
-                    Navigator.pop(context);
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Block contact?'),
+                        content: Text('Are you sure you want to block ${peer.name}? You will no longer receive messages from them.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                            onPressed: () {
+                              ref.read(contactsProvider.notifier).blockContact(peer.id);
+                              Navigator.pop(context); // Close dialog
+                              Navigator.pop(context); // Close profile
+                            },
+                            child: const Text('Block'),
+                          ),
+                        ],
+                      ),
+                    );
                   },
                 ),
                 ListTile(
                   leading: const Icon(Icons.delete, color: Colors.red),
                   title: const Text('Delete contact', style: TextStyle(color: Colors.red)),
                   onTap: () {
-                    ref.read(contactsProvider.notifier).deleteContact(peer.id);
-                    Navigator.pop(context);
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Delete contact?'),
+                        content: Text('Are you sure you want to delete ${peer.name}? This will also delete your entire chat history with them.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                            onPressed: () {
+                              ref.read(contactsProvider.notifier).deleteContact(peer.id);
+                              Navigator.pop(context); // Close dialog
+                              Navigator.pop(context); // Close profile
+                            },
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
                   },
                 ),
                 const SizedBox(height: 32),

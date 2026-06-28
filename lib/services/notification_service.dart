@@ -1,24 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
 
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
 class NotificationService {
-  static void showMessageNotification(String senderName, String message) {
-    final overlayState = globalNavigatorKey.currentState?.overlay;
-    if (overlayState == null) return;
+  static final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  static bool _initialized = false;
 
-    OverlayEntry? entry;
-
-    entry = OverlayEntry(
-      builder: (context) => SlidableNotificationWidget(
-        senderName: senderName,
-        message: message,
-        onDismiss: () {
-          entry?.remove();
-        },
-      ),
+  static Future<void> initialize() async {
+    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const LinuxInitializationSettings linuxSettings = LinuxInitializationSettings(defaultActionName: 'Open notification');
+    const DarwinInitializationSettings darwinSettings = DarwinInitializationSettings();
+    
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidSettings,
+      linux: linuxSettings,
+      macOS: darwinSettings,
+      iOS: darwinSettings,
     );
+    
+    await _plugin.initialize(
+      settings: initSettings,
+    );
+    _initialized = true;
+  }
 
-    overlayState.insert(entry);
+  static void showMessageNotification(String title, String body, {VoidCallback? onTap}) async {
+    if (!_initialized) {
+      await initialize();
+    }
+    
+    try {
+      const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+        'abyss_chat_messages',
+        'Messages',
+        importance: Importance.high,
+        priority: Priority.high,
+      );
+      const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+      
+      await _plugin.show(
+        id: DateTime.now().millisecond,
+        title: title,
+        body: body,
+        notificationDetails: platformDetails,
+      );
+    } catch (e) {
+      // Fallback to in-app if system notification fails (e.g. web or unconfigured platform)
+      final overlayState = globalNavigatorKey.currentState?.overlay;
+      if (overlayState == null) return;
+
+      OverlayEntry? entry;
+      entry = OverlayEntry(
+        builder: (context) => SlidableNotificationWidget(
+          senderName: title,
+          message: body,
+          onTap: onTap,
+          onDismiss: () {
+            entry?.remove();
+          },
+        ),
+      );
+      overlayState.insert(entry);
+    }
   }
 }
 
@@ -26,12 +70,14 @@ class SlidableNotificationWidget extends StatefulWidget {
   final String senderName;
   final String message;
   final VoidCallback onDismiss;
+  final VoidCallback? onTap;
 
   const SlidableNotificationWidget({
     super.key,
     required this.senderName,
     required this.message,
     required this.onDismiss,
+    this.onTap,
   });
 
   @override
@@ -93,6 +139,12 @@ class _SlidableNotificationWidgetState extends State<SlidableNotificationWidget>
         child: SlideTransition(
           position: _offsetAnimation,
           child: GestureDetector(
+            onTap: () {
+              if (widget.onTap != null) {
+                widget.onTap!();
+              }
+              _dismiss();
+            },
             onHorizontalDragEnd: (details) {
               if (details.primaryVelocity != null && details.primaryVelocity! > 0) {
                 // Swipe right to dismiss
