@@ -134,7 +134,7 @@ class HomeScreen extends ConsumerWidget {
             children: [
               const Text('Abyss Chat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
               if (myId != null) 
-                Text('ID: $myId', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: Colors.white70)),
+                Text('ID: $myId', style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ],
           ),
         ),

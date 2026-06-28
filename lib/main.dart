@@ -167,7 +167,7 @@ class AbyssApp extends ConsumerWidget {
       dividerTheme: DividerThemeData(
         color: colorScheme.outlineVariant.withValues(alpha: 0.3),
       ),
-      textTheme: GoogleFonts.interTextTheme(
+      textTheme: GoogleFonts.comfortaaTextTheme(
         ThemeData(brightness: brightness).textTheme,
       ),
     );

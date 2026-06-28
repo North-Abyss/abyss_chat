@@ -141,7 +141,7 @@ jobs:
 
           # 2. Copy App Bundle & Icon
           cp -R build/linux/x64/release/bundle/* deb-package/usr/lib/abyss_chat/
-          cp assets/icon.png deb-package/usr/share/pixmaps/abyss_chat.png
+          cp assets/abyss-chat.png deb-package/usr/share/pixmaps/abyss_chat.png
 
           # 3. Create the global system command! 
           ln -s /usr/lib/abyss_chat/abyss_chat deb-package/usr/bin/abyss_chat

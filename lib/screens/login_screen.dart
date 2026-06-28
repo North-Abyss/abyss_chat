@@ -89,10 +89,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  Icons.public,
-                  size: 80,
-                  color: Theme.of(context).colorScheme.primary,
+                Image.asset(
+                  'assets/abyss-chat.png',
+                  height: 80,
+                  width: 80,
                 ),
                 const SizedBox(height: 24),
                 Text(

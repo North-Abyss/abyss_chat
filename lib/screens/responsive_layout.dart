@@ -6,6 +6,7 @@ import 'package:abyss_chat/screens/home_screen.dart';
 import 'package:abyss_chat/screens/chat_screen.dart';
 import 'package:abyss_chat/screens/settings_screen.dart';
 import 'package:abyss_chat/screens/call_log_screen.dart';
+import 'package:abyss_chat/widgets/floating_dock.dart';
 
 class NavigationIndexNotifier extends Notifier<int> {
   @override
@@ -35,87 +36,67 @@ class ResponsiveLayout extends ConsumerWidget {
             final isExpanded = width >= 840;
             final isTwoPane = isExpanded || (isMedium && width > 700);
 
-            if (layoutState.dockPosition == DockPosition.left) {
-              return Scaffold(
-                body: Row(
-                  children: [
-                    NavigationRail(
-                      extended: isExpanded,
-                      selectedIndex: tabIndex,
-                      onDestinationSelected: (idx) {
-                        ref.read(navigationIndexProvider.notifier).setIndex(idx);
-                      },
-                      labelType: isExpanded ? NavigationRailLabelType.none : NavigationRailLabelType.all,
-                      destinations: const [
-                        NavigationRailDestination(
-                          icon: Icon(Icons.chat_bubble_outline),
-                          selectedIcon: Icon(Icons.chat_bubble),
-                          label: Text('Chats'),
-                        ),
-                        NavigationRailDestination(
-                          icon: Icon(Icons.call_outlined),
-                          selectedIcon: Icon(Icons.call),
-                          label: Text('Calls'),
-                        ),
-                        NavigationRailDestination(
-                          icon: Icon(Icons.show_chart_outlined),
-                          selectedIcon: Icon(Icons.show_chart),
-                          label: Text('Activity'),
-                        ),
-                        NavigationRailDestination(
-                          icon: Icon(Icons.settings_outlined),
-                          selectedIcon: Icon(Icons.settings),
-                          label: Text('Settings'),
-                        ),
-                      ],
+            final isLeft = layoutState.dockPosition == DockPosition.left;
+            
+            final dockItems = [
+              FloatingDockItem(
+                icon: Icons.chat_bubble_outline,
+                selectedIcon: Icons.chat_bubble,
+                label: 'Chats',
+                onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(0),
+              ),
+              FloatingDockItem(
+                icon: Icons.call_outlined,
+                selectedIcon: Icons.call,
+                label: 'Calls',
+                onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(1),
+              ),
+              FloatingDockItem(
+                icon: Icons.show_chart_outlined,
+                selectedIcon: Icons.show_chart,
+                label: 'Activity',
+                onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(2),
+              ),
+              FloatingDockItem(
+                icon: Icons.settings_outlined,
+                selectedIcon: Icons.settings,
+                label: 'Settings',
+                onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(3),
+              ),
+            ];
+
+            return Scaffold(
+              body: Stack(
+                children: [
+                  // Main Content
+                  Positioned.fill(
+                    left: isLeft && isExpanded ? 80 : 0, // Padding for left dock
+                    bottom: !isLeft ? 80 : 0, // Padding for bottom dock
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: _buildContent(tabIndex, ref, context, isTwoPane),
                     ),
-                    VerticalDivider(width: 1, thickness: 1, color: Theme.of(context).dividerColor),
-                    Expanded(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 250),
-                        child: _buildContent(tabIndex, ref, context, isTwoPane),
+                  ),
+                  
+                  // Dock
+                  Positioned(
+                    left: isLeft ? 12 : 0,
+                    right: isLeft ? null : 0,
+                    top: isLeft ? 0 : null,
+                    bottom: isLeft ? 0 : 12,
+                    child: Center(
+                      child: SafeArea(
+                        child: FloatingDock(
+                          items: dockItems,
+                          selectedIndex: tabIndex,
+                          isVertical: isLeft,
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              );
-            } else {
-              // Bottom Dock
-              return Scaffold(
-                body: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  child: _buildContent(tabIndex, ref, context, isTwoPane),
-                ),
-                bottomNavigationBar: NavigationBar(
-                  selectedIndex: tabIndex,
-                  onDestinationSelected: (idx) {
-                    ref.read(navigationIndexProvider.notifier).setIndex(idx);
-                  },
-                  destinations: const [
-                    NavigationDestination(
-                      icon: Icon(Icons.chat_bubble_outline),
-                      selectedIcon: Icon(Icons.chat_bubble),
-                      label: 'Chats',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.call_outlined),
-                      selectedIcon: Icon(Icons.call),
-                      label: 'Calls',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.show_chart_outlined),
-                      selectedIcon: Icon(Icons.show_chart),
-                      label: 'Activity',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.settings_outlined),
-                      selectedIcon: Icon(Icons.settings),
-                      label: 'Settings',
-                    ),
-                  ],
-                ),
-              );
-            }
+                  ),
+                ],
+              ),
+            );
           },
         );
       },

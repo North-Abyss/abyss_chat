@@ -356,13 +356,13 @@ class SettingsScreen extends ConsumerWidget {
                           segments: const [
                             ButtonSegment(
                               value: DockPosition.bottom,
-                              label: Text('Bottom'),
-                              icon: Icon(Icons.border_bottom),
+                              icon: Icon(Icons.margin),
+                              label: Text('Floating Bottom'),
                             ),
                             ButtonSegment(
                               value: DockPosition.left,
-                              label: Text('Left'),
-                              icon: Icon(Icons.vertical_split),
+                              icon: Icon(Icons.vertical_align_center),
+                              label: Text('Floating Left'),
                             ),
                           ],
                           selected: {layoutState.dockPosition},

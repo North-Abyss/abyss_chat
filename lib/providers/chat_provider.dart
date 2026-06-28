@@ -412,6 +412,38 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     ref.read(storageServiceProvider).saveThreads(threads);
   }
 
+  void deleteMessages(String threadId, List<String> messageIds) {
+    if (!state.hasValue) return;
+    final threads = List<ChatThread>.from(state.value!);
+    final threadIndex = threads.indexWhere((t) => t.id == threadId);
+    if (threadIndex != -1) {
+      final oldThread = threads[threadIndex];
+      final newMessages = oldThread.messages.where((m) => !messageIds.contains(m.id)).toList();
+      threads[threadIndex] = ChatThread(
+        id: oldThread.id,
+        peer: oldThread.peer,
+        messages: newMessages,
+        isGroup: oldThread.isGroup,
+        groupName: oldThread.groupName,
+        members: oldThread.members,
+      );
+      state = AsyncData(threads);
+      ref.read(storageServiceProvider).saveThreads(threads);
+    }
+  }
+
+  void forwardMessages(String targetThreadId, List<Message> messages) {
+    for (final msg in messages) {
+      sendMessage(
+        targetThreadId,
+        msg.text,
+        type: msg.type,
+        localFilePath: msg.localFilePath,
+        fileName: msg.fileName,
+      );
+    }
+  }
+
   void clearMessages(String threadId) {
     if (!state.hasValue) return;
     final threads = List<ChatThread>.from(state.value!);
