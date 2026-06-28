@@ -174,11 +174,22 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     final now = DateTime.now();
     for (final thread in threads) {
       if (thread.messages.any((m) => m.status == MessageStatus.pending)) {
-        final lastAttempt = _lastConnectAttempt[thread.id];
-        // Only try to reconnect if we haven't tried in the last 30 seconds
-        if (lastAttempt == null || now.difference(lastAttempt).inSeconds > 30) {
-          _lastConnectAttempt[thread.id] = now;
-          connectToPeer(thread.id);
+        if (thread.isGroup) {
+          for (final member in thread.members) {
+            if (member.id != myId) {
+              final lastAttempt = _lastConnectAttempt[member.id];
+              if (lastAttempt == null || now.difference(lastAttempt).inSeconds > 30) {
+                _lastConnectAttempt[member.id] = now;
+                connectToPeer(member.id);
+              }
+            }
+          }
+        } else {
+          final lastAttempt = _lastConnectAttempt[thread.id];
+          if (lastAttempt == null || now.difference(lastAttempt).inSeconds > 30) {
+            _lastConnectAttempt[thread.id] = now;
+            connectToPeer(thread.id);
+          }
         }
         _flushQueueForPeer(thread.id);
       }
@@ -490,20 +501,22 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       
       bool sent = false;
       
-      // Try LAN first
-      sent = ref.read(lanMessengerProvider).sendMessage(threadId, msg);
-      
-      // Try WebRTC if LAN failed
-      if (!sent) {
-        if (threads[threadIndex].isGroup) {
-          for (final member in threads[threadIndex].members) {
-            if (member.id != myId) {
-               final memberSent = ref.read(peerServiceProvider).sendMessage(member.id, msg);
-               if (memberSent) sent = true;
+      if (thread.isGroup) {
+        for (final member in thread.members) {
+          if (member.id != myId) {
+            bool memberSent = ref.read(lanMessengerProvider).sendMessage(member.id, msg);
+            if (!memberSent) {
+              memberSent = ref.read(peerServiceProvider).sendMessage(member.id, msg);
             }
+            if (memberSent) sent = true;
           }
-        } else {
-           sent = ref.read(peerServiceProvider).sendMessage(threadId, msg);
+        }
+      } else {
+        // Try LAN first
+        sent = ref.read(lanMessengerProvider).sendMessage(threadId, msg);
+        // Try WebRTC if LAN failed
+        if (!sent) {
+          sent = ref.read(peerServiceProvider).sendMessage(threadId, msg);
         }
       }
 
@@ -525,7 +538,24 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       
       for (int i = 0; i < msgs.length; i++) {
         if (msgs[i].status == MessageStatus.pending || msgs[i].status == MessageStatus.sending) {
-          final sent = ref.read(peerServiceProvider).sendMessage(peerId, msgs[i]);
+          bool sent = false;
+          if (thread.isGroup) {
+            for (final member in thread.members) {
+              if (member.id != myId) {
+                bool memberSent = ref.read(lanMessengerProvider).sendMessage(member.id, msgs[i]);
+                if (!memberSent) {
+                  memberSent = ref.read(peerServiceProvider).sendMessage(member.id, msgs[i]);
+                }
+                if (memberSent) sent = true;
+              }
+            }
+          } else {
+            sent = ref.read(lanMessengerProvider).sendMessage(peerId, msgs[i]);
+            if (!sent) {
+              sent = ref.read(peerServiceProvider).sendMessage(peerId, msgs[i]);
+            }
+          }
+          
           if (sent) {
             msgs[i] = msgs[i].copyWith(status: MessageStatus.sent);
             updated = true;
@@ -542,9 +572,22 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   }
 
   void sendTypingIndicator(String threadId) {
-    // Send to LAN and WebRTC
-    ref.read(lanMessengerProvider).sendTypingIndicator(threadId);
-    ref.read(peerServiceProvider).sendTypingIndicator(threadId);
+    if (!state.hasValue) return;
+    final threads = state.value!;
+    final thread = threads.firstWhere((t) => t.id == threadId, orElse: () => threads.first);
+    final myId = ref.read(peerServiceProvider).myId ?? 'me';
+    
+    if (thread.isGroup) {
+      for (final member in thread.members) {
+        if (member.id != myId) {
+          ref.read(lanMessengerProvider).sendTypingIndicator(member.id);
+          ref.read(peerServiceProvider).sendTypingIndicator(member.id);
+        }
+      }
+    } else {
+      ref.read(lanMessengerProvider).sendTypingIndicator(threadId);
+      ref.read(peerServiceProvider).sendTypingIndicator(threadId);
+    }
   }
 
   void sendReadReceipt(String threadId, List<String> messageIds) {
@@ -553,9 +596,11 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     // Update local DB first
     final threads = List<ChatThread>.from(state.value!);
     final threadIndex = threads.indexWhere((t) => t.id == threadId);
+    ChatThread? thread;
     if (threadIndex != -1) {
+      thread = threads[threadIndex];
       bool updated = false;
-      final msgs = List<Message>.from(threads[threadIndex].messages);
+      final msgs = List<Message>.from(thread.messages);
       for (int i = 0; i < msgs.length; i++) {
         if (messageIds.contains(msgs[i].id) && msgs[i].status != MessageStatus.read) {
           msgs[i] = msgs[i].copyWith(status: MessageStatus.read);
@@ -563,15 +608,25 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         }
       }
       if (updated) {
-        threads[threadIndex] = threads[threadIndex].copyWith(messages: msgs);
+        threads[threadIndex] = thread.copyWith(messages: msgs);
         state = AsyncData(threads);
         ref.read(storageServiceProvider).saveThreads(threads);
       }
     }
     
+    final myId = ref.read(peerServiceProvider).myId ?? 'me';
     // Send over network
-    ref.read(lanMessengerProvider).sendReadReceipt(threadId, messageIds);
-    ref.read(peerServiceProvider).sendReadReceipt(threadId, messageIds);
+    if (thread != null && thread.isGroup) {
+      for (final member in thread.members) {
+        if (member.id != myId) {
+          ref.read(lanMessengerProvider).sendReadReceipt(member.id, messageIds);
+          ref.read(peerServiceProvider).sendReadReceipt(member.id, messageIds);
+        }
+      }
+    } else {
+      ref.read(lanMessengerProvider).sendReadReceipt(threadId, messageIds);
+      ref.read(peerServiceProvider).sendReadReceipt(threadId, messageIds);
+    }
   }
 
   void markAllRead(String threadId) {

@@ -182,7 +182,7 @@ class CallNotifier extends Notifier<CallSession?> {
       state: CallState.ringing,
     );
     
-    _showFullCall();
+    _showFullCall(isIncoming: true);
     _playRingtone();
   }
 
@@ -213,7 +213,7 @@ class CallNotifier extends Notifier<CallSession?> {
         mediaConnection: mediaConnection,
       );
       
-      _showFullCall();
+      _showFullCall(isIncoming: true);
       _playRingtone();
     }
     
@@ -244,7 +244,7 @@ class CallNotifier extends Notifier<CallSession?> {
     }
   }
 
-  void _showFullCall() {
+  void _showFullCall({bool isIncoming = false}) {
     if (_overlayEntry != null) {
       _overlayEntry!.remove();
     }
@@ -253,7 +253,7 @@ class CallNotifier extends Notifier<CallSession?> {
     if (context == null || state == null) return;
 
     _overlayEntry = OverlayEntry(
-      builder: (context) => CallScreen(peer: state!.peer, isVideo: state!.isVideo),
+      builder: (context) => CallScreen(peer: state!.peer, isVideo: state!.isVideo, isIncoming: isIncoming),
     );
     globalNavigatorKey.currentState?.overlay?.insert(_overlayEntry!);
   }
