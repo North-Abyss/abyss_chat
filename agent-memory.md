@@ -155,3 +155,9 @@ abyss_chat/
   - Image URLs render inline.
   - Video URLs (`.mp4`, `.webm`) render a playable inline video widget.
 - **Web Fallback Improvements**: Added a manual entry text field to the Web QR screen, and a `CircularProgressIndicator` for the mobile camera initialization phase.
+
+### 2026-06-28 — Session 5 (Group UI & Call Fixes)
+- **P2P Group Chat**: Fixed group message routing by injecting a `groupId` into the message payload. Fixed background queue connecting loop that erroneously attempted WebRTC peer connections against the Group UUID rather than iterating through its members.
+- **Group Creation UX**: Users can now instantly create a group by providing just a name, and dynamically add members later using the new "Add Participants" sheet inside Group Info.
+- **Call Screen Fixes**: Fixed a bug where incoming calls failed to display Answer/Decline buttons because the overlay lacked the `isIncoming = true` boolean flag. Group video calls are temporarily disabled in the UI to ensure 1-on-1 P2P call stability.
+- **Connection Stability**: Fixed the internal `peerId` routing loop. Calling `ref.invalidate()` on core providers now completely resets Bad State errors on logout or account deletion.
