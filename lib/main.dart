@@ -64,9 +64,9 @@ class AbyssApp extends ConsumerWidget {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.surface,
+      scaffoldBackgroundColor: colorScheme.surfaceContainerLowest,
       appBarTheme: AppBarTheme(
-        backgroundColor: colorScheme.surface,
+        backgroundColor: colorScheme.surfaceContainerLowest,
         foregroundColor: colorScheme.onSurface,
         elevation: 0,
         scrolledUnderElevation: 2,
@@ -76,18 +76,56 @@ class AbyssApp extends ConsumerWidget {
         color: colorScheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: colorScheme.surfaceContainerHigh,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colorScheme.surfaceContainerLow,
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: colorScheme.inverseSurface,
+        contentTextStyle: TextStyle(color: colorScheme.onInverseSurface),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        behavior: SnackBarBehavior.floating,
+      ),
+      listTileTheme: ListTileThemeData(
+        selectedTileColor: colorScheme.secondaryContainer,
+        selectedColor: colorScheme.onSecondaryContainer,
+        iconColor: colorScheme.onSurfaceVariant,
+        textColor: colorScheme.onSurface,
+      ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: colorScheme.surface,
-        indicatorColor: colorScheme.secondaryContainer,
+        backgroundColor: colorScheme.surfaceContainer,
+        indicatorColor: colorScheme.primaryContainer,
+        labelTextStyle: WidgetStatePropertyAll(
+          TextStyle(color: colorScheme.onSurface, fontSize: 12, fontWeight: FontWeight.w500),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return IconThemeData(color: colorScheme.onPrimaryContainer);
+          }
+          return IconThemeData(color: colorScheme.onSurfaceVariant);
+        }),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       ),
       navigationRailTheme: NavigationRailThemeData(
-        backgroundColor: colorScheme.surface,
-        indicatorColor: colorScheme.secondaryContainer,
+        backgroundColor: colorScheme.surfaceContainerLow,
+        indicatorColor: colorScheme.primaryContainer,
+        selectedIconTheme: IconThemeData(color: colorScheme.onPrimaryContainer),
+        unselectedIconTheme: IconThemeData(color: colorScheme.onSurfaceVariant),
+        selectedLabelTextStyle: TextStyle(color: colorScheme.onSurface, fontSize: 12, fontWeight: FontWeight.w500),
+        unselectedLabelTextStyle: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: colorScheme.primaryContainer,
         foregroundColor: colorScheme.onPrimaryContainer,
+        elevation: 3,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -96,6 +134,35 @@ class AbyssApp extends ConsumerWidget {
           borderRadius: BorderRadius.circular(24),
           borderSide: BorderSide.none,
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: colorScheme.surfaceContainerHigh,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 3,
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: colorScheme.surfaceContainerHighest,
+        selectedColor: colorScheme.secondaryContainer,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        side: BorderSide.none,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return colorScheme.onPrimary;
+          return colorScheme.outline;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return colorScheme.primary;
+          return colorScheme.surfaceContainerHighest;
+        }),
       ),
       dividerTheme: DividerThemeData(
         color: colorScheme.outlineVariant.withValues(alpha: 0.3),

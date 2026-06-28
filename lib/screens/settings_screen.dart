@@ -6,7 +6,11 @@ import 'package:abyss_chat/screens/login_screen.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
 import 'package:flutter/services.dart';
 import 'package:abyss_chat/widgets/abyss_snackbar.dart';
+import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:abyss_chat/providers/layout_provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -34,6 +38,52 @@ class SettingsScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (profile.profileImagePath != null) ...[
+                      const Text('Profile Photo', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundImage: FileImage(File(profile.profileImagePath!)),
+                          ),
+                          Positioned(
+                            right: -10,
+                            top: -10,
+                            child: IconButton(
+                              icon: const Icon(Icons.remove_circle, color: Colors.red),
+                              onPressed: () {
+                                ref.read(chatThreadsProvider.notifier).updateMyProfile(nameController.text, selectedIcon, selectedColor, removeImage: true);
+                                Navigator.pop(context);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    FilledButton.icon(
+                      onPressed: () async {
+                        String? imagePath;
+                        if (Platform.isAndroid || Platform.isIOS) {
+                          final picker = ImagePicker();
+                          final xfile = await picker.pickImage(source: ImageSource.gallery);
+                          imagePath = xfile?.path;
+                        } else {
+                          final result = await FilePicker.pickFiles(type: FileType.image);
+                          imagePath = result?.files.single.path;
+                        }
+
+                        if (imagePath != null) {
+                          final savedPath = await ref.read(storageServiceProvider).saveProfileImage(profile.id, File(imagePath));
+                          ref.read(chatThreadsProvider.notifier).updateMyProfile(nameController.text, selectedIcon, selectedColor, newImagePath: savedPath);
+                          if (context.mounted) Navigator.pop(context);
+                        }
+                      },
+                      icon: const Icon(Icons.upload),
+                      label: const Text('Upload Photo'),
+                    ),
+                    const SizedBox(height: 24),
                     TextField(
                       controller: nameController,
                       decoration: const InputDecoration(labelText: 'Display Name'),
@@ -284,6 +334,50 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const Divider(),
               const SizedBox(height: 16),
+
+              // Layout Section
+              Text(
+                'Layout',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: cs.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Consumer(
+                builder: (context, ref, child) {
+                  final layoutStateAsync = ref.watch(layoutProvider);
+                  return layoutStateAsync.when(
+                    data: (layoutState) {
+                      return ListTile(
+                        leading: Icon(Icons.dock, color: cs.primary),
+                        title: const Text('Dock Position'),
+                        trailing: SegmentedButton<DockPosition>(
+                          segments: const [
+                            ButtonSegment(
+                              value: DockPosition.bottom,
+                              label: Text('Bottom'),
+                              icon: Icon(Icons.border_bottom),
+                            ),
+                            ButtonSegment(
+                              value: DockPosition.left,
+                              label: Text('Left'),
+                              icon: Icon(Icons.vertical_split),
+                            ),
+                          ],
+                          selected: {layoutState.dockPosition},
+                          onSelectionChanged: (Set<DockPosition> newSelection) {
+                            ref.read(layoutProvider.notifier).setDockPosition(newSelection.first);
+                          },
+                        ),
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, s) => Text('Error: $e'),
+                  );
+                },
+              ),
+              const Divider(height: 32),
 
               // Color Palette
               Text(

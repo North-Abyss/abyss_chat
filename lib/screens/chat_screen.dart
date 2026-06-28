@@ -9,6 +9,8 @@ import 'package:abyss_chat/screens/contact_profile_screen.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
 import 'package:flutter/services.dart';
 import 'package:abyss_chat/widgets/abyss_snackbar.dart';
+import 'package:abyss_chat/models/message.dart';
+import 'package:file_picker/file_picker.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String threadId;
@@ -30,9 +32,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     _textController.addListener(() {
-      setState(() {
-        _hasText = _textController.text.trim().isNotEmpty;
-      });
+      final textNotEmpty = _textController.text.trim().isNotEmpty;
+      if (textNotEmpty != _hasText) {
+        setState(() {
+          _hasText = textNotEmpty;
+        });
+      }
+      if (textNotEmpty) {
+        ref.read(chatThreadsProvider.notifier).sendTypingIndicator(widget.threadId);
+      }
     });
   }
 
@@ -139,6 +147,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         body: const Center(child: Text('Thread not found')),
       );
     }
+    
+    // Mark as read when viewed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(chatThreadsProvider.notifier).markAllRead(widget.threadId);
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -250,7 +265,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               itemCount: thread.messages.length,
               itemBuilder: (context, index) {
                 final msg = thread.messages[index];
-                final isMe = msg.senderId == 'me';
+                final isMe = msg.senderId == ref.read(chatThreadsProvider.notifier).myId;
 
                 // System messages
                 if (msg.type.name == 'system') {
@@ -265,6 +280,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: Text(msg.text, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
                     ),
                   );
+                }
+
+                IconData statusIcon = Icons.schedule;
+                Color statusColor = cs.onSurfaceVariant;
+                if (isMe) {
+                  switch (msg.status) {
+                    case MessageStatus.sending: statusIcon = Icons.schedule; break;
+                    case MessageStatus.sent: statusIcon = Icons.check; break;
+                    case MessageStatus.delivered: statusIcon = Icons.done_all; break;
+                    case MessageStatus.read: 
+                      statusIcon = Icons.done_all; 
+                      statusColor = Colors.blue; 
+                      break;
+                    case MessageStatus.failed: 
+                      statusIcon = Icons.error_outline; 
+                      statusColor = Colors.red;
+                      break;
+                  }
                 }
 
                 return GestureDetector(
@@ -335,13 +368,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             crossAxisAlignment: WrapCrossAlignment.end,
                             spacing: 8,
                             children: [
-                              Text(
-                                msg.text,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: isMe ? cs.onPrimaryContainer : cs.onSurface,
+                              if (msg.type == MessageType.file && msg.fileName != null)
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: isMe ? cs.onPrimaryContainer.withValues(alpha: 0.1) : cs.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.insert_drive_file, color: isMe ? cs.onPrimaryContainer : cs.onSurface),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          msg.fileName!,
+                                          style: TextStyle(
+                                            color: isMe ? cs.onPrimaryContainer : cs.onSurface,
+                                            decoration: TextDecoration.underline,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                Text(
+                                  msg.text,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: isMe ? cs.onPrimaryContainer : cs.onSurface,
+                                  ),
                                 ),
-                              ),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -357,9 +416,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                   if (isMe) ...[
                                     const SizedBox(width: 3),
                                     Icon(
-                                      msg.isRead ? Icons.done_all : Icons.done,
+                                      statusIcon,
                                       size: 14,
-                                      color: msg.isRead ? cs.primary : cs.onSurfaceVariant,
+                                      color: statusColor,
                                     ),
                                   ],
                                 ],
@@ -414,8 +473,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           IconButton(
                             icon: const Icon(Icons.attach_file),
                             color: cs.onSurfaceVariant,
-                            onPressed: () {
-                              AbyssSnackBar.show(context, 'Attachments coming soon', type: SnackBarType.info);
+                            onPressed: () async {
+                              final result = await FilePicker.pickFiles();
+                              if (result != null && result.files.single.path != null) {
+                                final path = result.files.single.path!;
+                                final name = result.files.single.name;
+                                ref.read(chatThreadsProvider.notifier).sendMessage(
+                                  widget.threadId, 
+                                  'Sent a file', 
+                                  type: MessageType.file,
+                                  localFilePath: path,
+                                  fileName: name,
+                                );
+                              }
                             },
                           ),
                           IconButton(

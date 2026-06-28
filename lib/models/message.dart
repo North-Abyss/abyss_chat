@@ -1,4 +1,5 @@
-enum MessageType { text, system }
+enum MessageType { text, system, image, file, audio }
+enum MessageStatus { sending, sent, delivered, read, failed }
 
 class Message {
   final String id;
@@ -6,8 +7,10 @@ class Message {
   final String? senderName;
   final String text;
   final DateTime timestamp;
-  final bool isRead;
+  final MessageStatus status;
   final MessageType type;
+  final String? localFilePath;
+  final String? fileName;
 
   Message({
     required this.id,
@@ -15,8 +18,10 @@ class Message {
     this.senderName,
     required this.text,
     required this.timestamp,
-    this.isRead = false,
+    this.status = MessageStatus.sending,
     this.type = MessageType.text,
+    this.localFilePath,
+    this.fileName,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -26,11 +31,16 @@ class Message {
       senderName: json['senderName'],
       text: json['text'],
       timestamp: DateTime.parse(json['timestamp']),
-      isRead: json['isRead'] ?? false,
+      status: MessageStatus.values.firstWhere(
+        (e) => e.name == (json['status'] ?? 'sent'), // default to sent for old messages
+        orElse: () => json['isRead'] == true ? MessageStatus.read : MessageStatus.sent,
+      ),
       type: MessageType.values.firstWhere(
         (e) => e.name == (json['type'] ?? 'text'),
         orElse: () => MessageType.text,
       ),
+      localFilePath: json['localFilePath'],
+      fileName: json['fileName'],
     );
   }
 
@@ -41,8 +51,27 @@ class Message {
       'senderName': senderName,
       'text': text,
       'timestamp': timestamp.toIso8601String(),
-      'isRead': isRead,
+      'status': status.name,
       'type': type.name,
+      'localFilePath': localFilePath,
+      'fileName': fileName,
     };
+  }
+
+  Message copyWith({
+    MessageStatus? status,
+    String? localFilePath,
+  }) {
+    return Message(
+      id: id,
+      senderId: senderId,
+      senderName: senderName,
+      text: text,
+      timestamp: timestamp,
+      status: status ?? this.status,
+      type: type,
+      localFilePath: localFilePath ?? this.localFilePath,
+      fileName: fileName,
+    );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/models/chat_thread.dart';
 import 'package:abyss_chat/models/message.dart';
@@ -91,6 +92,7 @@ final myProfileProvider = FutureProvider<User?>((ref) async {
     name: data['name'],
     avatarIcon: data['avatarIcon'],
     avatarColor: data['avatarColor'],
+    profileImagePath: data['profileImagePath'],
   );
 });
 
@@ -105,22 +107,25 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     final peer = ref.watch(peerServiceProvider);
     final lan = ref.watch(lanMessengerProvider);
     
-    // Listen for real incoming WebRTC messages
-    final sub1 = peer.onMessageReceived.listen((message) {
-      _handleIncomingMessage(message);
-    });
+    // Message streams
+    final sub1 = peer.onMessageReceived.listen(_handleIncomingMessage);
+    final sub2 = lan.onMessageReceived.listen(_handleIncomingMessage);
     
-    // Listen for incoming LAN TCP messages
-    final sub2 = lan.onMessageReceived.listen((message) {
-      _handleIncomingMessage(message);
-    });
+    // Receipt streams
+    final sub3 = peer.onDeliveryReceipt.listen(_handleDeliveryReceipt);
+    final sub4 = lan.onDeliveryReceipt.listen(_handleDeliveryReceipt);
+    final sub5 = peer.onReadReceipt.listen(_handleReadReceipt);
+    final sub6 = lan.onReadReceipt.listen(_handleReadReceipt);
+    
+    // Typing indicator streams
+    final sub7 = peer.onTypingReceived.listen(_handleTypingIndicator);
+    final sub8 = lan.onTypingReceived.listen(_handleTypingIndicator);
     
     ref.onDispose(() {
-      sub1.cancel();
-      sub2.cancel();
+      sub1.cancel(); sub2.cancel(); sub3.cancel(); sub4.cancel();
+      sub5.cancel(); sub6.cancel(); sub7.cancel(); sub8.cancel();
     });
 
-    // Load persisted threads from disk
     return await storage.loadThreads();
   }
 
@@ -129,18 +134,21 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     
     final threads = List<ChatThread>.from(state.value!);
     final senderId = message.senderId;
+    final currentSelectedId = ref.read(selectedThreadIdProvider);
     
-    // Find if we already have a thread with this peer
-    int threadIndex = threads.indexWhere((t) => t.peer.id == senderId);
+    int threadIndex = threads.indexWhere((t) => t.id == senderId);
     
     if (threadIndex != -1) {
-      // Append message
       threads[threadIndex].messages.add(message);
     } else {
-      // Create new thread automatically when we receive a message from unknown peer
       final newThread = ChatThread(
-        id: senderId, // Use their UUID as the thread ID
-        peer: User(id: senderId, name: 'Peer $senderId', avatarIcon: 0xe491, avatarColor: 0xFF6750A4),
+        id: senderId,
+        peer: User(
+          id: senderId, 
+          name: message.senderName ?? 'Peer $senderId', 
+          avatarIcon: 0xe491, 
+          avatarColor: 0xFF6750A4
+        ),
         messages: [message],
       );
       threads.insert(0, newThread);
@@ -149,9 +157,10 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     state = AsyncData(threads);
     ref.read(storageServiceProvider).saveThreads(threads);
     
-    // Show notification if this thread is not actively open
-    final currentSelectedId = ref.read(selectedThreadIdProvider);
-    if (currentSelectedId != senderId) {
+    // Send Read Receipt if currently viewing this thread
+    if (currentSelectedId == senderId) {
+      sendReadReceipt(senderId, [message.id]);
+    } else {
       final thread = threads.firstWhere((t) => t.id == senderId);
       NotificationService.showMessageNotification(
         thread.isGroup ? (thread.groupName ?? 'Group') : thread.peer.name, 
@@ -160,23 +169,62 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     }
   }
 
-  /// Initialize the local peer and connect to signaling
+  void _handleDeliveryReceipt(Map<String, dynamic> receipt) {
+    if (!state.hasValue) return;
+    final messageId = receipt['messageId'];
+    _updateMessageStatus(messageId, MessageStatus.delivered);
+  }
+
+  void _handleReadReceipt(Map<String, dynamic> receipt) {
+    if (!state.hasValue) return;
+    final messageIds = List<String>.from(receipt['messageIds']);
+    for (final msgId in messageIds) {
+      _updateMessageStatus(msgId, MessageStatus.read);
+    }
+  }
+
+  void _handleTypingIndicator(String peerId) {
+    // We could add typing state to ChatThread here, e.g., thread.isTyping = true
+    // For now, this is a placeholder where UI can watch a typing provider
+  }
+
+  void _updateMessageStatus(String messageId, MessageStatus newStatus) {
+    final threads = List<ChatThread>.from(state.value!);
+    bool updated = false;
+    
+    for (int i = 0; i < threads.length; i++) {
+      final msgs = threads[i].messages;
+      for (int j = msgs.length - 1; j >= 0; j--) {
+        if (msgs[j].id == messageId) {
+          // Prevent downgrading status (e.g. read -> delivered)
+          if (msgs[j].status != MessageStatus.read) {
+            msgs[j] = msgs[j].copyWith(status: newStatus);
+            updated = true;
+          }
+          break;
+        }
+      }
+      if (updated) break;
+    }
+    
+    if (updated) {
+      state = AsyncData(threads);
+      ref.read(storageServiceProvider).saveThreads(threads);
+    }
+  }
+
   Future<void> initializePeer(String? customId, String myName) async {
     _myName = myName;
     await ref.read(peerServiceProvider).initialize(customId);
     
-    // Start LAN Server
     final lanPort = await ref.read(lanMessengerProvider).startServer(customId ?? 'unknown');
     
-    // Start mDNS
     final mdnsNotifier = ref.read(nearbyPeersProvider.notifier);
     await mdnsNotifier.startBroadcasting(myId ?? 'unknown', myName, port: lanPort);
     await mdnsNotifier.startScanning(myId ?? 'unknown');
   }
 
-  /// Connect to a remote peer (starts WebRTC handshake + LAN TCP if available)
   Future<void> connectToPeer(String peerId) async {
-    // Check if peer is on LAN
     final mdnsPeers = ref.read(nearbyPeersProvider);
     final lanPeer = mdnsPeers.where((p) => p.id == peerId).firstOrNull;
     
@@ -190,21 +238,29 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     }
   }
 
-  Future<void> updateMyProfile(String name, int iconCodePoint, int colorValue) async {
+  Future<void> updateMyProfile(String name, int iconCodePoint, int colorValue, {String? newImagePath, bool removeImage = false}) async {
     final storage = ref.read(storageServiceProvider);
-    await storage.saveUserProfile(myId ?? '', name, avatarIcon: iconCodePoint, avatarColor: colorValue);
+    
+    String? finalImagePath;
+    if (newImagePath != null) {
+      finalImagePath = newImagePath;
+    } else if (removeImage) {
+      finalImagePath = null;
+    } else {
+      final oldProfile = await storage.loadUserProfile();
+      finalImagePath = oldProfile?['profileImagePath'];
+    }
+
+    await storage.saveUserProfile(myId ?? '', name, avatarIcon: iconCodePoint, avatarColor: colorValue, profileImagePath: finalImagePath);
     
     _myName = name;
     
-    // Refresh mDNS with new name
     final mdnsNotifier = ref.read(nearbyPeersProvider.notifier);
     await mdnsNotifier.startBroadcasting(myId ?? 'unknown', name);
     
-    // Invalidate profile provider so UI updates
     ref.invalidate(myProfileProvider);
   }
   
-  /// Start a new chat manually
   void startNewChat(String peerId, {String? peerName}) {
     if (!state.hasValue) return;
     final threads = List<ChatThread>.from(state.value!);
@@ -228,7 +284,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     final groupId = const Uuid().v4();
     final groupThread = ChatThread(
       id: groupId,
-      peer: User(id: groupId, name: groupName, avatarIcon: 0xe886, avatarColor: 0xFF2E7D32), // default group icon/color
+      peer: User(id: groupId, name: groupName, avatarIcon: 0xe886, avatarColor: 0xFF2E7D32),
       messages: [],
       isGroup: true,
       groupName: groupName,
@@ -239,10 +295,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     state = AsyncData(threads);
     ref.read(storageServiceProvider).saveThreads(threads);
     
-    // Auto-select the new group
     ref.read(selectedThreadIdProvider.notifier).select(groupId);
     
-    // System message to group
     final sysMsg = Message(
       id: const Uuid().v4(),
       senderId: myId ?? 'me',
@@ -250,19 +304,24 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       text: 'Group "$groupName" created',
       timestamp: DateTime.now(),
       type: MessageType.system,
+      status: MessageStatus.sent,
     );
-    sendMessage(groupId, sysMsg.text);
+    sendMessage(groupId, sysMsg.text, type: MessageType.system);
   }
 
-  Future<void> sendMessage(String threadId, String text) async {
+  Future<void> sendMessage(String threadId, String text, {MessageType type = MessageType.text, String? localFilePath, String? fileName}) async {
     if (!state.hasValue) return;
     
     final msg = Message(
       id: const Uuid().v4(),
       senderId: ref.read(peerServiceProvider).myId ?? 'me',
+      senderName: _myName ?? 'Me',
       text: text,
       timestamp: DateTime.now(),
-      isRead: false,
+      status: MessageStatus.sending, // Initial status
+      type: type,
+      localFilePath: localFilePath,
+      fileName: fileName,
     );
 
     final threads = List<ChatThread>.from(state.value!);
@@ -271,26 +330,77 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     if (threadIndex != -1) {
       threads[threadIndex].messages.add(msg);
       state = AsyncData(threads);
-      
-      // Save to disk
       ref.read(storageServiceProvider).saveThreads(threads);
       
-      // Try LAN first
-      final sentViaLan = ref.read(lanMessengerProvider).sendMessage(threadId, msg);
+      bool sent = false;
       
-      // Send over WebRTC if LAN fails
-      if (!sentViaLan) {
+      // Try LAN first
+      sent = ref.read(lanMessengerProvider).sendMessage(threadId, msg);
+      
+      // Try WebRTC if LAN failed
+      if (!sent) {
         if (threads[threadIndex].isGroup) {
-          // Send to all members
           for (final member in threads[threadIndex].members) {
             if (member.id != myId) {
-               ref.read(peerServiceProvider).sendMessage(member.id, msg);
+               final memberSent = ref.read(peerServiceProvider).sendMessage(member.id, msg);
+               if (memberSent) sent = true;
             }
           }
         } else {
-           ref.read(peerServiceProvider).sendMessage(threadId, msg);
+           sent = ref.read(peerServiceProvider).sendMessage(threadId, msg);
         }
       }
+
+      // Update to sent or failed
+      _updateMessageStatus(msg.id, sent ? MessageStatus.sent : MessageStatus.failed);
+      
+      // If failed, we could add to a retry queue here
+    }
+  }
+
+  void sendTypingIndicator(String threadId) {
+    // Send to LAN and WebRTC
+    ref.read(lanMessengerProvider).sendTypingIndicator(threadId);
+    ref.read(peerServiceProvider).sendTypingIndicator(threadId);
+  }
+
+  void sendReadReceipt(String threadId, List<String> messageIds) {
+    if (messageIds.isEmpty) return;
+    // Update local DB first
+    final threads = List<ChatThread>.from(state.value!);
+    final threadIndex = threads.indexWhere((t) => t.id == threadId);
+    if (threadIndex != -1) {
+      bool updated = false;
+      for (int i = 0; i < threads[threadIndex].messages.length; i++) {
+        if (messageIds.contains(threads[threadIndex].messages[i].id)) {
+          threads[threadIndex].messages[i] = threads[threadIndex].messages[i].copyWith(status: MessageStatus.read);
+          updated = true;
+        }
+      }
+      if (updated) {
+        state = AsyncData(threads);
+        ref.read(storageServiceProvider).saveThreads(threads);
+      }
+    }
+    
+    // Send over network
+    ref.read(lanMessengerProvider).sendReadReceipt(threadId, messageIds);
+    ref.read(peerServiceProvider).sendReadReceipt(threadId, messageIds);
+  }
+
+  void markAllRead(String threadId) {
+    if (!state.hasValue) return;
+    final threads = List<ChatThread>.from(state.value!);
+    final thread = threads.firstWhere((t) => t.id == threadId, orElse: () => threads.first); // fallback
+    if (thread.id != threadId) return;
+
+    final unreadIds = thread.messages
+        .where((m) => m.senderId != myId && m.status != MessageStatus.read)
+        .map((m) => m.id)
+        .toList();
+    
+    if (unreadIds.isNotEmpty) {
+      sendReadReceipt(threadId, unreadIds);
     }
   }
 
@@ -319,8 +429,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   }
 }
 
-final chatThreadsProvider =
-    AsyncNotifierProvider<ChatThreadsNotifier, List<ChatThread>>(() {
+final chatThreadsProvider = AsyncNotifierProvider<ChatThreadsNotifier, List<ChatThread>>(() {
   return ChatThreadsNotifier();
 });
 

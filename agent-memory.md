@@ -90,6 +90,12 @@ abyss_chat/
 
 ---
 
+## 🔗 Reference Repositories
+
+- [Trackify-Flutter](https://github.com/North-Abyss/Trackify-Flutter) — Reference for GitHub actions and git sync files.
+
+---
+
 ## 🔄 Session Log
 
 ### 2026-06-27 — Session 1

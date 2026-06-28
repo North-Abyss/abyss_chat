@@ -1,47 +1,137 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:abyss_chat/models/chat_thread.dart';
 import 'package:abyss_chat/models/user.dart';
 import 'package:abyss_chat/models/call_log.dart';
+import 'package:abyss_chat/services/crypto_service.dart';
 
 class StorageService {
-  static const String _threadsKey = 'abyss_chat_threads';
-  static const String _contactsKey = 'abyss_chat_contacts';
-  static const String _callLogsKey = 'abyss_chat_call_logs';
+  static const String _threadsFile = 'conversations.abyss';
+  static const String _contactsFile = 'contacts.abyss';
+  static const String _callLogsFile = 'call_logs.abyss';
 
-  Future<List<ChatThread>> loadThreads() async {
+  Future<String> _getAppDirPath() async {
+    final dir = await getApplicationDocumentsDirectory();
+    final abyssDir = Directory('${dir.path}/AbyssChat');
+    if (!await abyssDir.exists()) {
+      await abyssDir.create(recursive: true);
+    }
+    return abyssDir.path;
+  }
+
+  Future<File> _getFile(String filename) async {
+    final path = await _getAppDirPath();
+    return File('$path/$filename');
+  }
+
+  Future<String?> _readEncryptedFile(String filename) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? contents = prefs.getString(_threadsKey);
-      if (contents == null || contents.isEmpty) {
-        return [];
-      }
-      
-      final List<dynamic> parsed = jsonDecode(contents);
+      final file = await _getFile(filename);
+      if (!await file.exists()) return null;
+      final ciphertext = await file.readAsString();
+      if (ciphertext.isEmpty) return null;
+      return CryptoService.decryptData(ciphertext);
+    } catch (e) {
+      debugPrint('Error reading encrypted file $filename: $e');
+      return null;
+    }
+  }
+
+  Future<void> _writeEncryptedFile(String filename, String plaintext) async {
+    try {
+      final file = await _getFile(filename);
+      final ciphertext = CryptoService.encryptData(plaintext);
+      await file.writeAsString(ciphertext);
+    } catch (e) {
+      debugPrint('Error writing encrypted file $filename: $e');
+    }
+  }
+
+  // --- Threads ---
+  Future<List<ChatThread>> loadThreads() async {
+    final jsonStr = await _readEncryptedFile(_threadsFile);
+    if (jsonStr == null) return [];
+    try {
+      final List<dynamic> parsed = jsonDecode(jsonStr);
       return parsed.map((e) => ChatThread.fromJson(e)).toList();
     } catch (e) {
-      debugPrint('Error loading data from SharedPreferences: $e');
+      debugPrint('Error parsing threads: $e');
       return [];
     }
   }
 
   Future<void> saveThreads(List<ChatThread> threads) async {
+    final jsonStr = jsonEncode(threads.map((t) => t.toJson()).toList());
+    await _writeEncryptedFile(_threadsFile, jsonStr);
+  }
+
+  // --- Contacts ---
+  Future<List<User>> loadContacts() async {
+    final jsonStr = await _readEncryptedFile(_contactsFile);
+    if (jsonStr == null) return [];
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final String jsonStr = jsonEncode(threads.map((t) => t.toJson()).toList());
-      await prefs.setString(_threadsKey, jsonStr);
+      final List<dynamic> parsed = jsonDecode(jsonStr);
+      return parsed.map((e) => User.fromJson(e)).toList();
     } catch (e) {
-      debugPrint('Error saving data to SharedPreferences: $e');
+      debugPrint('Error parsing contacts: $e');
+      return [];
     }
   }
 
-  Future<void> saveUserProfile(String id, String name, {int avatarIcon = 0xe491, int avatarColor = 0xFF6750A4}) async {
+  Future<void> saveContacts(List<User> contacts) async {
+    final jsonStr = jsonEncode(contacts.map((c) => c.toJson()).toList());
+    await _writeEncryptedFile(_contactsFile, jsonStr);
+  }
+
+  // --- Call Logs ---
+  Future<List<CallLog>> loadCallLogs() async {
+    final jsonStr = await _readEncryptedFile(_callLogsFile);
+    if (jsonStr == null) return [];
+    try {
+      final List<dynamic> parsed = jsonDecode(jsonStr);
+      return parsed.map((e) => CallLog.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('Error parsing call logs: $e');
+      return [];
+    }
+  }
+
+  Future<void> saveCallLogs(List<CallLog> logs) async {
+    final jsonStr = jsonEncode(logs.map((l) => l.toJson()).toList());
+    await _writeEncryptedFile(_callLogsFile, jsonStr);
+  }
+
+  // --- Profile Image ---
+  Future<String> saveProfileImage(String userId, File imageFile) async {
+    final path = await _getAppDirPath();
+    final profileDir = Directory('$path/profiles');
+    if (!await profileDir.exists()) {
+      await profileDir.create(recursive: true);
+    }
+    
+    // We get file extension
+    final ext = imageFile.path.split('.').last;
+    final targetPath = '${profileDir.path}/$userId.$ext';
+    
+    await imageFile.copy(targetPath);
+    return targetPath;
+  }
+
+  // --- User Profile (Unencrypted/Prefs) ---
+  Future<void> saveUserProfile(String id, String name, {int avatarIcon = 0xe491, int avatarColor = 0xFF6750A4, String? profileImagePath}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('my_id', id);
     await prefs.setString('my_name', name);
     await prefs.setInt('my_avatar_icon', avatarIcon);
     await prefs.setInt('my_avatar_color', avatarColor);
+    if (profileImagePath != null) {
+      await prefs.setString('my_profile_image', profileImagePath);
+    } else {
+      await prefs.remove('my_profile_image');
+    }
   }
 
   Future<Map<String, dynamic>?> loadUserProfile() async {
@@ -50,51 +140,21 @@ class StorageService {
     final name = prefs.getString('my_name');
     final icon = prefs.getInt('my_avatar_icon') ?? 0xe491;
     final color = prefs.getInt('my_avatar_color') ?? 0xFF6750A4;
+    final imagePath = prefs.getString('my_profile_image');
     
     if (id != null && name != null) {
       if (id.startsWith('#')) {
         id = id.substring(1);
-        await saveUserProfile(id, name, avatarIcon: icon, avatarColor: color);
+        await saveUserProfile(id, name, avatarIcon: icon, avatarColor: color, profileImagePath: imagePath);
       }
       return {
         'id': id, 
         'name': name,
         'avatarIcon': icon,
         'avatarColor': color,
+        'profileImagePath': imagePath,
       };
     }
     return null;
-  }
-
-  // Contacts
-  Future<List<User>> loadContacts() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString(_contactsKey);
-    if (jsonString == null) return [];
-    
-    final List<dynamic> jsonList = jsonDecode(jsonString);
-    return jsonList.map((e) => User.fromJson(e)).toList();
-  }
-
-  Future<void> saveContacts(List<User> contacts) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonList = contacts.map((c) => c.toJson()).toList();
-    await prefs.setString(_contactsKey, jsonEncode(jsonList));
-  }
-
-  // Call Logs
-  Future<List<CallLog>> loadCallLogs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString(_callLogsKey);
-    if (jsonString == null) return [];
-    
-    final List<dynamic> jsonList = jsonDecode(jsonString);
-    return jsonList.map((e) => CallLog.fromJson(e)).toList();
-  }
-
-  Future<void> saveCallLogs(List<CallLog> logs) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonList = logs.map((l) => l.toJson()).toList();
-    await prefs.setString(_callLogsKey, jsonEncode(jsonList));
   }
 }

@@ -5,6 +5,7 @@ import 'package:abyss_chat/providers/chat_provider.dart';
 import 'package:abyss_chat/screens/responsive_layout.dart';
 import 'package:abyss_chat/widgets/abyss_snackbar.dart';
 import 'dart:math';
+import 'package:abyss_chat/services/crypto_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -60,6 +61,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final storage = ref.read(storageServiceProvider);
       await storage.saveUserProfile(_myHash, name);
+      
+      await CryptoService.init(_myHash);
       
       await ref.read(chatThreadsProvider.notifier).initializePeer(_myHash, name);
       

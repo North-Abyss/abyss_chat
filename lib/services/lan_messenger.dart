@@ -15,6 +15,15 @@ class LanMessenger {
   final StreamController<String> _connectionStatus = StreamController<String>.broadcast();
   Stream<String> get onConnectionStatus => _connectionStatus.stream;
 
+  final StreamController<Map<String, dynamic>> _deliveryReceipts = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onDeliveryReceipt => _deliveryReceipts.stream;
+
+  final StreamController<Map<String, dynamic>> _readReceipts = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onReadReceipt => _readReceipts.stream;
+
+  final StreamController<String> _typingIndicators = StreamController<String>.broadcast();
+  Stream<String> get onTypingReceived => _typingIndicators.stream;
+
   String? _myId;
   int _port = 45886; // Dedicated port for Abyss TCP messaging
 
@@ -68,25 +77,39 @@ class LanMessenger {
       final String decodedData = utf8.decode(data);
       buffer += decodedData;
       
-      // Split by newline (if messages are newline-delimited)
       final messages = buffer.split('\n');
-      buffer = messages.removeLast(); // keep incomplete part
+      buffer = messages.removeLast(); 
       
       for (final jsonStr in messages) {
         if (jsonStr.trim().isEmpty) continue;
         
         try {
           final decoded = jsonDecode(jsonStr);
+          final type = decoded['type'];
           
-          if (decoded['type'] == 'handshake') {
+          if (type == 'handshake') {
             final remoteId = decoded['peerId'];
             _activeSockets[remoteId] = socket;
             _connectionStatus.add('LAN Connected to $remoteId');
             debugPrint('🤝 Handshake complete with $remoteId');
-          } else if (decoded['type'] == 'p2p_message') {
+          } else if (type == 'p2p_message') {
             final msg = Message.fromJson(decoded['payload']);
             _incomingMessages.add(msg);
+            
+            // Auto-send delivery receipt
+            final remoteId = msg.senderId;
+            _sendPayload(remoteId, {
+              'type': 'delivery_receipt',
+              'messageId': msg.id,
+              'peerId': _myId,
+            });
             debugPrint('📨 Received LAN message from ${msg.senderId}');
+          } else if (type == 'delivery_receipt') {
+            _deliveryReceipts.add(decoded);
+          } else if (type == 'read_receipt') {
+            _readReceipts.add(decoded);
+          } else if (type == 'typing') {
+            _typingIndicators.add(decoded['peerId']);
           }
         } catch (e) {
           debugPrint('Error parsing LAN message: $e');
@@ -111,19 +134,41 @@ class LanMessenger {
     _activeSockets.removeWhere((key, value) => value == socket);
   }
 
-  bool sendMessage(String peerId, Message message) {
+  bool _sendPayload(String peerId, Map<String, dynamic> payload) {
     final socket = _activeSockets[peerId];
     if (socket != null) {
-      final payload = jsonEncode({
-        'type': 'p2p_message',
-        'payload': message.toJson(),
-      });
-      socket.writeln(payload);
+      socket.writeln(jsonEncode(payload));
       socket.flush();
+      return true;
+    }
+    return false;
+  }
+
+  bool sendMessage(String peerId, Message message) {
+    final success = _sendPayload(peerId, {
+      'type': 'p2p_message',
+      'payload': message.toJson(),
+    });
+    if (success) {
       debugPrint('📤 Sent LAN message to $peerId');
       return true;
     }
     return false;
+  }
+
+  void sendReadReceipt(String peerId, List<String> messageIds) {
+    _sendPayload(peerId, {
+      'type': 'read_receipt',
+      'messageIds': messageIds,
+      'peerId': _myId,
+    });
+  }
+
+  void sendTypingIndicator(String peerId) {
+    _sendPayload(peerId, {
+      'type': 'typing',
+      'peerId': _myId,
+    });
   }
 
   void dispose() {
@@ -134,5 +179,9 @@ class LanMessenger {
     _activeSockets.clear();
     _incomingMessages.close();
     _connectionStatus.close();
+    _deliveryReceipts.close();
+    _readReceipts.close();
+    _typingIndicators.close();
   }
 }
+

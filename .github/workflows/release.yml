@@ -1,0 +1,200 @@
+name: Abyss Chat Cloud Compiler
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ==========================================
+  # 🤖 JOB 1: ANDROID (Universal & Split APKs)
+  # ==========================================
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Universal APK
+        run: flutter build apk --release
+
+      - name: Build Split APKs
+        run: flutter build apk --split-per-abi --release
+
+      - name: Upload APKs to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: CHANGELOG.md
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            build/app/outputs/flutter-apk/app-x86_64-release.apk
+
+  # ==========================================
+  # 🪟 JOB 2: WINDOWS (.exe & .zip)
+  # ==========================================
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install Inno Setup
+        run: choco install innosetup
+
+      - name: Build Windows Native App
+        run: |
+          flutter pub get
+          flutter build windows --release
+
+      - name: Create Portable Zip
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath abyss-chat-windows-portable.zip
+
+      - name: Package into .exe Installer
+        run: |
+          $issContent = @"
+          [Setup]
+          AppName=Abyss Chat
+          AppVersion=1.0.0
+          DefaultDirName={autopf}\Abyss Chat
+          OutputDir=.\Output
+          OutputBaseFilename=AbyssChat-Windows-Setup
+          Compression=lzma
+          SolidCompression=yes
+          SetupIconFile=windows\runner\resources\app_icon.ico
+          
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+          
+          [Icons]
+          Name: "{autoprograms}\Abyss Chat"; Filename: "{app}\abyss_chat.exe"
+          Name: "{autodesktop}\Abyss Chat"; Filename: "{app}\abyss_chat.exe"
+          "@
+          
+          Set-Content -Path installer.iss -Value $issContent
+          iscc installer.iss
+
+      - name: Upload Windows Assets to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: CHANGELOG.md
+          files: |
+            Output/AbyssChat-Windows-Setup.exe
+            abyss-chat-windows-portable.zip
+
+  # ==========================================
+  # 🐧 JOB 3: LINUX (.deb & .zip)
+  # ==========================================
+  build-linux-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Linux Build Dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y clang cmake git ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev zip
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Build Flutter Linux App
+        run: |
+          flutter pub get
+          flutter build linux --release
+
+      - name: Create Portable Zip
+        run: |
+          cd build/linux/x64/release/bundle
+          zip -r ../../../../../abyss-chat-linux-portable.zip .
+          cd -
+      
+      - name: Package .deb file
+        run: |
+          # 1. Scaffold directories
+          mkdir -p deb-package/usr/lib/abyss_chat
+          mkdir -p deb-package/usr/bin
+          mkdir -p deb-package/usr/share/applications
+          mkdir -p deb-package/usr/share/pixmaps
+          mkdir -p deb-package/DEBIAN
+
+          # 2. Copy App Bundle & Icon
+          cp -R build/linux/x64/release/bundle/* deb-package/usr/lib/abyss_chat/
+          cp assets/icon.png deb-package/usr/share/pixmaps/abyss_chat.png
+
+          # 3. Create the global system command! 
+          ln -s /usr/lib/abyss_chat/abyss_chat deb-package/usr/bin/abyss_chat
+
+          # 4. Create DEBIAN Control File
+          cat <<EOF > deb-package/DEBIAN/control
+          Package: abyss_chat
+          Version: 1.0.0
+          Section: base
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Abyss Chat Developer
+          Description: Abyss Chat - The Time Matrix. Track your habits beautifully.
+          EOF
+
+          # 5. POST-INSTALL SCRIPT (Forces Linux to refresh cache!)
+          cat <<EOF > deb-package/DEBIAN/postinst
+          #!/bin/sh
+          chmod 755 /usr/lib/abyss_chat/abyss_chat
+          update-desktop-database -q || true
+          gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
+          EOF
+
+          # 6. Create Desktop Entry (Dynamic Paths!)
+          cat <<EOF > deb-package/usr/share/applications/abyss_chat.desktop
+          [Desktop Entry]
+          Version=1.0
+          Name=Abyss Chat
+          GenericName=Habit Tracker
+          Icon=abyss_chat
+          Exec=abyss_chat %U
+          Terminal=false
+          Type=Application
+          Categories=Utility;Productivity;
+          Keywords=Habit;Tracker;Productivity;Flutter;
+          StartupWMClass=com.abyss.chat
+          EOF
+
+          # 7. STRICT PERMISSION LOCKDOWN
+          chmod 755 deb-package/DEBIAN
+          chmod 644 deb-package/DEBIAN/control
+          chmod 755 deb-package/DEBIAN/postinst
+          chmod -R 755 deb-package/usr/lib/abyss_chat/
+          chmod 644 deb-package/usr/share/pixmaps/abyss_chat.png
+          chmod 644 deb-package/usr/share/applications/abyss_chat.desktop
+
+          # 8. Build the package
+          dpkg-deb --build deb-package abyss-chat-linux-x64.deb
+
+      - name: Upload Linux Assets to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: CHANGELOG.md
+          files: |
+            abyss-chat-linux-x64.deb
+            abyss-chat-linux-portable.zip

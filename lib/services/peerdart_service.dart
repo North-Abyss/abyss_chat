@@ -10,7 +10,7 @@ class PeerDartService {
   Peer? _peer;
   final Map<String, DataConnection> _activeConnections = {};
   
-  // Stream controller to broadcast incoming messages to Riverpod
+  // Stream controllers for different events
   final StreamController<Message> _incomingMessages = StreamController<Message>.broadcast();
   Stream<Message> get onMessageReceived => _incomingMessages.stream;
 
@@ -20,14 +20,21 @@ class PeerDartService {
   final StreamController<MediaConnection> _incomingCalls = StreamController<MediaConnection>.broadcast();
   Stream<MediaConnection> get onCallReceived => _incomingCalls.stream;
 
+  // New streams for receipts and typing
+  final StreamController<Map<String, dynamic>> _deliveryReceipts = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onDeliveryReceipt => _deliveryReceipts.stream;
+
+  final StreamController<Map<String, dynamic>> _readReceipts = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onReadReceipt => _readReceipts.stream;
+
+  final StreamController<String> _typingIndicators = StreamController<String>.broadcast();
+  Stream<String> get onTypingReceived => _typingIndicators.stream;
+
   String? _myId;
   String? get myId => _myId;
 
-  /// Initializes the local peer with a specific UUID or generates one
   Future<void> initialize([String? customId]) async {
-    _myId = customId ?? const Uuid().v4().substring(0, 8); // Short ID for ease of use
-    
-    // Connect to the free public PeerJS signaling server
+    _myId = customId ?? const Uuid().v4().substring(0, 8);
     _peer = Peer(id: _myId);
 
     _peer!.on("open").listen((id) {
@@ -51,9 +58,9 @@ class PeerDartService {
     });
   }
 
-  /// Connects to a remote peer using their UUID
   void connectToPeer(String peerId) {
     if (_peer == null) return;
+    if (_activeConnections.containsKey(peerId) && _activeConnections[peerId]!.open) return;
     
     debugPrint('🔄 Attempting to connect to $peerId...');
     final conn = _peer!.connect(peerId);
@@ -68,12 +75,25 @@ class PeerDartService {
     });
 
     conn.on("data").listen((data) {
-      debugPrint('📨 Received raw data from ${conn.peer}: $data');
       try {
         final decoded = jsonDecode(data.toString());
-        if (decoded['type'] == 'p2p_message') {
+        final type = decoded['type'];
+
+        if (type == 'p2p_message') {
           final msg = Message.fromJson(decoded['payload']);
           _incomingMessages.add(msg);
+          // Auto-send delivery receipt
+          _sendPayload(conn.peer, {
+            'type': 'delivery_receipt',
+            'messageId': msg.id,
+            'peerId': _myId,
+          });
+        } else if (type == 'delivery_receipt') {
+          _deliveryReceipts.add(decoded);
+        } else if (type == 'read_receipt') {
+          _readReceipts.add(decoded);
+        } else if (type == 'typing') {
+          _typingIndicators.add(decoded['peerId']);
         }
       } catch (e) {
         debugPrint('Error parsing incoming P2P data: $e');
@@ -86,25 +106,46 @@ class PeerDartService {
     });
   }
 
-  /// Sends a message to a specific peer over the WebRTC Data Channel
-  void sendMessage(String peerId, Message message) {
+  bool _sendPayload(String peerId, Map<String, dynamic> payload) {
     final conn = _activeConnections[peerId];
-    if (conn != null) {
-      final payload = jsonEncode({
-        'type': 'p2p_message',
-        'payload': message.toJson(),
-      });
-      conn.send(payload);
-      debugPrint('📤 Sent message to $peerId');
+    if (conn != null && conn.open) {
+      conn.send(jsonEncode(payload));
+      return true;
+    }
+    return false;
+  }
+
+  bool sendMessage(String peerId, Message message) {
+    final success = _sendPayload(peerId, {
+      'type': 'p2p_message',
+      'payload': message.toJson(),
+    });
+    
+    if (success) {
+      debugPrint('📤 Sent message to $peerId via WebRTC');
+      return true;
     } else {
       debugPrint('⚠️ Cannot send message. Not connected to $peerId');
-      // For a robust app, we would attempt to reconnect here
       connectToPeer(peerId);
-      // We might need to queue this message, but for now we just attempt connection
+      return false;
     }
   }
 
-  /// Initiates a WebRTC media call to a peer
+  void sendReadReceipt(String peerId, List<String> messageIds) {
+    _sendPayload(peerId, {
+      'type': 'read_receipt',
+      'messageIds': messageIds,
+      'peerId': _myId,
+    });
+  }
+
+  void sendTypingIndicator(String peerId) {
+    _sendPayload(peerId, {
+      'type': 'typing',
+      'peerId': _myId,
+    });
+  }
+
   MediaConnection? makeCall(String peerId, MediaStream stream) {
     if (_peer == null) return null;
     debugPrint('🎥 Initiating call to $peerId...');
@@ -116,5 +157,8 @@ class PeerDartService {
     _incomingMessages.close();
     _connectionStatus.close();
     _incomingCalls.close();
+    _deliveryReceipts.close();
+    _readReceipts.close();
+    _typingIndicators.close();
   }
 }

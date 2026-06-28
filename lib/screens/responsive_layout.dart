@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
+import 'package:abyss_chat/providers/layout_provider.dart';
 import 'package:abyss_chat/screens/home_screen.dart';
 import 'package:abyss_chat/screens/chat_screen.dart';
 import 'package:abyss_chat/screens/settings_screen.dart';
@@ -22,148 +23,162 @@ class ResponsiveLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final width = MediaQuery.of(context).size.width;
-    final isDesktop = width > 800;
+    final layoutStateAsync = ref.watch(layoutProvider);
     final tabIndex = ref.watch(navigationIndexProvider);
 
-    if (isDesktop) {
-      return Scaffold(
-        body: Row(
-          children: [
-            // Left Navigation Dock (Desktop)
-            NavigationRail(
-              selectedIndex: tabIndex,
-              onDestinationSelected: (idx) {
-                ref.read(navigationIndexProvider.notifier).setIndex(idx);
-              },
-              labelType: NavigationRailLabelType.all,
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(Icons.chat_bubble_outline),
-                  selectedIcon: Icon(Icons.chat_bubble),
-                  label: Text('Chats'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.call_outlined),
-                  selectedIcon: Icon(Icons.call),
-                  label: Text('Calls'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  selectedIcon: Icon(Icons.settings),
-                  label: Text('Settings'),
-                ),
-              ],
-            ),
-            VerticalDivider(
-              width: 1,
-              thickness: 1,
-              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-            ),
-            
-            // Main Content Area
-            Expanded(
-              child: _buildDesktopContent(tabIndex, ref, context),
-            ),
-          ],
-        ),
-      );
-    } else {
-      // Mobile Layout (Bottom Dock)
-      return Scaffold(
-        body: _buildMobileContent(tabIndex, context),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: tabIndex,
-          onDestinationSelected: (idx) {
-            ref.read(navigationIndexProvider.notifier).setIndex(idx);
-          },
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.chat_bubble_outline),
-              selectedIcon: Icon(Icons.chat_bubble),
-              label: 'Chats',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.call_outlined),
-              selectedIcon: Icon(Icons.call),
-              label: 'Calls',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings),
-              label: 'Settings',
-            ),
-          ],
-        ),
-      );
-    }
-  }
+    return layoutStateAsync.when(
+      data: (layoutState) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final isMedium = width >= 600 && width < 840;
+            final isExpanded = width >= 840;
+            final isTwoPane = isExpanded || (isMedium && width > 700);
 
-  Widget _buildDesktopContent(int tabIndex, WidgetRef ref, BuildContext context) {
-    switch (tabIndex) {
-      case 0: // Chats (2-pane split layout)
-        final selectedThreadId = ref.watch(selectedThreadIdProvider);
-        return Row(
-          children: [
-            const SizedBox(
-              width: 350,
-              child: HomeScreen(isDesktop: true),
-            ),
-            VerticalDivider(
-              width: 1,
-              thickness: 1,
-              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-            ),
-            Expanded(
-              child: selectedThreadId == null
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.chat_bubble_outline,
-                            size: 64,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Abyss Web',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Send and receive P2P messages securely.',
-                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                          ),
-                        ],
+            if (layoutState.dockPosition == DockPosition.left) {
+              return Scaffold(
+                body: Row(
+                  children: [
+                    NavigationRail(
+                      extended: isExpanded,
+                      selectedIndex: tabIndex,
+                      onDestinationSelected: (idx) {
+                        ref.read(navigationIndexProvider.notifier).setIndex(idx);
+                      },
+                      labelType: isExpanded ? NavigationRailLabelType.none : NavigationRailLabelType.all,
+                      destinations: const [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.chat_bubble_outline),
+                          selectedIcon: Icon(Icons.chat_bubble),
+                          label: Text('Chats'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.call_outlined),
+                          selectedIcon: Icon(Icons.call),
+                          label: Text('Calls'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.show_chart_outlined),
+                          selectedIcon: Icon(Icons.show_chart),
+                          label: Text('Activity'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.settings_outlined),
+                          selectedIcon: Icon(Icons.settings),
+                          label: Text('Settings'),
+                        ),
+                      ],
+                    ),
+                    VerticalDivider(width: 1, thickness: 1, color: Theme.of(context).dividerColor),
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child: _buildContent(tabIndex, ref, context, isTwoPane),
                       ),
-                    )
-                  : ChatScreen(threadId: selectedThreadId, isDesktop: true),
-            ),
-          ],
+                    ),
+                  ],
+                ),
+              );
+            } else {
+              // Bottom Dock
+              return Scaffold(
+                body: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: _buildContent(tabIndex, ref, context, isTwoPane),
+                ),
+                bottomNavigationBar: NavigationBar(
+                  selectedIndex: tabIndex,
+                  onDestinationSelected: (idx) {
+                    ref.read(navigationIndexProvider.notifier).setIndex(idx);
+                  },
+                  destinations: const [
+                    NavigationDestination(
+                      icon: Icon(Icons.chat_bubble_outline),
+                      selectedIcon: Icon(Icons.chat_bubble),
+                      label: 'Chats',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.call_outlined),
+                      selectedIcon: Icon(Icons.call),
+                      label: 'Calls',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.show_chart_outlined),
+                      selectedIcon: Icon(Icons.show_chart),
+                      label: 'Activity',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.settings_outlined),
+                      selectedIcon: Icon(Icons.settings),
+                      label: 'Settings',
+                    ),
+                  ],
+                ),
+              );
+            }
+          },
         );
-      case 1:
-        return const CallLogScreen();
-      case 2:
-        return const SettingsScreen();
-      default:
-        return const Center(child: Text('Unknown Tab'));
-    }
+      },
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, s) => Scaffold(body: Center(child: Text('Error: $e'))),
+    );
   }
 
-  Widget _buildMobileContent(int tabIndex, BuildContext context) {
+  Widget _buildContent(int tabIndex, WidgetRef ref, BuildContext context, bool isTwoPane) {
+    // We add Key to AnimatedSwitcher children so it knows they changed
     switch (tabIndex) {
       case 0:
-        return const HomeScreen(isDesktop: false);
+        if (isTwoPane) {
+          final selectedThreadId = ref.watch(selectedThreadIdProvider);
+          return Row(
+            key: const ValueKey('chats_2pane'),
+            children: [
+              const SizedBox(
+                width: 350,
+                child: HomeScreen(isDesktop: true),
+              ),
+              VerticalDivider(width: 1, thickness: 1, color: Theme.of(context).dividerColor),
+              Expanded(
+                child: selectedThreadId == null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.chat_bubble_outline,
+                              size: 64,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Abyss Web',
+                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Send and receive P2P messages securely.',
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ChatScreen(threadId: selectedThreadId, isDesktop: true),
+              ),
+            ],
+          );
+        } else {
+          return const HomeScreen(key: ValueKey('chats_1pane'), isDesktop: false);
+        }
       case 1:
-        return const CallLogScreen();
+        return const CallLogScreen(key: ValueKey('calls'));
       case 2:
-        return const SettingsScreen();
+        return Center(key: const ValueKey('activity'), child: Text('Activity (Coming Soon)'));
+      case 3:
+        return const SettingsScreen(key: ValueKey('settings'));
       default:
         return const Center(child: Text('Unknown Tab'));
     }
   }
 }
-

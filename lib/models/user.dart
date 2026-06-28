@@ -7,6 +7,7 @@ class User {
   final bool isWpsActive;
   final String? ipAddress;
   final int? port;
+  final String? profileImagePath;
 
   User({
     required this.id,
@@ -17,6 +18,7 @@ class User {
     this.isWpsActive = false,
     this.ipAddress,
     this.port,
+    this.profileImagePath,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class User {
       isWpsActive: json['isWpsActive'] ?? false,
       ipAddress: json['ipAddress'],
       port: json['port'],
+      profileImagePath: json['profileImagePath'],
     );
   }
 
@@ -42,6 +45,7 @@ class User {
       'isWpsActive': isWpsActive,
       'ipAddress': ipAddress,
       'port': port,
+      'profileImagePath': profileImagePath,
     };
   }
 }
