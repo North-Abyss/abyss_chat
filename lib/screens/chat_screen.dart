@@ -10,6 +10,7 @@ import 'package:abyss_chat/screens/contact_profile_screen.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:abyss_chat/widgets/abyss_snackbar.dart';
 import 'package:abyss_chat/models/message.dart';
 import 'package:file_picker/file_picker.dart';
@@ -307,7 +308,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 Color statusColor = cs.onSurfaceVariant;
                 if (isMe) {
                   switch (msg.status) {
-                    case MessageStatus.pending: statusIcon = Icons.schedule; break;
+                    case MessageStatus.pending: 
+                      statusIcon = Icons.wifi_protected_setup; 
+                      statusColor = Colors.orange;
+                      break;
                     case MessageStatus.sending: statusIcon = Icons.schedule; break;
                     case MessageStatus.sent: statusIcon = Icons.check; break;
                     case MessageStatus.delivered: statusIcon = Icons.done_all; break;
@@ -539,16 +543,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             icon: const Icon(Icons.attach_file),
                             color: cs.onSurfaceVariant,
                             onPressed: () async {
-                              final result = await FilePicker.pickFiles();
-                              if (result != null && result.files.single.path != null) {
-                                final path = result.files.single.path!;
-                                final name = result.files.single.name;
-                                final file = File(path);
-                                final bytes = await file.readAsBytes();
+                              final result = await FilePicker.pickFiles(withData: true);
+                              if (result != null && result.files.isNotEmpty) {
+                                final file = result.files.single;
+                                final name = file.name;
+                                final path = file.path;
                                 
-                                if (bytes.length > 5 * 1024 * 1024) {
+                                Uint8List? bytes = file.bytes;
+                                if (bytes == null && path != null && !kIsWeb) {
+                                  bytes = await File(path).readAsBytes();
+                                }
+                                
+                                if (bytes == null) return;
+                                
+                                if (bytes.length > 10 * 1024 * 1024) {
                                   if (context.mounted) {
-                                    AbyssSnackBar.show(context, 'File is larger than 5MB', type: SnackBarType.error);
+                                    AbyssSnackBar.show(context, 'File is larger than 10MB', type: SnackBarType.error);
                                   }
                                   return;
                                 }

@@ -126,6 +126,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   String? get myId => ref.read(peerServiceProvider).myId;
   String? _myName;
   String? get myName => _myName;
+  Timer? _retryTimer;
 
   @override
   Future<List<ChatThread>> build() async {
@@ -151,13 +152,31 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     final sub9 = peer.onConnectionOpened.listen(_handleConnectionOpened);
     final sub10 = peer.onProfileSyncReceived.listen(_handleProfileSync);
     
+    // Start background retry loop for pending messages
+    _retryTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      _flushAllPendingQueues();
+    });
+    
     ref.onDispose(() {
       sub1.cancel(); sub2.cancel(); sub3.cancel(); sub4.cancel();
       sub5.cancel(); sub6.cancel(); sub7.cancel(); sub8.cancel();
       sub9.cancel(); sub10.cancel();
+      _retryTimer?.cancel();
     });
 
     return await storage.loadThreads();
+  }
+  
+  void _flushAllPendingQueues() {
+    if (!state.hasValue) return;
+    final threads = state.value!;
+    for (final thread in threads) {
+      if (thread.messages.any((m) => m.status == MessageStatus.pending)) {
+        // Try connecting if not connected, then flush
+        connectToPeer(thread.id);
+        _flushQueueForPeer(thread.id);
+      }
+    }
   }
 
   void _handleIncomingMessage(Message message) {

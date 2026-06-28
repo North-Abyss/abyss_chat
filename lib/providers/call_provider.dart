@@ -51,11 +51,11 @@ class CallSession {
 class CallNotifier extends Notifier<CallSession?> {
   OverlayEntry? _overlayEntry;
   Timer? _timer;
-  
   MediaStream? _localStream;
   RTCVideoRenderer localRenderer = RTCVideoRenderer();
   RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
   final AudioPlayer _audioPlayer = AudioPlayer();
+  Timer? _timeoutTimer;
 
   @override
   CallSession? build() {
@@ -115,6 +115,14 @@ class CallNotifier extends Notifier<CallSession?> {
         
         mediaConnection.on("close").listen((_) {
           endCall();
+        });
+        
+        _timeoutTimer?.cancel();
+        _timeoutTimer = Timer(const Duration(seconds: 30), () {
+          if (state?.state == CallState.ringing) {
+            debugPrint('Call timed out after 30 seconds');
+            endCall();
+          }
         });
       } else {
         endCall(); // Could not make call
@@ -191,6 +199,7 @@ class CallNotifier extends Notifier<CallSession?> {
   void setConnected() {
     if (state != null) {
       _stopRingtone();
+      _timeoutTimer?.cancel();
       final startTime = DateTime.now();
       state = state!.copyWith(state: CallState.connected, startTime: startTime, currentDuration: Duration.zero);
       
@@ -206,6 +215,8 @@ class CallNotifier extends Notifier<CallSession?> {
   void endCall() {
     _timer?.cancel();
     _timer = null;
+    _timeoutTimer?.cancel();
+    _timeoutTimer = null;
     _stopRingtone();
     
     if (state?.mediaConnection != null) {

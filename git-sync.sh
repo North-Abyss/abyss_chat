@@ -93,9 +93,9 @@ if [[ "$deploy_web" == "y" || "$deploy_web" == "Y" ]]; then
     # Optional Build Step
     read -p "Do you want to compile a fresh web build? (y/n): " web_build
     if [[ "$web_build" == "y" || "$web_build" == "Y" ]]; then
-        echo -e "${BLUE}Compiling with WebAssembly (--wasm)...${NC}"
+        echo -e "${BLUE}Compiling for Web (JavaScript)...${NC}"
         # CRITICAL: The base-href MUST match your GitHub repository name! 
-        flutter build web --release --wasm --base-href "/abyss_chat/"
+        flutter build web --release --base-href "/abyss_chat/"
     fi
 
     echo -e "${BLUE}Pushing compiled web app to 'gh-pages' branch...${NC}"
