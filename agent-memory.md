@@ -144,3 +144,14 @@ abyss_chat/
   - Implemented true blocking in `ChatProvider` & `StorageService` using `blocked.abyss` (silently drops incoming messages).
   - Deleting a contact now automatically wipes their entire chat history.
   - Added safety confirmation dialogs for both blocking and deleting.
+
+### 2026-06-28 — Session 4 (Connection Resilience & Rich Previews)
+- **PeerDart Stability**: Fixed a critical "Bad state" crash that occurred upon reconnections by explicitly tracking and canceling `StreamSubscription`s in `PeerDartService`.
+- **Account Data Isolation**: Separated "Log Out" (disconnect only) and "Delete Account" (full local wipe). The full wipe cleans SharedPreferences, deletes encrypted `.abyss` files, and resets the AES key in `CryptoService` to prevent data merging between accounts.
+- **Enhanced Call Signaling**: Added a `call_request` packet via the WebRTC data channel prior to opening the media stream, allowing the UI to show the caller's true name and avatar instantly. Added 'Connection failed' UI state for dropped calls.
+- **Rich Media & Link Previews**: 
+  - Integrated `url_launcher`, `any_link_preview`, and `video_player`.
+  - Automatically parses URLs in chat. Web URLs render rich preview cards.
+  - Image URLs render inline.
+  - Video URLs (`.mp4`, `.webm`) render a playable inline video widget.
+- **Web Fallback Improvements**: Added a manual entry text field to the Web QR screen, and a `CircularProgressIndicator` for the mobile camera initialization phase.

@@ -194,40 +194,55 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     }
     
     final threads = List<ChatThread>.from(state.value!);
-    final senderId = message.senderId;
+    final isGroup = message.groupId != null;
+    final targetThreadId = isGroup ? message.groupId! : message.senderId;
     final currentSelectedId = ref.read(selectedThreadIdProvider);
     
-    int threadIndex = threads.indexWhere((t) => t.id == senderId);
+    int threadIndex = threads.indexWhere((t) => t.id == targetThreadId);
     
     if (threadIndex != -1) {
       final updatedMessages = List<Message>.from(threads[threadIndex].messages)..add(message);
       threads[threadIndex] = threads[threadIndex].copyWith(messages: updatedMessages);
     } else {
-      final newThread = ChatThread(
-        id: senderId,
-        peer: User(
-          id: senderId, 
-          name: message.senderName ?? 'Peer $senderId', 
-          avatarIcon: 0xe491, 
-          avatarColor: 0xFF6750A4
-        ),
-        messages: [message],
-      );
-      threads.insert(0, newThread);
+      if (isGroup) {
+        final newGroup = ChatThread(
+          id: targetThreadId,
+          peer: User(id: targetThreadId, name: message.groupName ?? 'New Group', avatarIcon: 0xe886, avatarColor: 0xFF2E7D32),
+          messages: [message],
+          isGroup: true,
+          groupName: message.groupName ?? 'New Group',
+          members: [
+            User(id: message.senderId, name: message.senderName ?? 'Peer ${message.senderId}', avatarIcon: 0xe491, avatarColor: 0xFF6750A4)
+          ],
+        );
+        threads.insert(0, newGroup);
+      } else {
+        final newThread = ChatThread(
+          id: targetThreadId,
+          peer: User(
+            id: targetThreadId, 
+            name: message.senderName ?? 'Peer $targetThreadId', 
+            avatarIcon: 0xe491, 
+            avatarColor: 0xFF6750A4
+          ),
+          messages: [message],
+        );
+        threads.insert(0, newThread);
+      }
     }
     
     state = AsyncData(threads);
     ref.read(storageServiceProvider).saveThreads(threads);
     
     // Send Read Receipt if currently viewing this thread
-    if (currentSelectedId == senderId) {
-      sendReadReceipt(senderId, [message.id]);
+    if (currentSelectedId == targetThreadId) {
+      if (!isGroup) sendReadReceipt(message.senderId, [message.id]);
     } else {
       final activeCall = ref.read(callProvider);
-      final inActiveCallWithSender = activeCall != null && activeCall.peer.id == senderId;
+      final inActiveCallWithSender = activeCall != null && activeCall.peer.id == targetThreadId;
       
       if (!inActiveCallWithSender) {
-        final thread = threads.firstWhere((t) => t.id == senderId);
+        final thread = threads.firstWhere((t) => t.id == targetThreadId);
         NotificationService.showMessageNotification(
           thread.isGroup ? (thread.groupName ?? 'Group') : thread.peer.name, 
           message.text,
@@ -434,28 +449,42 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     sendMessage(groupId, sysMsg.text, type: MessageType.system);
   }
 
+  void updateGroupMembers(String groupId, List<User> members) {
+    if (!state.hasValue) return;
+    final threads = List<ChatThread>.from(state.value!);
+    final threadIndex = threads.indexWhere((t) => t.id == groupId);
+    if (threadIndex != -1) {
+      threads[threadIndex] = threads[threadIndex].copyWith(members: members);
+      state = AsyncData(threads);
+      ref.read(storageServiceProvider).saveThreads(threads);
+    }
+  }
+
   Future<void> sendMessage(String threadId, String text, {MessageType type = MessageType.text, String? localFilePath, String? fileName, String? fileData}) async {
     if (!state.hasValue) return;
     
-    final msg = Message(
-      id: const Uuid().v4(),
-      senderId: ref.read(peerServiceProvider).myId ?? 'me',
-      senderName: _myName ?? 'Me',
-      text: text,
-      timestamp: DateTime.now(),
-      status: MessageStatus.sending, // Initial status
-      type: type,
-      localFilePath: localFilePath,
-      fileName: fileName,
-      fileData: fileData,
-    );
-
     final threads = List<ChatThread>.from(state.value!);
     final threadIndex = threads.indexWhere((t) => t.id == threadId);
     
     if (threadIndex != -1) {
-      final updatedMessages = List<Message>.from(threads[threadIndex].messages)..add(msg);
-      threads[threadIndex] = threads[threadIndex].copyWith(messages: updatedMessages);
+      final thread = threads[threadIndex];
+      final msg = Message(
+        id: const Uuid().v4(),
+        senderId: ref.read(peerServiceProvider).myId ?? 'me',
+        senderName: _myName ?? 'Me',
+        text: text,
+        timestamp: DateTime.now(),
+        status: MessageStatus.sending, // Initial status
+        type: type,
+        localFilePath: localFilePath,
+        fileName: fileName,
+        fileData: fileData,
+        groupId: thread.isGroup ? thread.id : null,
+        groupName: thread.isGroup ? thread.groupName : null,
+      );
+
+      final updatedMessages = List<Message>.from(thread.messages)..add(msg);
+      threads[threadIndex] = thread.copyWith(messages: updatedMessages);
       state = AsyncData(threads);
       ref.read(storageServiceProvider).saveThreads(threads);
       

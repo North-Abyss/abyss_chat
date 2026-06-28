@@ -20,6 +20,7 @@ A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clo
 - **Profile Customization** - Users can customize their names, avatar icons, and colors (including pure black/white).
 - **Theming Engine** - Includes 12 curated themes plus the ability to pick any custom hex color.
 - **Smart Notifications** - Slide-in floating toasts for incoming messages that automatically silence themselves if you're actively speaking to the sender.
+- **Rich Media & Link Previews** - Automatic URL parsing in chats. Web links show rich preview cards, and direct video/image links render inline with playback support.
 - **Floating Mini-Call Window** - Picture-in-picture style floating pill when you navigate away from an active call, plus full Answer/Decline call screens.
 - **Desktop Keyboard Support** - Use `Enter` to seamlessly send messages and `Shift+Enter` for multiline text, just like WhatsApp Web.
 - **Cloud CI/CD Pipeline** - Automated GitHub Actions release builds for Android, Windows, and Linux on every `v*` tag.

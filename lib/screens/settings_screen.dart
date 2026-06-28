@@ -536,6 +536,9 @@ class SettingsScreen extends ConsumerWidget {
                 label: const Text('Log Out'),
                 onPressed: () {
                   ref.read(peerServiceProvider).dispose();
+                  ref.invalidate(peerServiceProvider);
+                  ref.invalidate(chatThreadsProvider);
+                  ref.invalidate(callLogsProvider);
                   if (!context.mounted) return;
                   Navigator.pushAndRemoveUntil(
                     context,
@@ -574,6 +577,10 @@ class SettingsScreen extends ConsumerWidget {
                     await ref.read(storageServiceProvider).clearAllData();
                     CryptoService.reset();
                     ref.read(peerServiceProvider).dispose();
+                    ref.invalidate(peerServiceProvider);
+                    ref.invalidate(chatThreadsProvider);
+                    ref.invalidate(callLogsProvider);
+                    ref.invalidate(myProfileProvider);
                     if (!context.mounted) return;
                     Navigator.pushAndRemoveUntil(
                       context,

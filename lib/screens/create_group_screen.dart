@@ -19,7 +19,6 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
   void _createGroup() {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
-    if (_selectedMembers.isEmpty) return;
 
     // Add myself to the group members
     final myId = ref.read(peerServiceProvider).myId ?? 'me';
@@ -56,7 +55,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
         title: const Text('New Group'),
         actions: [
           TextButton(
-            onPressed: _selectedMembers.isEmpty || _nameController.text.trim().isEmpty ? null : _createGroup,
+            onPressed: _nameController.text.trim().isEmpty ? null : _createGroup,
             child: const Text('Create', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],

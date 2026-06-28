@@ -223,18 +223,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ),
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.videocam),
-                  onPressed: () {
-                    ref.read(callProvider.notifier).startCall(thread.peer, true);
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.call),
-                  onPressed: () {
-                    ref.read(callProvider.notifier).startCall(thread.peer, false);
-                  },
-                ),
+                if (!thread.isGroup) ...[
+                  IconButton(
+                    icon: const Icon(Icons.videocam),
+                    onPressed: () {
+                      ref.read(callProvider.notifier).startCall(thread.peer, true);
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.call),
+                    onPressed: () {
+                      ref.read(callProvider.notifier).startCall(thread.peer, false);
+                    },
+                  ),
+                ],
                 IconButton(
                   icon: const Icon(Icons.more_vert),
                   onPressed: () {

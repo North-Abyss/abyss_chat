@@ -12,6 +12,8 @@ class Message {
   final String? localFilePath;
   final String? fileName;
   final String? fileData;
+  final String? groupId;
+  final String? groupName;
 
   Message({
     required this.id,
@@ -24,6 +26,8 @@ class Message {
     this.localFilePath,
     this.fileName,
     this.fileData,
+    this.groupId,
+    this.groupName,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -44,6 +48,8 @@ class Message {
       localFilePath: json['localFilePath'],
       fileName: json['fileName'],
       fileData: json['fileData'],
+      groupId: json['groupId'],
+      groupName: json['groupName'],
     );
   }
 
@@ -59,6 +65,8 @@ class Message {
       'localFilePath': localFilePath,
       'fileName': fileName,
       'fileData': fileData,
+      'groupId': groupId,
+      'groupName': groupName,
     };
   }
 
@@ -79,6 +87,8 @@ class Message {
       localFilePath: localFilePath ?? this.localFilePath,
       fileName: fileName ?? this.fileName,
       fileData: fileData ?? this.fileData,
+      groupId: groupId,
+      groupName: groupName,
     );
   }
 }
