@@ -2,8 +2,9 @@
 
 A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clone. It uses WebRTC and local network discovery (mDNS) to connect peers without a central server. Built for all platforms simultaneously.
 
-**Download Now:** [Check Releases](https://github.com/North-Abyss/abyss_chat/releases)
-
+**Live Web App:** [https://north-abyss.github.io/abyss_chat/](https://north-abyss.github.io/abyss_chat/)  
+**GitHub Repository:** [North-Abyss/abyss_chat](https://github.com/North-Abyss/abyss_chat)  
+**Download Natives:** [Check Releases](https://github.com/North-Abyss/abyss_chat/releases)
 <div align=center>
     <!-- Replace this with a preview screenshot when available -->
     <img src="assets/abyss-chat.png" alt="Logo" width="128" style="border-radius: 18px;">

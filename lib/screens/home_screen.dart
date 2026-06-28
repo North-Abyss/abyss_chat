@@ -209,8 +209,18 @@ class HomeScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const QRScanScreen()));
+            onPressed: () async {
+              final selectedId = await Navigator.push(context, MaterialPageRoute(builder: (_) => const QRScanScreen()));
+              if (selectedId != null && selectedId is String) {
+                ref.read(chatThreadsProvider.notifier).startNewChat(selectedId, peerName: 'Scanned Peer');
+                if (isDesktop) {
+                  ref.read(selectedThreadIdProvider.notifier).select(selectedId);
+                } else {
+                  if (context.mounted) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(threadId: selectedId)));
+                  }
+                }
+              }
             },
           ),
           IconButton(

@@ -33,9 +33,7 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> {
             });
             
             AbyssSnackBar.show(context, 'Connecting to peer...', type: SnackBarType.info);
-            ref.read(chatThreadsProvider.notifier).connectToPeer(code);
-            
-            Navigator.pop(context);
+            Navigator.pop(context, code);
           }
         },
       ),

@@ -62,7 +62,7 @@ class LanMessenger {
       _handleSocket(socket, peerId: peerId);
       
       debugPrint('✅ LAN connection established to $peerId');
-      _connectionStatus.add('LAN Connected to $peerId');
+      if (!_connectionStatus.isClosed) _connectionStatus.add('LAN Connected to $peerId');
       return true;
     } catch (e) {
       debugPrint('❌ LAN connection failed for $peerId: $e');
@@ -90,11 +90,11 @@ class LanMessenger {
           if (type == 'handshake') {
             final remoteId = decoded['peerId'];
             _activeSockets[remoteId] = socket;
-            _connectionStatus.add('LAN Connected to $remoteId');
+            if (!_connectionStatus.isClosed) _connectionStatus.add('LAN Connected to $remoteId');
             debugPrint('🤝 Handshake complete with $remoteId');
           } else if (type == 'p2p_message') {
             final msg = Message.fromJson(decoded['payload']);
-            _incomingMessages.add(msg);
+            if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
             
             // Auto-send delivery receipt
             final remoteId = msg.senderId;
@@ -105,11 +105,11 @@ class LanMessenger {
             });
             debugPrint('📨 Received LAN message from ${msg.senderId}');
           } else if (type == 'delivery_receipt') {
-            _deliveryReceipts.add(decoded);
+            if (!_deliveryReceipts.isClosed) _deliveryReceipts.add(decoded);
           } else if (type == 'read_receipt') {
-            _readReceipts.add(decoded);
+            if (!_readReceipts.isClosed) _readReceipts.add(decoded);
           } else if (type == 'typing') {
-            _typingIndicators.add(decoded['peerId']);
+            if (!_typingIndicators.isClosed) _typingIndicators.add(decoded['peerId']);
           }
         } catch (e) {
           debugPrint('Error parsing LAN message: $e');

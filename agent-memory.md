@@ -15,6 +15,8 @@
 | **Hosting/Deploy**  | All Platforms (Android, iOS, Web, Desktop)        |
 | **Core Tech**       | Flutter, Dart, Riverpod, P2P Mesh, Local JSON     |
 | **Repo Path**       | `/mnt/sda5/Projects/Flutter Projects/Com/abyss_chat`|
+| **Live Web App**    | [north-abyss.github.io/abyss_chat/](https://north-abyss.github.io/abyss_chat/) |
+| **GitHub Repo**     | [North-Abyss/abyss_chat](https://github.com/North-Abyss/abyss_chat) |
 
 ---
 
@@ -80,6 +82,9 @@ abyss_chat/
 - [x] Group Chats
 - [x] Profile Management & Settings (with Hex Colors)
 - [x] In-App Notification System
+- [x] QR Code Generator & Scanner (`mobile_scanner` / `qr_flutter`)
+- [x] Global Search (`SearchDelegate` for contacts & LAN peers)
+- [x] Contact Blocking & Deletion (Persistent ignored list)
 
 ---
 
@@ -124,7 +129,18 @@ abyss_chat/
 - Polished Notifications:
   - Smart Notification Silencer (mutes toast if the user is in the active chat or active call).
   - Swapped bottom snackbars for slide-in notifications globally.
-- Fixed Web Platform bugs:
-  - Bypassed `path_provider` `MissingPluginException` by using `SharedPreferences` for Web encrypted file storage.
-  - Removed duplicate `Hero` tags in the desktop split-pane layout to prevent exceptions.
-  - Fixed `pubspec.yaml` to correctly serve web assets.
+  - Fixed Web Platform bugs:
+    - Bypassed `path_provider` `MissingPluginException` by using `SharedPreferences` for Web encrypted file storage.
+    - Removed duplicate `Hero` tags in the desktop split-pane layout to prevent exceptions.
+    - Fixed `pubspec.yaml` to correctly serve web assets.
+
+### 2026-06-28 — Session 3 (Phase 11 QR & Search)
+- Reset project versioning to `v0.0.0` baseline across `pubspec.yaml`, GitHub CI/CD, and CHANGELOG.
+- Implemented **QR Code Generator & Scanner**:
+  - `MyQRScreen` generates a QR code from the user's Peer ID.
+  - `QRScanScreen` uses `mobile_scanner` to scan and connect instantly.
+- Implemented **Global Search** via `SearchDelegate` to find saved contacts and nearby LAN peers.
+- Added full **Contact Management**:
+  - Implemented true blocking in `ChatProvider` & `StorageService` using `blocked.abyss` (silently drops incoming messages).
+  - Deleting a contact now automatically wipes their entire chat history.
+  - Added safety confirmation dialogs for both blocking and deleting.
