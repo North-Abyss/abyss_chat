@@ -93,7 +93,9 @@ if [[ "$deploy_web" == "y" || "$deploy_web" == "Y" ]]; then
     # Optional Build Step
     read -p "Do you want to compile a fresh web build? (y/n): " web_build
     if [[ "$web_build" == "y" || "$web_build" == "Y" ]]; then
-        echo -e "${BLUE}Compiling for Web (JavaScript)...${NC}"
+        echo -e "${BLUE}Cleaning build cache and Compiling for Web (JavaScript)...${NC}"
+        flutter clean
+        flutter pub get
         # CRITICAL: The base-href MUST match your GitHub repository name! 
         flutter build web --release --base-href "/abyss_chat/"
     fi

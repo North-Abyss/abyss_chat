@@ -6,6 +6,7 @@ import 'package:abyss_chat/providers/theme_provider.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(
     const ProviderScope(
       child: AbyssApp(),
