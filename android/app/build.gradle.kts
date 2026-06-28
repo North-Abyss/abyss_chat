@@ -45,6 +45,19 @@ flutter {
     source = "../.."
 }
 
+tasks.withType<JavaCompile> {
+    doFirst {
+        val registrant = file("src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java")
+        if (registrant.exists()) {
+            registrant.delete()
+            println("Deleted rogue GeneratedPluginRegistrant.java to fix file_picker compile error")
+        }
+        val dummy = file("src/main/java/com/abyss/abyss_chat/Dummy.java")
+        dummy.parentFile.mkdirs()
+        dummy.writeText("package com.abyss.abyss_chat;\npublic class Dummy {}")
+    }
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
