@@ -9,6 +9,7 @@ import 'package:abyss_chat/services/mdns_service.dart';
 import 'package:abyss_chat/models/call_log.dart';
 import 'package:abyss_chat/services/lan_messenger.dart';
 import 'package:abyss_chat/services/notification_service.dart';
+import 'package:abyss_chat/providers/call_provider.dart';
 import 'package:uuid/uuid.dart';
 
 final storageServiceProvider = Provider((ref) => StorageService());
@@ -162,11 +163,16 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     if (currentSelectedId == senderId) {
       sendReadReceipt(senderId, [message.id]);
     } else {
-      final thread = threads.firstWhere((t) => t.id == senderId);
-      NotificationService.showMessageNotification(
-        thread.isGroup ? (thread.groupName ?? 'Group') : thread.peer.name, 
-        message.text,
-      );
+      final activeCall = ref.read(callProvider);
+      final inActiveCallWithSender = activeCall != null && activeCall.peer.id == senderId;
+      
+      if (!inActiveCallWithSender) {
+        final thread = threads.firstWhere((t) => t.id == senderId);
+        NotificationService.showMessageNotification(
+          thread.isGroup ? (thread.groupName ?? 'Group') : thread.peer.name, 
+          message.text,
+        );
+      }
     }
   }
 

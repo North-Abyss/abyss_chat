@@ -7,6 +7,7 @@ import 'package:abyss_chat/screens/chat_screen.dart';
 import 'package:abyss_chat/screens/settings_screen.dart';
 import 'package:abyss_chat/screens/call_log_screen.dart';
 import 'package:abyss_chat/widgets/floating_dock.dart';
+import 'package:abyss_chat/services/notification_service.dart';
 
 class NavigationIndexNotifier extends Notifier<int> {
   @override
@@ -55,7 +56,9 @@ class ResponsiveLayout extends ConsumerWidget {
                 icon: Icons.show_chart_outlined,
                 selectedIcon: Icons.show_chart,
                 label: 'Activity',
-                onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(2),
+                onTap: () {
+                  NotificationService.showMessageNotification('Activity', 'Coming soon in a future update!');
+                },
               ),
               FloatingDockItem(
                 icon: Icons.settings_outlined,
@@ -122,27 +125,51 @@ class ResponsiveLayout extends ConsumerWidget {
               Expanded(
                 child: selectedThreadId == null
                     ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.chat_bubble_outline,
-                              size: 64,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Abyss Web',
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        child: Container(
+                          constraints: const BoxConstraints(maxWidth: 400),
+                          padding: const EdgeInsets.all(48),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(32),
+                            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primaryContainer,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.forum_outlined,
+                                  size: 64,
+                                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Send and receive P2P messages securely.',
-                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                            ),
-                          ],
+                              const SizedBox(height: 32),
+                              Text(
+                                'Welcome to Abyss Web',
+                                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Select a chat from the left panel or start a new one to begin sending secure P2P messages.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  height: 1.5,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       )
                     : ChatScreen(threadId: selectedThreadId, isDesktop: true),
@@ -155,7 +182,7 @@ class ResponsiveLayout extends ConsumerWidget {
       case 1:
         return const CallLogScreen(key: ValueKey('calls'));
       case 2:
-        return Center(key: const ValueKey('activity'), child: Text('Activity (Coming Soon)'));
+        return const SizedBox.shrink(key: ValueKey('activity')); // Fallback, shouldn't be reached
       case 3:
         return const SettingsScreen(key: ValueKey('settings'));
       default:

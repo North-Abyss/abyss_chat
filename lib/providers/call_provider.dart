@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/models/user.dart';
 import 'package:abyss_chat/screens/call_screen.dart';
+import 'package:abyss_chat/providers/chat_provider.dart';
+//import 'package:abyss_chat/services/peerdart_service.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:peerdart/peerdart.dart';
 
 // Global navigator key to insert the overlay anywhere
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
@@ -15,6 +19,7 @@ class CallSession {
   final CallState state;
   final DateTime? startTime;
   final Duration? currentDuration;
+  final MediaConnection? mediaConnection;
 
   CallSession({
     required this.peer,
@@ -22,15 +27,22 @@ class CallSession {
     this.state = CallState.idle,
     this.startTime,
     this.currentDuration,
+    this.mediaConnection,
   });
 
-  CallSession copyWith({CallState? state, DateTime? startTime, Duration? currentDuration}) {
+  CallSession copyWith({
+    CallState? state, 
+    DateTime? startTime, 
+    Duration? currentDuration,
+    MediaConnection? mediaConnection,
+  }) {
     return CallSession(
       peer: peer,
       isVideo: isVideo,
       state: state ?? this.state,
       startTime: startTime ?? this.startTime,
       currentDuration: currentDuration ?? this.currentDuration,
+      mediaConnection: mediaConnection ?? this.mediaConnection,
     );
   }
 }
@@ -38,20 +50,114 @@ class CallSession {
 class CallNotifier extends Notifier<CallSession?> {
   OverlayEntry? _overlayEntry;
   Timer? _timer;
+  
+  MediaStream? _localStream;
+  RTCVideoRenderer localRenderer = RTCVideoRenderer();
+  RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
 
   @override
-  CallSession? build() => null;
+  CallSession? build() {
+    _initRenderers();
+    // Listen for incoming calls
+    ref.onDispose(() {
+      localRenderer.dispose();
+      remoteRenderer.dispose();
+    });
+    
+    // Subscribe to incoming calls from PeerDartService
+    Future.microtask(() {
+      ref.read(peerServiceProvider).onCallReceived.listen(_handleIncomingCall);
+    });
+    
+    return null;
+  }
+  
+  Future<void> _initRenderers() async {
+    await localRenderer.initialize();
+    await remoteRenderer.initialize();
+  }
 
-  void startCall(User peer, bool isVideo) {
+  Future<void> startCall(User peer, bool isVideo) async {
     if (state != null) return; // Already in a call
     
     state = CallSession(peer: peer, isVideo: isVideo, state: CallState.ringing);
     _showFullCall();
     
-    // Simulate answering a call or connecting after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      setConnected();
+    try {
+      _localStream = await navigator.mediaDevices.getUserMedia({
+        'audio': true,
+        'video': isVideo ? {'facingMode': 'user'} : false,
+      });
+      localRenderer.srcObject = _localStream;
+      
+      final mediaConnection = ref.read(peerServiceProvider).makeCall(peer.id, _localStream!);
+      
+      if (mediaConnection != null) {
+        state = state!.copyWith(mediaConnection: mediaConnection);
+        
+        mediaConnection.on("stream").listen((remoteStream) {
+          remoteRenderer.srcObject = remoteStream as MediaStream;
+          setConnected();
+        });
+        
+        mediaConnection.on("close").listen((_) {
+          endCall();
+        });
+      } else {
+        endCall(); // Could not make call
+      }
+    } catch (e) {
+      debugPrint('Error starting call stream: $e');
+      endCall();
+    }
+  }
+
+  void _handleIncomingCall(MediaConnection mediaConnection) {
+    if (state != null) {
+      // Busy, reject or ignore
+      mediaConnection.close();
+      return;
+    }
+    
+    // For now we don't know the exact peer User details just from the ID easily, 
+    // but we can construct a dummy User or find it in contacts.
+    final peerId = mediaConnection.peer;
+    final peer = User(id: peerId, name: 'Peer $peerId', avatarIcon: 0xe491, avatarColor: 0xFF6750A4);
+    
+    state = CallSession(
+      peer: peer, 
+      isVideo: true, // We don't know yet, assume true or check stream
+      state: CallState.ringing,
+      mediaConnection: mediaConnection,
+    );
+    
+    _showFullCall();
+    
+    mediaConnection.on("close").listen((_) {
+      endCall();
     });
+  }
+
+  Future<void> answerCall() async {
+    if (state == null || state!.mediaConnection == null) return;
+    
+    try {
+      _localStream = await navigator.mediaDevices.getUserMedia({
+        'audio': true,
+        'video': state!.isVideo ? {'facingMode': 'user'} : false,
+      });
+      localRenderer.srcObject = _localStream;
+      
+      state!.mediaConnection!.answer(_localStream!);
+      
+      state!.mediaConnection!.on("stream").listen((remoteStream) {
+        remoteRenderer.srcObject = remoteStream as MediaStream;
+        setConnected();
+      });
+    } catch (e) {
+      debugPrint('Error answering call: $e');
+      endCall();
+    }
   }
 
   void _showFullCall() {
@@ -85,6 +191,18 @@ class CallNotifier extends Notifier<CallSession?> {
   void endCall() {
     _timer?.cancel();
     _timer = null;
+    
+    if (state?.mediaConnection != null) {
+      state!.mediaConnection!.close();
+    }
+    
+    _localStream?.getTracks().forEach((track) => track.stop());
+    _localStream?.dispose();
+    _localStream = null;
+    
+    localRenderer.srcObject = null;
+    remoteRenderer.srcObject = null;
+    
     state = null;
     if (_overlayEntry != null) {
       _overlayEntry!.remove();

@@ -212,7 +212,35 @@ class HomeScreen extends ConsumerWidget {
       body: asyncThreads.when(
         data: (threads) {
           if (threads.isEmpty) {
-            return const Center(child: Text('No active chats.'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_outline, 
+                      size: 64, 
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
+                    ),
+                    const SizedBox(height: 16),
+                    Text('No active chats yet', style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Connect with a friend to start chatting securely.', 
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      onPressed: () => _showConnectByIdDialog(context, ref),
+                      icon: const Icon(Icons.person_add),
+                      label: const Text('Connect via ID'),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
 
           return ListView.builder(
@@ -377,14 +405,24 @@ class HomeScreen extends ConsumerWidget {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateGroupScreen()));
                     },
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.radar),
-                    title: const Text('Scan Nearby (mDNS)'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showNearbyPeersDialog(context, ref);
-                    },
-                  ),
+                  if (!kIsWeb)
+                    ListTile(
+                      leading: const Icon(Icons.radar),
+                      title: const Text('Scan Nearby (mDNS)'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showNearbyPeersDialog(context, ref);
+                      },
+                    )
+                  else
+                    ListTile(
+                      leading: Icon(Icons.radar, color: Theme.of(context).disabledColor),
+                      title: Text('Scan Nearby (Native Only)', style: TextStyle(color: Theme.of(context).disabledColor)),
+                      onTap: () {
+                        Navigator.pop(context);
+                        AbyssSnackBar.show(context, 'Local network scanning (mDNS) is not supported in web browsers due to security restrictions. Please use Connect via ID.', type: SnackBarType.info);
+                      },
+                    ),
                 ],
               ),
             ),

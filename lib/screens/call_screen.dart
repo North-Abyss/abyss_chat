@@ -5,6 +5,7 @@ import 'package:abyss_chat/models/call_log.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:uuid/uuid.dart';
 
 class CallScreen extends ConsumerStatefulWidget {
@@ -68,9 +69,15 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     final isConnected = callState?.state == CallState.connected;
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
+      body: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          _minimizeCall();
+        },
+        child: SafeArea(
+          child: Column(
+            children: [
             // Top Bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -92,32 +99,66 @@ class _CallScreenState extends ConsumerState<CallScreen> {
             
             // Video / Avatar Area
             Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    UserAvatar(user: widget.peer, radius: 80),
-                    const SizedBox(height: 32),
-                    Text(
-                      widget.peer.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w500,
+              child: Stack(
+                children: [
+                  if (isConnected && callState?.isVideo == true)
+                    Positioned.fill(
+                      child: RTCVideoView(
+                        ref.read(callProvider.notifier).remoteRenderer,
+                        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                      ),
+                    )
+                  else
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          UserAvatar(user: widget.peer, radius: 80),
+                          const SizedBox(height: 32),
+                          Text(
+                            widget.peer.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            isConnected 
+                              ? '${(callState?.currentDuration?.inMinutes ?? 0).toString().padLeft(2, '0')}:${((callState?.currentDuration?.inSeconds ?? 0) % 60).toString().padLeft(2, '0')}' 
+                              : (widget.isIncoming ? 'Incoming...' : 'Ringing...'),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      isConnected 
-                        ? '${(callState?.currentDuration?.inMinutes ?? 0).toString().padLeft(2, '0')}:${((callState?.currentDuration?.inSeconds ?? 0) % 60).toString().padLeft(2, '0')}' 
-                        : (widget.isIncoming ? 'Incoming...' : 'Ringing...'),
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
+                    
+                  // Local Mini Video
+                  if (isConnected && callState?.isVideo == true)
+                    Positioned(
+                      right: 16,
+                      bottom: 16,
+                      width: 100,
+                      height: 150,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: RTCVideoView(
+                          ref.read(callProvider.notifier).localRenderer,
+                          mirror: true,
+                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                ],
               ),
             ),
             
@@ -131,44 +172,72 @@ class _CallScreenState extends ConsumerState<CallScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // Speaker
-                  _buildControlButton(
-                    icon: _isSpeaker ? Icons.volume_up : Icons.volume_down,
-                    isActive: _isSpeaker,
-                    onPressed: () => setState(() => _isSpeaker = !_isSpeaker),
-                  ),
-                  
-                  // Mute Audio
-                  _buildControlButton(
-                    icon: _isMuted ? Icons.mic_off : Icons.mic,
-                    isActive: _isMuted,
-                    onPressed: () => setState(() => _isMuted = !_isMuted),
-                  ),
-                  
-                  // Toggle Video
-                  _buildControlButton(
-                    icon: _isVideoEnabled ? Icons.videocam : Icons.videocam_off,
-                    isActive: !_isVideoEnabled,
-                    onPressed: () => setState(() => _isVideoEnabled = !_isVideoEnabled),
-                  ),
-                  
-                  // End Call
-                  GestureDetector(
-                    onTap: _endCall,
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
+                  if (widget.isIncoming && callState?.state == CallState.ringing) ...[
+                    // Decline
+                    GestureDetector(
+                      onTap: _endCall,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.call_end, color: Colors.white, size: 32),
                       ),
-                      child: const Icon(Icons.call_end, color: Colors.white, size: 32),
                     ),
-                  ),
+                    // Answer
+                    GestureDetector(
+                      onTap: () => ref.read(callProvider.notifier).answerCall(),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.call, color: Colors.white, size: 32),
+                      ),
+                    ),
+                  ] else ...[
+                    // Speaker
+                    _buildControlButton(
+                      icon: _isSpeaker ? Icons.volume_up : Icons.volume_down,
+                      isActive: _isSpeaker,
+                      onPressed: () => setState(() => _isSpeaker = !_isSpeaker),
+                    ),
+                    
+                    // Mute Audio
+                    _buildControlButton(
+                      icon: _isMuted ? Icons.mic_off : Icons.mic,
+                      isActive: _isMuted,
+                      onPressed: () => setState(() => _isMuted = !_isMuted),
+                    ),
+                    
+                    // Toggle Video
+                    _buildControlButton(
+                      icon: _isVideoEnabled ? Icons.videocam : Icons.videocam_off,
+                      isActive: !_isVideoEnabled,
+                      onPressed: () => setState(() => _isVideoEnabled = !_isVideoEnabled),
+                    ),
+                    
+                    // End Call
+                    GestureDetector(
+                      onTap: _endCall,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.call_end, color: Colors.white, size: 32),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
           ],
         ),
+      ),
       ),
     );
   }
