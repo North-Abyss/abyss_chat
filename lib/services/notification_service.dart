@@ -3,6 +3,9 @@ import 'package:abyss_chat/providers/call_provider.dart';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import 'package:abyss_chat/providers/settings_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
@@ -26,49 +29,61 @@ class NotificationService {
   }
 
   static void showMessageNotification(String title, String body, {VoidCallback? onTap}) async {
-    if (!_initialized) {
-      await initialize();
+    final prefs = await SharedPreferences.getInstance();
+    final systemEnabled = prefs.getBool('systemNotificationsEnabled') ?? true;
+    final positionStr = prefs.getString('notificationPosition');
+    final position = positionStr == 'top' ? NotificationPosition.top : NotificationPosition.bottom;
+
+    if (systemEnabled) {
+      if (!_initialized) {
+        await initialize();
+      }
+      
+      try {
+        const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+          'abyss_chat_messages',
+          'Messages',
+          importance: Importance.high,
+          priority: Priority.high,
+        );
+        const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+        
+        await _plugin.show(
+          id: DateTime.now().millisecond,
+          title: title,
+          body: body,
+          notificationDetails: platformDetails,
+        );
+        return; // Success
+      } catch (e) {
+        // Fallback to in-app
+      }
     }
     
-    try {
-      const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-        'abyss_chat_messages',
-        'Messages',
-        importance: Importance.high,
-        priority: Priority.high,
-      );
-      const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
-      
-      await _plugin.show(
-        id: DateTime.now().millisecond,
-        title: title,
-        body: body,
-        notificationDetails: platformDetails,
-      );
-    } catch (e) {
-      // Fallback to in-app if system notification fails (e.g. web or unconfigured platform)
-      final overlayState = globalNavigatorKey.currentState?.overlay;
-      if (overlayState == null) return;
+    // In-app fallback or if system notifications are disabled
+    final overlayState = globalNavigatorKey.currentState?.overlay;
+    if (overlayState == null) return;
 
-      OverlayEntry? entry;
-      entry = OverlayEntry(
-        builder: (context) => SlidableNotificationWidget(
-          senderName: title,
-          message: body,
-          onTap: onTap,
-          onDismiss: () {
-            entry?.remove();
-          },
-        ),
-      );
-      overlayState.insert(entry);
-    }
+    OverlayEntry? entry;
+    entry = OverlayEntry(
+      builder: (context) => SlidableNotificationWidget(
+        senderName: title,
+        message: body,
+        position: position,
+        onTap: onTap,
+        onDismiss: () {
+          entry?.remove();
+        },
+      ),
+    );
+    overlayState.insert(entry);
   }
 }
 
 class SlidableNotificationWidget extends StatefulWidget {
   final String senderName;
   final String message;
+  final NotificationPosition position;
   final VoidCallback onDismiss;
   final VoidCallback? onTap;
 
@@ -76,6 +91,7 @@ class SlidableNotificationWidget extends StatefulWidget {
     super.key,
     required this.senderName,
     required this.message,
+    required this.position,
     required this.onDismiss,
     this.onTap,
   });
@@ -131,8 +147,12 @@ class _SlidableNotificationWidgetState extends State<SlidableNotificationWidget>
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    
+    final isTop = widget.position == NotificationPosition.top;
+    
     return Positioned(
-      bottom: 24,
+      bottom: isTop ? null : 24,
+      top: isTop ? 24 : null,
       right: 24,
       child: Material(
         color: Colors.transparent,

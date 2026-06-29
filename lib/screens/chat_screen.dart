@@ -281,11 +281,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           // Messages
           Expanded(
             child: ListView.builder(
+              reverse: true,
               controller: _scrollController,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               itemCount: thread.messages.length,
               itemBuilder: (context, index) {
-                final msg = thread.messages[index];
+                final msgIndex = thread.messages.length - 1 - index;
+                final msg = thread.messages[msgIndex];
                 final isMe = msg.senderId == ref.read(chatThreadsProvider.notifier).myId;
 
                 // System messages

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/models/call_log.dart';
@@ -7,6 +8,13 @@ import 'package:abyss_chat/providers/call_provider.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:uuid/uuid.dart';
 import 'package:abyss_chat/models/user.dart';
+
+class ReactionInstance {
+  final String id;
+  final String emoji;
+  final double xOffset;
+  ReactionInstance(this.id, this.emoji, this.xOffset);
+}
 
 class CallScreen extends ConsumerStatefulWidget {
   final bool isIncoming;
@@ -22,8 +30,12 @@ class CallScreen extends ConsumerStatefulWidget {
 
 class _CallScreenState extends ConsumerState<CallScreen> {
   bool _isMuted = false;
-  bool _isVideoEnabled = false;
-  bool _isSpeaker = false;
+  bool _isVideoEnabled = true;
+  bool _isSpeaker = true;
+  final Map<String, TransformationController> _transformControllers = {};
+  
+  final List<ReactionInstance> _activeReactions = [];
+  StreamSubscription? _reactionSub;
   
   @override
   void initState() {
@@ -37,6 +49,38 @@ class _CallScreenState extends ConsumerState<CallScreen> {
         });
       }
     });
+
+    _reactionSub = ref.read(callProvider.notifier).reactionStream.listen((msg) {
+      final emoji = msg['emoji'] as String;
+      _spawnReaction(emoji);
+    });
+  }
+
+  void _spawnReaction(String emoji) {
+    if (!mounted) return;
+    final id = const Uuid().v4();
+    final xOffset = 0.2 + (DateTime.now().millisecondsSinceEpoch % 60) / 100.0; 
+    
+    setState(() {
+      _activeReactions.add(ReactionInstance(id, emoji, xOffset));
+    });
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _activeReactions.removeWhere((r) => r.id == id);
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _reactionSub?.cancel();
+    for (final controller in _transformControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   void _minimizeCall() {
@@ -84,14 +128,22 @@ class _CallScreenState extends ConsumerState<CallScreen> {
           _minimizeCall();
         },
         child: SafeArea(
-          child: Stack(
+          child: Column(
             children: [
-              // Main Content Area (Video or Avatar)
+              // Main Content Area (Video)
+              Expanded(
+                child: Stack(
+                  children: [
+                    // Main Content Area (Video or Avatar)
               Positioned.fill(
                 child: (isConnected && callState.isVideo && remoteRenderers.isNotEmpty)
                     ? _buildVideoGrid(remoteRenderers, callState.peers)
                     : _buildAudioPlaceholder(callState, isConnected),
               ),
+              
+              // Reactions Overlay
+              if (_activeReactions.isNotEmpty)
+                Positioned.fill(child: _buildReactionsOverlay()),
 
               // Local Mini Video (Picture in Picture)
               if (isConnected && callState.isVideo)
@@ -162,26 +214,20 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                   ),
                 ),
               ),
+                  ],
+                ),
+              ),
 
-              // Floating Controls Shortcut Box
-              Positioned(
-                bottom: 32,
-                left: 24,
-                right: 24,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[900]?.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(32),
-                    border: Border.all(color: Colors.white12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.5),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
+
+              // Floating Controls Shortcut Box / Dock
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900]?.withValues(alpha: 0.85),
+                  border: const Border(top: BorderSide(color: Colors.white12)),
+                ),
+                child: SafeArea(
+                  top: false,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -211,6 +257,21 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                             ref.read(callProvider.notifier).toggleAudio(!_isMuted);
                           },
                         ),
+                        // Emoji Popup Menu Button
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.emoji_emotions, color: Colors.white, size: 28),
+                          color: Colors.grey[850],
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          offset: const Offset(0, -60),
+                          onSelected: (emoji) => ref.read(callProvider.notifier).sendReaction(emoji),
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(value: '👍', child: Text('👍', style: TextStyle(fontSize: 24))),
+                            const PopupMenuItem(value: '❤️', child: Text('❤️', style: TextStyle(fontSize: 24))),
+                            const PopupMenuItem(value: '😂', child: Text('😂', style: TextStyle(fontSize: 24))),
+                            const PopupMenuItem(value: '👏', child: Text('👏', style: TextStyle(fontSize: 24))),
+                            const PopupMenuItem(value: '🎉', child: Text('🎉', style: TextStyle(fontSize: 24))),
+                          ],
+                        ),
                         _buildActionButton(Icons.call_end, Colors.red, _endCall),
                       ],
                     ],
@@ -221,6 +282,44 @@ class _CallScreenState extends ConsumerState<CallScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildReactionsOverlay() {
+    return IgnorePointer(
+      child: Stack(
+        children: _activeReactions.map((reaction) {
+          return Positioned(
+            left: MediaQuery.of(context).size.width * reaction.xOffset,
+            bottom: 100, // Starts just above controls
+            child: TweenAnimationBuilder<double>(
+              key: ValueKey(reaction.id),
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(seconds: 3),
+              curve: Curves.easeOut,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, -300 * value), // Float up 300px
+                  child: Opacity(
+                    opacity: 1.0 - value, // Fade out
+                    child: Text(
+                      reaction.emoji,
+                      style: const TextStyle(fontSize: 48),
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildFixedEmojiButton(String emoji) {
+    return IconButton(
+      icon: Text(emoji, style: const TextStyle(fontSize: 28)),
+      onPressed: () => ref.read(callProvider.notifier).sendReaction(emoji),
     );
   }
 
@@ -267,22 +366,14 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   }
 
   Widget _buildActionButton(IconData icon, Color color, VoidCallback onPressed) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.4),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Icon(icon, color: Colors.white, size: 32),
+    return IconButton.filled(
+      onPressed: onPressed,
+      icon: Icon(icon),
+      iconSize: 32,
+      padding: const EdgeInsets.all(16),
+      style: IconButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
       ),
     );
   }
@@ -291,25 +382,14 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     if (renderers.isEmpty) return const Center(child: CircularProgressIndicator());
     
     final count = renderers.length;
-    int columns = 1;
-    if (count > 1 && count <= 4) columns = 2;
-    if (count > 4) columns = 3;
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(8),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        childAspectRatio: count == 1 ? 0.75 : 1.0, // Taller if only 1 person
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-      ),
-      itemCount: renderers.length,
-      itemBuilder: (context, index) {
-        final peerId = renderers.keys.elementAt(index);
-        final renderer = renderers[peerId]!;
+    Widget buildContainer(String peerId, RTCVideoRenderer renderer) {
         final matches = peers.where((p) => p.id == peerId).toList();
         final peerName = matches.isNotEmpty ? matches.first.name : 'Unknown';
         
+        _transformControllers.putIfAbsent(peerId, () => TransformationController());
+        final tController = _transformControllers[peerId]!;
+
         return Container(
           decoration: BoxDecoration(
             color: Colors.grey[850],
@@ -320,9 +400,15 @@ class _CallScreenState extends ConsumerState<CallScreen> {
             fit: StackFit.expand,
             children: [
               if (ref.read(callProvider.notifier).remoteMediaStatus[peerId]?['videoEnabled'] ?? true)
-                RTCVideoView(
-                  renderer,
-                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                InteractiveViewer(
+                  transformationController: tController,
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  scaleEnabled: false,
+                  child: RTCVideoView(
+                    renderer,
+                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                  ),
                 )
               else
                 Container(
@@ -348,6 +434,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                     ),
                   ),
                 ),
+              // Name Badge
               Positioned(
                 left: 8,
                 bottom: 8,
@@ -363,10 +450,73 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                   ),
                 ),
               ),
+              // Zoom Controls Overlay
+              if (ref.read(callProvider.notifier).remoteMediaStatus[peerId]?['videoEnabled'] ?? true)
+                Positioned(
+                  right: 8,
+                  bottom: 8,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildZoomButton(Icons.add, () {
+                        setState(() {
+                          tController.value = tController.value.clone()..multiply(Matrix4.diagonal3Values(1.2, 1.2, 1.2));
+                        });
+                      }),
+                      const SizedBox(height: 4),
+                      _buildZoomButton(Icons.remove, () {
+                        setState(() {
+                          tController.value = tController.value.clone()..multiply(Matrix4.diagonal3Values(0.8, 0.8, 0.8));
+                        });
+                      }),
+                      const SizedBox(height: 4),
+                      _buildZoomButton(Icons.fit_screen, () {
+                        setState(() {
+                          tController.value = Matrix4.identity();
+                        });
+                      }),
+                    ],
+                  ),
+                ),
             ],
           ),
         );
-      },
+    }
+
+    if (count == 1) {
+      final peerId = renderers.keys.first;
+      return Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: buildContainer(peerId, renderers[peerId]!),
+      );
+    }
+
+    // For multiple peers, use a Wrap
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: renderers.entries.map((e) => SizedBox(
+          width: count == 2 ? MediaQuery.of(context).size.width / 2 - 12 : MediaQuery.of(context).size.width / 2 - 12,
+          height: 300,
+          child: buildContainer(e.key, e.value),
+        )).toList(),
+      ),
+    );
+  }
+
+  Widget _buildZoomButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 16),
+      ),
     );
   }
 
@@ -375,19 +525,14 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     required bool isActive,
     required VoidCallback onPressed,
   }) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isActive ? Colors.white : Colors.white24,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          color: isActive ? Colors.black : Colors.white,
-          size: 28,
-        ),
+    return IconButton.filled(
+      onPressed: onPressed,
+      icon: Icon(icon),
+      iconSize: 28,
+      padding: const EdgeInsets.all(16),
+      style: IconButton.styleFrom(
+        backgroundColor: isActive ? Colors.white : Colors.grey[800],
+        foregroundColor: isActive ? Colors.black : Colors.white,
       ),
     );
   }

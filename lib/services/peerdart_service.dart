@@ -47,6 +47,9 @@ class PeerDartService {
   final StreamController<Map<String, dynamic>> _mediaStatus = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onMediaStatus => _mediaStatus.stream;
 
+  final StreamController<Map<String, dynamic>> _dataMessages = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onDataMessage => _dataMessages.stream;
+
   String? _myId;
   String? get myId => _myId;
 
@@ -175,6 +178,9 @@ class PeerDartService {
         } else if (type == 'call_request') {
           if (!_callRequests.isClosed) _callRequests.add(decoded);
         }
+        
+        // Also broadcast all raw JSON for generic listeners
+        if (!_dataMessages.isClosed) _dataMessages.add(decoded);
       } catch (e) {
         debugPrint('Error parsing incoming P2P data: $e');
       }
@@ -220,6 +226,14 @@ class PeerDartService {
       connectToPeer(peerId);
       return false;
     }
+  }
+
+  bool sendCustomData(String peerId, Map<String, dynamic> payload) {
+    final success = _sendPayload(peerId, payload);
+    if (!success) {
+      connectToPeer(peerId);
+    }
+    return success;
   }
 
   void sendReadReceipt(String peerId, List<String> messageIds) {

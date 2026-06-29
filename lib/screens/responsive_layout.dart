@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
 import 'package:abyss_chat/providers/layout_provider.dart';
+import 'package:abyss_chat/providers/call_provider.dart';
 import 'package:abyss_chat/screens/home_screen.dart';
 import 'package:abyss_chat/screens/chat_screen.dart';
 import 'package:abyss_chat/screens/settings_screen.dart';
@@ -84,6 +85,9 @@ class ResponsiveLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Initialize call provider to listen for incoming calls globally
+    ref.watch(callProvider);
+    
     final layoutStateAsync = ref.watch(layoutProvider);
     final tabIndex = ref.watch(navigationIndexProvider);
 

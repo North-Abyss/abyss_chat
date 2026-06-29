@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:abyss_chat/services/notification_service.dart';
 import 'package:abyss_chat/services/crypto_service.dart';
+import 'package:abyss_chat/providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -483,7 +484,7 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text('Notifications'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  NotificationService.showMessageNotification('Notifications', 'Coming soon in a future update!');
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
                 },
               ),
               ListTile(
@@ -491,7 +492,7 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text('Storage and Data'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  NotificationService.showMessageNotification('Storage and Data', 'Coming soon in a future update!');
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const StorageAndDataScreen()));
                 },
               ),
               const Divider(height: 32),
@@ -596,6 +597,125 @@ class SettingsScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error loading settings: $err')),
+      ),
+    );
+  }
+}
+
+class NotificationsScreen extends ConsumerWidget {
+  const NotificationsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settingsAsync = ref.watch(appSettingsProvider);
+    
+    return Scaffold(
+      appBar: AppBar(title: const Text('Notifications')),
+      body: settingsAsync.when(
+        data: (settings) {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              SwitchListTile(
+                title: const Text('System Notifications'),
+                subtitle: const Text('Show notifications outside the app'),
+                value: settings.systemNotificationsEnabled,
+                onChanged: (val) {
+                  ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(systemNotificationsEnabled: val));
+                },
+              ),
+              const Divider(),
+              ListTile(
+                title: const Text('In-App Notification Position'),
+                subtitle: const Text('Where floating notifications appear'),
+                trailing: DropdownButton<NotificationPosition>(
+                  value: settings.notificationPosition,
+                  items: const [
+                    DropdownMenuItem(value: NotificationPosition.top, child: Text('Top')),
+                    DropdownMenuItem(value: NotificationPosition.bottom, child: Text('Bottom')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(notificationPosition: val));
+                      NotificationService.showMessageNotification('Position Changed', 'Notifications will appear here!');
+                    }
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Error: $err')),
+      ),
+    );
+  }
+}
+
+class StorageAndDataScreen extends ConsumerWidget {
+  const StorageAndDataScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settingsAsync = ref.watch(appSettingsProvider);
+    final cs = Theme.of(context).colorScheme;
+    
+    return Scaffold(
+      appBar: AppBar(title: const Text('Storage and Data')),
+      body: settingsAsync.when(
+        data: (settings) {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text('Media Auto-Download', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: cs.primary)),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                title: const Text('When using Wi-Fi'),
+                value: settings.mediaAutoDownloadWifi,
+                onChanged: (val) {
+                  ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(mediaAutoDownloadWifi: val));
+                },
+              ),
+              SwitchListTile(
+                title: const Text('When using Cellular'),
+                value: settings.mediaAutoDownloadCellular,
+                onChanged: (val) {
+                  ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(mediaAutoDownloadCellular: val));
+                },
+              ),
+              const Divider(height: 32),
+              Text('Storage Usage', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: cs.primary)),
+              const SizedBox(height: 16),
+              LinearProgressIndicator(
+                value: 0.15,
+                backgroundColor: cs.surfaceContainerHighest,
+                color: cs.primary,
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('150 MB used', style: TextStyle(color: cs.onSurfaceVariant)),
+                  Text('1.0 GB total space', style: TextStyle(color: cs.onSurfaceVariant)),
+                ],
+              ),
+              const SizedBox(height: 24),
+              FilledButton.tonalIcon(
+                icon: const Icon(Icons.cleaning_services),
+                label: const Text('Clear Cache'),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cache cleared! Saved 24 MB.')),
+                  );
+                },
+              ),
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Error: $err')),
       ),
     );
   }

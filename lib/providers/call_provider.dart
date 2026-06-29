@@ -57,6 +57,9 @@ class CallNotifier extends Notifier<CallSession?> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   Timer? _timeoutTimer;
   
+  final StreamController<Map<String, dynamic>> _reactionStreamController = StreamController.broadcast();
+  Stream<Map<String, dynamic>> get reactionStream => _reactionStreamController.stream;
+  
   final Map<String, MediaConnection> _activeConnections = {};
   final Map<String, RTCVideoRenderer> remoteRenderers = {};
   final Map<String, Map<String, bool>> remoteMediaStatus = {};
@@ -83,6 +86,19 @@ class CallNotifier extends Notifier<CallSession?> {
       peerService.onCallRequest.listen(_handleCallRequest);
       peerService.onCallEnded.listen(_handleCallEnded);
       peerService.onMediaStatus.listen(_handleMediaStatus);
+      peerService.onDataMessage.listen((msg) {
+        switch (msg['type']) {
+          case 'call_ended':
+            _handleCallEnded(msg['peerId'] as String);
+            break;
+          case 'media_status':
+            _handleMediaStatus(msg);
+            break;
+          case 'reaction':
+            _handleReaction(msg);
+            break;
+        }
+      });
     });
     
     return null;
@@ -215,6 +231,30 @@ class CallNotifier extends Notifier<CallSession?> {
     }
   }
 
+  void _handleReaction(Map<String, dynamic> msg) {
+    if (state != null) {
+      _reactionStreamController.add(msg);
+    }
+  }
+
+  void sendReaction(String emoji) {
+    if (state == null) return;
+    
+    final msg = {
+      'type': 'reaction',
+      'emoji': emoji,
+      'peerId': 'local', // Or use actual local ID if available
+    };
+    
+    // Broadcast to all remote peers
+    for (final peer in state!.peers) {
+      ref.read(peerServiceProvider).sendCustomData(peer.id, msg);
+    }
+    
+    // Show locally immediately
+    _reactionStreamController.add(msg);
+  }
+
   void _handleCallRequest(Map<String, dynamic> request) {
     if (state != null) return;
     
@@ -317,17 +357,27 @@ class CallNotifier extends Notifier<CallSession?> {
   }
 
   void _showFullCall({bool isIncoming = false}) {
+    debugPrint('📱 _showFullCall called, isIncoming: $isIncoming');
     if (_overlayEntry != null) {
       _overlayEntry!.remove();
+      _overlayEntry = null; // Important to nullify after removal
     }
     
-    final context = globalNavigatorKey.currentState?.overlay?.context;
-    if (context == null || state == null) return;
+    final navState = globalNavigatorKey.currentState;
+    debugPrint('📱 navState: $navState');
+    final context = navState?.overlay?.context;
+    debugPrint('📱 context: $context');
+    
+    if (context == null || state == null) {
+      debugPrint('📱 Failed to show call: context=$context, state=$state');
+      return;
+    }
 
     _overlayEntry = OverlayEntry(
       builder: (context) => CallScreen(isIncoming: isIncoming), 
     );
     globalNavigatorKey.currentState?.overlay?.insert(_overlayEntry!);
+    debugPrint('📱 Overlay inserted successfully!');
   }
 
   void setConnected() {
@@ -346,11 +396,52 @@ class CallNotifier extends Notifier<CallSession?> {
     }
   }
 
-  void toggleVideo(bool enabled) {
+  Future<void> toggleVideo(bool enabled) async {
     if (_localStream != null) {
       final videoTracks = _localStream!.getVideoTracks();
-      if (videoTracks.isNotEmpty) {
-        videoTracks[0].enabled = enabled;
+      
+      if (enabled) {
+        // We want to turn it back on
+        if (videoTracks.isEmpty || !videoTracks[0].enabled) {
+          try {
+            final newStream = await navigator.mediaDevices.getUserMedia({
+              'audio': false,
+              'video': {'facingMode': 'user'},
+            });
+            final newTrack = newStream.getVideoTracks().first;
+            
+            // Remove old dead tracks
+            for (final track in videoTracks) {
+              _localStream!.removeTrack(track);
+            }
+            
+            _localStream!.addTrack(newTrack);
+            
+            // Replace track in active peer connections
+            for (final conn in _activeConnections.values) {
+              final senders = await conn.peerConnection?.getSenders();
+              if (senders != null) {
+                final videoSender = senders.where((s) => s.track?.kind == 'video').firstOrNull;
+                if (videoSender != null) {
+                  await videoSender.replaceTrack(newTrack);
+                }
+              }
+            }
+            
+            // Re-bind to local renderer
+            localRenderer.srcObject = _localStream;
+          } catch (e) {
+            debugPrint('Failed to restart camera: $e');
+          }
+        } else {
+          videoTracks[0].enabled = true;
+        }
+      } else {
+        // We want to turn it off (kill hardware)
+        if (videoTracks.isNotEmpty) {
+          videoTracks[0].enabled = false;
+          videoTracks[0].stop(); // Physically turn off camera LED
+        }
       }
     }
     
@@ -461,6 +552,8 @@ class MiniCallOverlay extends ConsumerStatefulWidget {
 
 class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
   Offset position = const Offset(20, 60);
+  double width = 130;
+  double height = 190;
 
   @override
   Widget build(BuildContext context) {
@@ -469,12 +562,6 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
 
     final isConnected = callState.state == CallState.connected;
     final remoteRenderers = ref.read(callProvider.notifier).remoteRenderers;
-    RTCVideoRenderer? activeRenderer;
-    if (remoteRenderers.isNotEmpty) {
-      activeRenderer = remoteRenderers.values.first;
-    }
-    
-    final peerName = callState.peers.isNotEmpty ? callState.peers.first.name : 'Unknown';
 
     return Positioned(
       left: position.dx,
@@ -488,8 +575,8 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
         child: Material(
           color: Colors.transparent,
           child: Container(
-            width: 130,
-            height: 190,
+            width: width,
+            height: height,
             decoration: BoxDecoration(
               color: Colors.grey[900],
               borderRadius: BorderRadius.circular(16),
@@ -510,30 +597,7 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
                   child: GestureDetector(
                     onTap: () => ref.read(callProvider.notifier).maximizeCall(),
                     behavior: HitTestBehavior.opaque,
-                    child: (isConnected && callState.isVideo && activeRenderer != null && (ref.read(callProvider.notifier).remoteMediaStatus[callState.peers.first.id]?['videoEnabled'] ?? true))
-                      ? RTCVideoView(
-                          activeRenderer,
-                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                        )
-                      : Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.person, color: Colors.white54, size: 48),
-                              const SizedBox(height: 8),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
-                                  peerName,
-                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ),
-                              const SizedBox(height: 24), // Space for button
-                            ],
-                          ),
-                        ),
+                    child: _buildVideoContent(callState, isConnected, remoteRenderers),
                   ),
                 ),
                 
@@ -603,10 +667,101 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
                     ],
                   ),
                 ),
+                
+                // Resize Handle
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onPanUpdate: (details) {
+                      setState(() {
+                        width = (width + details.delta.dx).clamp(130.0, MediaQuery.of(context).size.width - 40);
+                        height = (height + details.delta.dy).clamp(190.0, MediaQuery.of(context).size.height - 100);
+                      });
+                    },
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: const BoxDecoration(
+                        color: Colors.transparent,
+                      ),
+                      child: const Align(
+                        alignment: Alignment.bottomRight,
+                        child: Padding(
+                          padding: EdgeInsets.all(4.0),
+                          child: Icon(Icons.open_in_full, size: 14, color: Colors.white54),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildVideoContent(CallSession callState, bool isConnected, Map<String, RTCVideoRenderer> remoteRenderers) {
+    if (!isConnected || !callState.isVideo) {
+      return _buildPlaceholder(callState.peers.isNotEmpty ? callState.peers.first.name : 'Unknown');
+    }
+
+    if (width > 250 && remoteRenderers.length > 1) {
+      // Show Grid
+      final count = remoteRenderers.length;
+      int columns = count > 4 ? 3 : 2;
+      return GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          childAspectRatio: count == 1 ? 0.75 : 1.0,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
+        ),
+        itemCount: remoteRenderers.length,
+        itemBuilder: (context, index) {
+          final peerId = remoteRenderers.keys.elementAt(index);
+          final renderer = remoteRenderers[peerId]!;
+          if (!(ref.read(callProvider.notifier).remoteMediaStatus[peerId]?['videoEnabled'] ?? true)) {
+             return _buildPlaceholder('Participant');
+          }
+          return RTCVideoView(renderer, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover);
+        },
+      );
+    } else {
+      // Show Single Active Speaker
+      final activeRenderer = remoteRenderers.isNotEmpty ? remoteRenderers.values.first : null;
+      if (activeRenderer != null && (ref.read(callProvider.notifier).remoteMediaStatus[callState.peers.first.id]?['videoEnabled'] ?? true)) {
+        return RTCVideoView(
+          activeRenderer,
+          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+        );
+      } else {
+        return _buildPlaceholder(callState.peers.isNotEmpty ? callState.peers.first.name : 'Unknown');
+      }
+    }
+  }
+
+  Widget _buildPlaceholder(String name) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.person, color: Colors.white54, size: 48),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              name,
+              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
