@@ -22,4 +22,6 @@ All notable changes to this project will be documented in this file.
 - **P2P Group Chat**: Fixed group message routing by injecting a `groupId` into the message payload. Group messages are now correctly threaded into shared group chats rather than appearing as 1-on-1 messages.
 - **Group Creation UX**: Users can now instantly create a group by providing just a name, and dynamically add members later using the new "Add Participants" sheet inside Group Info.
 - **Connection Stability**: Fixed the internal `peerId` routing loop that caused background connection attempts to fail on Group IDs. Calls to `ref.invalidate()` on core providers now completely reset Bad State errors on logout.
-- **Call Screen Fixes**: Fixed a bug where incoming calls incorrectly loaded outgoing UI controls, preventing users from answering the call. Group video calls are temporarily disabled in the UI to ensure 1-on-1 P2P call stability.
+- **Group Audio/Video Calls**: Fully implemented Group Calls using a P2P mesh topology. The Call Screen now features a dynamic GridView to render multiple participants simultaneously. Added performance warnings for large groups.
+- **Mutual Contacts Enforcement**: Strict privacy implementation instantly rejects and destroys incoming LAN or WebRTC connections if the peer ID is not in your saved contacts list.
+- **Call Connection Robustness**: Fixed an issue where the app's call buttons would freeze after a long call or unexpected drop. `CallNotifier` now correctly listens for stream errors and cleans up UI state automatically.

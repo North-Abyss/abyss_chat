@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:abyss_chat/screens/login_screen.dart';
 import 'package:abyss_chat/providers/theme_provider.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,43 +22,57 @@ class AbyssApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeStateAsync = ref.watch(themeProvider);
 
-    return themeStateAsync.when(
-      data: (themeState) {
-        Color seedColor;
-        if (themeState.themeName == 'Custom' && themeState.customColor != null) {
-          seedColor = themeState.customColor!;
-        } else {
-          seedColor = predefinedThemes[themeState.themeName] ?? Colors.teal;
-        }
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) {
+        return themeStateAsync.when(
+          data: (themeState) {
+            Color? seedColor;
+            if (themeState.themeName == 'Custom' && themeState.customColor != null) {
+              seedColor = themeState.customColor!;
+            } else if (themeState.themeName != 'Default') {
+              seedColor = predefinedThemes[themeState.themeName];
+            }
 
-        return MaterialApp(
-          title: 'Abyss Chat',
-          debugShowCheckedModeBanner: false,
-          navigatorKey: globalNavigatorKey,
-          themeMode: themeState.mode,
-          theme: _buildTheme(seedColor, Brightness.light),
-          darkTheme: _buildTheme(seedColor, Brightness.dark),
-          home: const LoginScreen(),
+            return MaterialApp(
+              title: 'Abyss Chat',
+              debugShowCheckedModeBanner: false,
+              navigatorKey: globalNavigatorKey,
+              themeMode: themeState.mode,
+              theme: _buildTheme(seedColor, Brightness.light, lightDynamic),
+              darkTheme: _buildTheme(seedColor, Brightness.dark, darkDynamic),
+              home: const LoginScreen(),
+            );
+          },
+          loading: () => const MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ),
+          ),
+          error: (err, stack) => MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: Scaffold(
+              body: Center(child: Text('Error loading theme: $err')),
+            ),
+          ),
         );
       },
-      loading: () => const MaterialApp(
-        home: Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
-      ),
-      error: (err, stack) => MaterialApp(
-        home: Scaffold(
-          body: Center(child: Text('Error loading theme: $err')),
-        ),
-      ),
     );
   }
 
-  ThemeData _buildTheme(Color seedColor, Brightness brightness) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: seedColor,
-      brightness: brightness,
-    );
+  ThemeData _buildTheme(Color? seedColor, Brightness brightness, ColorScheme? dynamicScheme) {
+    ColorScheme colorScheme;
+    
+    if (seedColor == null && dynamicScheme != null) {
+      // Use device dynamic color if no custom/predefined seed is set
+      colorScheme = dynamicScheme;
+    } else {
+      // Fallback to custom/predefined seed or default teal
+      colorScheme = ColorScheme.fromSeed(
+        seedColor: seedColor ?? Colors.teal,
+        brightness: brightness,
+      );
+    }
 
     return ThemeData(
       useMaterial3: true,

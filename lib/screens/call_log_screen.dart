@@ -43,33 +43,38 @@ class CallLogScreen extends ConsumerWidget {
             itemCount: logs.length,
             itemBuilder: (context, index) {
               final log = logs[index];
-              return ListTile(
-                leading: UserAvatar(user: log.peer, radius: 24),
-                title: Text(log.peer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Row(
-                  children: [
-                    Icon(
-                      log.isOutgoing ? Icons.call_made : (log.isMissed ? Icons.call_missed : Icons.call_received),
-                      size: 16,
-                      color: log.isMissed ? Colors.red : (log.isOutgoing ? Colors.green : Colors.blue),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      DateFormat('MMM d, h:mm a').format(log.timestamp),
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-                trailing: IconButton(
-                  icon: Icon(log.isVideo ? Icons.videocam : Icons.call),
-                  color: Colors.green,
-                  onPressed: () {
-                    ref.read(callProvider.notifier).startCall(log.peer, log.isVideo);
-                  },
-                ),
-                onLongPress: () {
+              return GestureDetector(
+                onSecondaryTap: () {
                   // Options to delete call log
                 },
+                child: ListTile(
+                  leading: UserAvatar(user: log.peer, radius: 24),
+                  title: Text(log.peer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Row(
+                    children: [
+                      Icon(
+                        log.isOutgoing ? Icons.call_made : (log.isMissed ? Icons.call_missed : Icons.call_received),
+                        size: 16,
+                        color: log.isMissed ? Colors.red : (log.isOutgoing ? Colors.green : Colors.blue),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        DateFormat('MMM d, h:mm a').format(log.timestamp),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                  trailing: IconButton(
+                    icon: Icon(log.isVideo ? Icons.videocam : Icons.call),
+                    color: Colors.green,
+                    onPressed: () {
+                      ref.read(callProvider.notifier).startCall([log.peer], log.isVideo);
+                    },
+                  ),
+                  onLongPress: () {
+                    // Options to delete call log
+                  },
+                ),
               );
             },
           );

@@ -13,8 +13,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:abyss_chat/widgets/abyss_snackbar.dart';
 import 'package:abyss_chat/models/message.dart';
+import 'package:abyss_chat/models/chat_thread.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:abyss_chat/widgets/message_text_content.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String threadId;
@@ -223,20 +225,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ),
               actions: [
-                if (!thread.isGroup) ...[
-                  IconButton(
-                    icon: const Icon(Icons.videocam),
-                    onPressed: () {
-                      ref.read(callProvider.notifier).startCall(thread.peer, true);
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.call),
-                    onPressed: () {
-                      ref.read(callProvider.notifier).startCall(thread.peer, false);
-                    },
-                  ),
-                ],
+                IconButton(
+                  icon: const Icon(Icons.videocam),
+                  onPressed: () => _handleCall(thread, true),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.call),
+                  onPressed: () => _handleCall(thread, false),
+                ),
                 IconButton(
                   icon: const Icon(Icons.more_vert),
                   onPressed: () {
@@ -343,6 +339,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       });
                     }
                   },
+                  onSecondaryTap: () {
+                    setState(() {
+                      _selectedMessageIds.add(msg.id);
+                    });
+                  },
                   onLongPress: () {
                     setState(() {
                       _selectedMessageIds.add(msg.id);
@@ -401,19 +402,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             spacing: 8,
                             children: [
                               if (msg.type == MessageType.image)
-                                Container(
-                                  constraints: BoxConstraints(
-                                    maxHeight: 200,
-                                    maxWidth: MediaQuery.of(context).size.width * 0.6,
-                                  ),
-                                  margin: const EdgeInsets.only(bottom: 4),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: msg.fileData != null && msg.fileData!.isNotEmpty
-                                        ? Image.memory(base64Decode(msg.fileData!), fit: BoxFit.cover)
-                                        : (msg.localFilePath != null && !kIsWeb
-                                            ? Image.file(File(msg.localFilePath!), fit: BoxFit.cover) 
-                                            : const Icon(Icons.broken_image)),
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
+                                      backgroundColor: Colors.black,
+                                      appBar: AppBar(
+                                        backgroundColor: Colors.black,
+                                        iconTheme: const IconThemeData(color: Colors.white),
+                                      ),
+                                      body: Center(
+                                        child: InteractiveViewer(
+                                          child: msg.fileData != null && msg.fileData!.isNotEmpty
+                                              ? Image.memory(base64Decode(msg.fileData!))
+                                              : (msg.localFilePath != null && !kIsWeb
+                                                  ? Image.file(File(msg.localFilePath!))
+                                                  : const Icon(Icons.broken_image, color: Colors.white, size: 50)),
+                                        ),
+                                      ),
+                                    )));
+                                  },
+                                  child: Container(
+                                    constraints: BoxConstraints(
+                                      maxHeight: 200,
+                                      maxWidth: MediaQuery.of(context).size.width * 0.6,
+                                    ),
+                                    margin: const EdgeInsets.only(bottom: 4),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: msg.fileData != null && msg.fileData!.isNotEmpty
+                                          ? Image.memory(base64Decode(msg.fileData!), fit: BoxFit.cover)
+                                          : (msg.localFilePath != null && !kIsWeb
+                                              ? Image.file(File(msg.localFilePath!), fit: BoxFit.cover) 
+                                              : const Icon(Icons.broken_image)),
+                                    ),
                                   ),
                                 )
                               else if (msg.type == MessageType.file && msg.fileName != null)
@@ -694,5 +715,73 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         );
       },
     );
+  }
+
+  Future<void> _handleCall(ChatThread thread, bool isVideo) async {
+    final myId = ref.read(chatThreadsProvider.notifier).myId;
+    final callPeers = thread.isGroup 
+        ? thread.members.where((m) => m.id != myId).toList()
+        : [thread.peer];
+
+    if (thread.isGroup) {
+      if (callPeers.length > 10) {
+        AbyssSnackBar.show(context, 'Group calls are limited to 10 participants for optimal performance.', type: SnackBarType.error);
+        return;
+      }
+      
+      final prefs = await SharedPreferences.getInstance();
+      final hideWarning = prefs.getBool('hide_group_call_warning') ?? false;
+      
+      if (!hideWarning && mounted) {
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            bool dontShowAgain = false;
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return AlertDialog(
+                  title: const Text('Group Call Limits'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Abyss uses a decentralized network. For optimal call quality, we recommend keeping group calls under 10 people.'),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: dontShowAgain,
+                            onChanged: (val) => setState(() => dontShowAgain = val ?? false),
+                          ),
+                          const Expanded(child: Text('Don\'t show this warning again')),
+                        ],
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () {
+                        if (dontShowAgain) {
+                          prefs.setBool('hide_group_call_warning', true);
+                        }
+                        Navigator.pop(context, true);
+                      },
+                      child: const Text('Call'),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+        
+        if (proceed != true) return;
+      }
+    }
+
+    ref.read(callProvider.notifier).startCall(callPeers, isVideo, isGroup: thread.isGroup);
   }
 }

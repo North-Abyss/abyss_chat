@@ -56,6 +56,7 @@ dependencies:
   url_launcher: ^6.3.2
   any_link_preview: ^3.0.3
   video_player: ^2.11.1
+  dynamic_color: ^1.8.1
 
 dev_dependencies:
   flutter_test:

@@ -78,8 +78,9 @@ abyss_chat/
 - [x] Dynamic Theming (Curated + Custom Colors)
 - [x] P2P WebRTC & LAN Socket foundations
 - [x] Chat Screen with floating Emoji Picker
-- [x] Calling UI (Audio/Video stubs + Floating Mini-Call Window)
+- [x] P2P Audio/Video Calling (1-on-1 and Group Mesh)
 - [x] Group Chats
+- [x] Strict Mutual Contacts Enforcement (Privacy)
 - [x] Profile Management & Settings (with Hex Colors)
 - [x] In-App Notification System
 - [x] QR Code Generator & Scanner (`mobile_scanner` / `qr_flutter`)
@@ -159,5 +160,13 @@ abyss_chat/
 ### 2026-06-28 — Session 5 (Group UI & Call Fixes)
 - **P2P Group Chat**: Fixed group message routing by injecting a `groupId` into the message payload. Fixed background queue connecting loop that erroneously attempted WebRTC peer connections against the Group UUID rather than iterating through its members.
 - **Group Creation UX**: Users can now instantly create a group by providing just a name, and dynamically add members later using the new "Add Participants" sheet inside Group Info.
-- **Call Screen Fixes**: Fixed a bug where incoming calls failed to display Answer/Decline buttons because the overlay lacked the `isIncoming = true` boolean flag. Group video calls are temporarily disabled in the UI to ensure 1-on-1 P2P call stability.
+- **Call Screen Fixes**: Fixed a bug where incoming calls incorrectly loaded outgoing UI controls, preventing users from answering the call.
 - **Connection Stability**: Fixed the internal `peerId` routing loop. Calling `ref.invalidate()` on core providers now completely resets Bad State errors on logout or account deletion.
+
+### 2026-06-29 — Session 6 (Group Calls & Mutual Contacts)
+- **Mutual Contacts Enforcement**: Added strict validation in `lan_messenger.dart` and `peerdart_service.dart`. Incoming connections from unknown peers (not in the contacts list) are now instantly rejected and their sockets destroyed.
+- **Robust Call States**: Refactored `CallSession` and `CallNotifier` to listen to `MediaConnection` close/error events. Calls now clean up properly on timeout or unexpected drops, fixing UI freeze issues.
+- **Group Calls (P2P Mesh)**: Enabled Audio and Video group calls. 
+  - The app establishes a P2P mesh (connecting to every member).
+  - Added a warning dialog when calling groups larger than 10 members.
+  - Implemented a dynamic `GridView` in `CallScreen` to render multiple remote participants.

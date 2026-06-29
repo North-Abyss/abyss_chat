@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 class PeerDartService {
   Peer? _peer;
   final Map<String, DataConnection> _activeConnections = {};
+  final Set<String> _pendingConnections = {};
   final Map<String, List<StreamSubscription>> _subscriptions = {};
   
   // Stream controllers for different events
@@ -40,10 +41,16 @@ class PeerDartService {
   final StreamController<Map<String, dynamic>> _callRequests = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onCallRequest => _callRequests.stream;
 
+  final StreamController<String> _callEnded = StreamController<String>.broadcast();
+  Stream<String> get onCallEnded => _callEnded.stream;
+
+  final StreamController<Map<String, dynamic>> _mediaStatus = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onMediaStatus => _mediaStatus.stream;
+
   String? _myId;
   String? get myId => _myId;
 
-  Future<void> initialize([String? customId]) async {
+  Future<void> initialize(String? customId) async {
     _myId = customId ?? const Uuid().v4().substring(0, 8);
     _peer = Peer(id: _myId);
 
@@ -57,9 +64,17 @@ class PeerDartService {
       _setupConnection(conn);
     });
 
+    _peer!.on("disconnected").listen((_) {
+      debugPrint('⚠️ Disconnected from signaling server. Reconnecting...');
+      if (!_peer!.destroyed) {
+        _peer!.reconnect();
+      }
+    });
+
     _peer!.on("call").listen((call) {
-      debugPrint('📞 Incoming call from ${call.peer}');
-      if (!_incomingCalls.isClosed) _incomingCalls.add(call as MediaConnection);
+      final mediaCall = call as MediaConnection;
+      debugPrint('📞 Incoming call from ${mediaCall.peer}');
+      if (!_incomingCalls.isClosed) _incomingCalls.add(mediaCall);
     });
 
     _peer!.on("error").listen((err) {
@@ -76,15 +91,38 @@ class PeerDartService {
     if (_peer == null) return;
     if (_activeConnections.containsKey(peerId)) {
       if (_activeConnections[peerId]!.open) return;
-      // Close stale connection to trigger cleanup
-      _activeConnections[peerId]!.close();
-      _cancelSubscriptions(peerId);
+      // Close stale connection to trigger cleanup asynchronously to avoid bad state
+      final staleConn = _activeConnections[peerId];
       _activeConnections.remove(peerId);
+      Future.microtask(() {
+        staleConn?.close();
+      });
+      _cancelSubscriptions(peerId);
     }
     
+    if (_pendingConnections.contains(peerId)) {
+      debugPrint('⏳ Already attempting to connect to $peerId. Ignoring duplicate request.');
+      return;
+    }
+    
+    _pendingConnections.add(peerId);
     debugPrint('🔄 Attempting to connect to $peerId...');
-    final conn = _peer!.connect(peerId);
-    _setupConnection(conn);
+    try {
+      final conn = _peer!.connect(peerId);
+      _setupConnection(conn);
+    } catch (e) {
+      _pendingConnections.remove(peerId);
+      debugPrint('❌ Peer connect exception: $e');
+      if (e.toString().contains('disconnected')) {
+        _peer!.reconnect();
+        // Wait and retry
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (_peer != null && !_peer!.disconnected) {
+            connectToPeer(peerId);
+          }
+        });
+      }
+    }
   }
 
   void _cancelSubscriptions(String peerId) {
@@ -103,6 +141,7 @@ class PeerDartService {
     subs.add(conn.on("open").listen((_) {
       debugPrint('🤝 Data connection established with ${conn.peer}');
       _activeConnections[conn.peer] = conn;
+      _pendingConnections.remove(conn.peer);
       if (!_connectionStatus.isClosed) _connectionStatus.add('Connected to ${conn.peer}');
       if (!_connectionOpened.isClosed) _connectionOpened.add(conn.peer);
     }));
@@ -125,6 +164,10 @@ class PeerDartService {
           if (!_deliveryReceipts.isClosed) _deliveryReceipts.add(decoded);
         } else if (type == 'read_receipt') {
           if (!_readReceipts.isClosed) _readReceipts.add(decoded);
+        } else if (type == 'call_ended') {
+          if (!_callEnded.isClosed) _callEnded.add(decoded['peerId']);
+        } else if (type == 'media_status') {
+          if (!_mediaStatus.isClosed) _mediaStatus.add(decoded);
         } else if (type == 'typing') {
           if (!_typingIndicators.isClosed) _typingIndicators.add(decoded['peerId']);
         } else if (type == 'profile_sync') {
@@ -140,12 +183,14 @@ class PeerDartService {
     subs.add(conn.on("close").listen((_) {
       debugPrint('🛑 Connection closed with ${conn.peer}');
       _activeConnections.remove(conn.peer);
+      _pendingConnections.remove(conn.peer);
       _cancelSubscriptions(conn.peer);
     }));
 
     subs.add(conn.on("error").listen((err) {
       debugPrint('❌ Connection error with ${conn.peer}: $err');
       _activeConnections.remove(conn.peer);
+      _pendingConnections.remove(conn.peer);
       _cancelSubscriptions(conn.peer);
     }));
 
@@ -194,6 +239,22 @@ class PeerDartService {
     });
   }
 
+  void sendCallEnded(String peerId) {
+    _sendPayload(peerId, {
+      'type': 'call_ended',
+      'peerId': _myId,
+    });
+  }
+
+  void sendMediaStatus(String peerId, {required bool videoEnabled, required bool audioEnabled}) {
+    _sendPayload(peerId, {
+      'type': 'media_status',
+      'peerId': _myId,
+      'videoEnabled': videoEnabled,
+      'audioEnabled': audioEnabled,
+    });
+  }
+
   void sendTypingIndicator(String peerId) {
     _sendPayload(peerId, {
       'type': 'typing',
@@ -226,6 +287,8 @@ class PeerDartService {
     _connectionOpened.close();
     _profileSyncs.close();
     _callRequests.close();
+    _callEnded.close();
+    _mediaStatus.close();
     
     for (final subs in _subscriptions.values) {
       for (final sub in subs) {

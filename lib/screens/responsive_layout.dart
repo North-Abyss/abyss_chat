@@ -31,6 +31,54 @@ class LeftDockVisibilityNotifier extends Notifier<bool> {
 
 final isLeftDockVisibleProvider = NotifierProvider<LeftDockVisibilityNotifier, bool>(() => LeftDockVisibilityNotifier());
 
+class FloatingDockToggle extends ConsumerStatefulWidget {
+  final bool isVisible;
+  const FloatingDockToggle({super.key, required this.isVisible});
+
+  @override
+  ConsumerState<FloatingDockToggle> createState() => _FloatingDockToggleState();
+}
+
+class _FloatingDockToggleState extends ConsumerState<FloatingDockToggle> {
+  Alignment _alignment = Alignment.centerLeft;
+  double _dragY = 0.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedAlign(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+      alignment: _alignment,
+      child: GestureDetector(
+        onVerticalDragUpdate: (details) {
+          _dragY += details.delta.dy;
+        },
+        onVerticalDragEnd: (details) {
+          final velocity = details.primaryVelocity ?? 0;
+          setState(() {
+            if (_dragY < -50 || velocity < -300) {
+              _alignment = Alignment.topLeft;
+            } else if (_dragY > 50 || velocity > 300) {
+              _alignment = Alignment.bottomLeft;
+            } else {
+              _alignment = Alignment.centerLeft;
+            }
+            _dragY = 0.0;
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: FloatingActionButton.small(
+            elevation: 4,
+            onPressed: () => ref.read(isLeftDockVisibleProvider.notifier).toggle(),
+            child: Icon(widget.isVisible ? Icons.chevron_left : Icons.chevron_right),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class ResponsiveLayout extends ConsumerWidget {
   const ResponsiveLayout({super.key});
 
@@ -113,35 +161,15 @@ class ResponsiveLayout extends ConsumerWidget {
                     ),
                   ),
                   
-                  // Dock Toggle Button (Arrow)
+                  // Dock Toggle Button (Floating)
                   if (isLeft)
                     AnimatedPositioned(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeOutCubic,
-                      left: isLeftDockVisible ? 80 : 0,
+                      left: isLeftDockVisible ? 85 : 8,
                       top: 0,
                       bottom: 0,
-                      child: Center(
-                        child: GestureDetector(
-                          onTap: () {
-                            ref.read(isLeftDockVisibleProvider.notifier).toggle();
-                          },
-                          child: Container(
-                            width: 24,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
-                              borderRadius: const BorderRadius.horizontal(right: Radius.circular(12)),
-                              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                            ),
-                            child: Icon(
-                              isLeftDockVisible ? Icons.chevron_left : Icons.chevron_right,
-                              size: 20,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: FloatingDockToggle(isVisible: isLeftDockVisible),
                     ),
                 ],
               ),

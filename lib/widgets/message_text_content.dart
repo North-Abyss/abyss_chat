@@ -3,7 +3,7 @@ import 'package:abyss_chat/models/message.dart';
 import 'package:any_link_preview/any_link_preview.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
-
+import 'package:flutter/foundation.dart';
 class MessageTextContent extends StatelessWidget {
   final Message msg;
   final bool isMe;
@@ -91,13 +91,17 @@ class MessageTextContent extends StatelessWidget {
         width: 250,
         child: AnyLinkPreview(
           link: url,
+          proxyUrl: kIsWeb ? 'https://corsproxy.io/?' : null,
           displayDirection: UIDirection.uiDirectionHorizontal,
           cache: const Duration(days: 7),
           backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
           errorWidget: Container(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             padding: const EdgeInsets.all(8),
-            child: const Text('Could not load preview', style: TextStyle(fontSize: 12)),
+            child: InkWell(
+              onTap: () => launchUrl(Uri.parse(url)),
+              child: const Text('View link \u2197', style: TextStyle(fontSize: 12, decoration: TextDecoration.underline, color: Colors.blue)),
+            ),
           ),
         ),
       );

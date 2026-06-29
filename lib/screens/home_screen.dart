@@ -443,6 +443,7 @@ class HomeScreen extends ConsumerWidget {
         error: (err, stack) => Center(child: Text('Error: $err')),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: null,
         onPressed: () {
           showModalBottomSheet(
             context: context,

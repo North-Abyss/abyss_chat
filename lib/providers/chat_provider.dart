@@ -29,6 +29,13 @@ class ContactsNotifier extends AsyncNotifier<List<User>> {
       contacts.add(user);
       state = AsyncData(contacts);
       ref.read(storageServiceProvider).saveContacts(contacts);
+    } else {
+      final idx = contacts.indexWhere((c) => c.id == user.id);
+      if (contacts[idx].name != user.name || contacts[idx].avatarIcon != user.avatarIcon || contacts[idx].avatarColor != user.avatarColor) {
+        contacts[idx] = user;
+        state = AsyncData(contacts);
+        ref.read(storageServiceProvider).saveContacts(contacts);
+      }
     }
   }
 
@@ -130,10 +137,16 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   final Map<String, DateTime> _lastConnectAttempt = {};
 
   @override
+  @override
   Future<List<ChatThread>> build() async {
     final storage = ref.watch(storageServiceProvider);
     final peer = ref.watch(peerServiceProvider);
     final lan = ref.watch(lanMessengerProvider);
+
+    final profile = await storage.loadUserProfile();
+    if (profile != null) {
+      _myName = profile['name'];
+    }
     
     // Message streams
     final sub1 = peer.onMessageReceived.listen(_handleIncomingMessage);
@@ -204,6 +217,14 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       return; // Ignore messages from blocked peers
     }
     
+    // Auto-add unknown sender to contacts
+    ref.read(contactsProvider.notifier).addContact(User(
+      id: message.senderId,
+      name: message.senderName ?? 'Peer ${message.senderId}',
+      avatarIcon: 0xe491,
+      avatarColor: 0xFF6750A4,
+    ));
+    
     final threads = List<ChatThread>.from(state.value!);
     final isGroup = message.groupId != null;
     final targetThreadId = isGroup ? message.groupId! : message.senderId;
@@ -250,7 +271,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       if (!isGroup) sendReadReceipt(message.senderId, [message.id]);
     } else {
       final activeCall = ref.read(callProvider);
-      final inActiveCallWithSender = activeCall != null && activeCall.peer.id == targetThreadId;
+      final inActiveCallWithSender = activeCall != null && activeCall.peers.any((p) => p.id == targetThreadId);
       
       if (!inActiveCallWithSender) {
         final thread = threads.firstWhere((t) => t.id == targetThreadId);
@@ -325,15 +346,21 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     
     ref.read(contactsProvider.notifier).addContact(newUser);
     
-    // Update thread if exists
+    // Update or create thread
     if (state.hasValue) {
       final threads = List<ChatThread>.from(state.value!);
       final threadIndex = threads.indexWhere((t) => t.id == peerId);
       if (threadIndex != -1) {
         threads[threadIndex] = threads[threadIndex].copyWith(peer: newUser);
-        state = AsyncData(threads);
-        ref.read(storageServiceProvider).saveThreads(threads);
+      } else {
+        threads.insert(0, ChatThread(
+          id: peerId,
+          peer: newUser,
+          messages: [],
+        ));
       }
+      state = AsyncData(threads);
+      ref.read(storageServiceProvider).saveThreads(threads);
     }
   }
 
@@ -366,9 +393,14 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
 
   Future<void> initializePeer(String? customId, String myName) async {
     _myName = myName;
-    await ref.read(peerServiceProvider).initialize(customId);
     
-    final lanPort = await ref.read(lanMessengerProvider).startServer(customId ?? 'unknown');
+    await ref.read(peerServiceProvider).initialize(
+      customId
+    );
+    
+    final lanPort = await ref.read(lanMessengerProvider).startServer(
+      customId ?? 'unknown'
+    );
     
     final mdnsNotifier = ref.read(nearbyPeersProvider.notifier);
     await mdnsNotifier.startBroadcasting(myId ?? 'unknown', myName, port: lanPort);
@@ -376,6 +408,13 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   }
 
   Future<void> connectToPeer(String peerId) async {
+    final now = DateTime.now();
+    if (_lastConnectAttempt.containsKey(peerId)) {
+      final diff = now.difference(_lastConnectAttempt[peerId]!);
+      if (diff.inSeconds < 3) return; // Prevent connect spam
+    }
+    _lastConnectAttempt[peerId] = now;
+    
     final mdnsPeers = ref.read(nearbyPeersProvider);
     final lanPeer = mdnsPeers.where((p) => p.id == peerId).firstOrNull;
     
@@ -710,10 +749,7 @@ final chatThreadsProvider = AsyncNotifierProvider<ChatThreadsNotifier, List<Chat
 final singleThreadProvider = Provider.family<ChatThread?, String>((ref, id) {
   final asyncThreads = ref.watch(chatThreadsProvider);
   return asyncThreads.maybeWhen(
-    data: (threads) => threads.firstWhere(
-      (t) => t.id == id,
-      orElse: () => throw Exception('Thread not found'),
-    ),
+    data: (threads) => threads.where((t) => t.id == id).firstOrNull,
     orElse: () => null,
   );
 });

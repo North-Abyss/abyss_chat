@@ -12,11 +12,12 @@ A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clo
 
 ## 📱 Features
 
-- **P2P Communication** - Uses WebRTC for true peer-to-peer data channels and audio/video calling with `getUserMedia`.
+- **P2P Communication** - Uses WebRTC for true peer-to-peer data channels and audio/video calling (supports both 1-on-1 and Group Mesh calls).
+- **Mutual Contacts Only** - Strict privacy enforcement instantly rejects incoming connections from unknown peers not in your local contacts list.
 - **Local Network Discovery** - Uses mDNS (Multicast DNS) and LAN TCP sockets to find and connect to peers on the same local network, working completely offline.
 - **Material 3 Design** - Fully customized dynamic theming support with beautiful UI following Material 3 guidelines, including desktop/web responsive split-pane layouts.
 - **Persistent Storage** - Saves chats, settings, profiles, and call logs securely (using `path_provider` on native and `shared_preferences` gracefully falling back on Web).
-- **Group Chats** - Create and manage local group chats.
+- **Group Chats & Calls** - Create and manage local group chats, and initiate P2P Group Video Calls with dynamic grid layouts.
 - **Profile Customization** - Users can customize their names, avatar icons, and colors (including pure black/white).
 - **Theming Engine** - Includes 12 curated themes plus the ability to pick any custom hex color.
 - **Smart Notifications** - Slide-in floating toasts for incoming messages that automatically silence themselves if you're actively speaking to the sender.
