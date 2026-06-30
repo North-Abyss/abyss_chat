@@ -5,9 +5,14 @@ A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clo
 **Live Web App:** [https://north-abyss.github.io/abyss_chat/](https://north-abyss.github.io/abyss_chat/)  
 **GitHub Repository:** [North-Abyss/abyss_chat](https://github.com/North-Abyss/abyss_chat)  
 **Download Natives:** [Check Releases](https://github.com/North-Abyss/abyss_chat/releases)
-<div align=center>
-    <!-- Replace this with a preview screenshot when available -->
-    <img src="assets/abyss-chat.png" alt="Logo" width="128" style="border-radius: 18px;">
+<div align="center">
+    <img src="assets/abyss-chat.png" alt="Logo" width="128" style="border-radius: 18px; margin-bottom: 24px;">
+    
+  <br>
+  
+  <img src="assets/Screenshot-01.png" alt="Screenshot 1" width="250" style="border-radius: 12px; margin: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);">
+  <img src="assets/Screenshot-02.png" alt="Screenshot 2" width="250" style="border-radius: 12px; margin: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);">
+  <img src="assets/Screenshot-03.png" alt="Screenshot 3" width="250" style="border-radius: 12px; margin: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);">
 </div>
 
 ## 📱 Features
