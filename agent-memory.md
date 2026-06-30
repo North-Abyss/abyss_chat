@@ -8,6 +8,11 @@
 
 ## 📋 Project Identity
 
+# Abyss Chat - Agent Memory & Workspace Overview
+
+**Version:** 1.0.0
+**Project Goal:** A cross-platform, decentralized P2P messaging and video calling application (WhatsApp-style) running on Flutter and Riverpod.
+
 | Field               | Value                                             |
 |---------------------|---------------------------------------------------|
 | **App Name**        | Abyss Chat                                        |
@@ -22,23 +27,75 @@
 
 ## 🏗️ Architecture Overview
 
+Abyss Chat uses a clean, feature-driven architecture pattern centered around Riverpod for state management and WebRTC/Sockets for network operations. The `lib/` directory is organized into distinct layers to separate UI, state, domain logic, and infrastructure:
+
 ```text
 abyss_chat/
 ├── lib/
-│   ├── main.dart
-│   ├── models/          ← Data structures (e.g. ChatMessage)
-│   ├── providers/       ← Riverpod state management
-│   ├── screens/         ← UI Pages
-│   ├── widgets/         ← Reusable UI components
-│   └── services/        ← Network / JSON parsing logic
-└── agent-memory.md      ← THIS FILE
+│   ├── main.dart             ← Application entry point & theme initialization
+│   ├── models/               ← Domain models & data structures
+│   ├── providers/            ← Riverpod Notifiers & state controllers
+│   ├── screens/              ← Top-level UI pages & routing destinations
+│   ├── services/             ← Network, storage, & infrastructure logic
+│   └── widgets/              ← Reusable UI components & dialogs
+└── agent-memory.md           ← Persistent AI context tracking
 ```
 
+### 1. `models/` (Domain Layer)
+Contains pure Dart data structures representing the core entities of the app. These models encapsulate data and often include `fromJson`/`toJson` methods for local storage serialization, but do not contain business logic or UI dependencies.
+- **`call_log.dart`**: Represents history records of past calls.
+- **`chat_thread.dart`**: Represents an active conversation (1-on-1 or group).
+- **`message.dart`**: Defines the ChatMessage schema, payload parsing, and timestamping.
+- **`user.dart`**: Schema for saved contacts and the user's own profile.
+
+### 2. `services/` (Infrastructure Layer)
+Handles all external I/O, networking, and platform-specific operations. Services are stateless utilities that perform heavy lifting without knowing about the UI.
+- **`crypto_service.dart`**: AES-GCM encryption utilities for securely wrapping message payloads.
+- **`lan_messenger.dart`**: TCP socket communication for offline local network chats.
+- **`mdns_service.dart`**: Multicast DNS discovery to find active Abyss peers on the LAN.
+- **`notification_service.dart`**: Controls native floating toasts and background notifications.
+- **`peerdart_service.dart`**: WebRTC broker utilizing PeerJS signaling for Internet calls.
+- **`storage_service.dart`**: Manages persisting encrypted data locally using SharedPreferences/path_provider.
+
+### 3. `providers/` (State Management Layer)
+Acts as the bridge between the Services and the UI using `flutter_riverpod`. Providers observe services, hold the reactive state, and expose methods for the UI to trigger actions.
+- **`call_provider.dart`**: Listens for WebRTC connection states, handles ringing logic, manages the active `CallSession`, and controls video/audio track states.
+- **`chat_provider.dart`**: Manages the list of active threads, loaded messages, and sending logic.
+- **`layout_provider.dart`**: Tracks the dynamic responsive window layout constraints (desktop split vs mobile).
+- **`settings_provider.dart`**: Manages persistent app-wide settings (e.g. notifications toggles).
+- **`theme_provider.dart`**: Controls Material 3 dynamic color generation and dark mode state.
+
+### 4. `screens/` (Presentation Layer)
+Contains the top-level route destinations. Screens are primarily `ConsumerWidget`s that watch Riverpod providers to reactively rebuild the UI based on state changes. They handle layout compositions and navigation but delegate core logic to providers.
+- `lib/screens/group_info_screen.dart`: UI for viewing group participants, generating a Group Join QR code, renaming the group, and uploading custom group profile images.
+- `lib/screens/chat_screen.dart`: Primary UI for sending/receiving messages (supports multimedia).
+- **`call_log_screen.dart`**: UI for viewing past audio/video calls.
+- **`call_screen.dart`**: The main WebRTC audio/video call UI with dynamic video grids and controls.
+- **`chat_screen.dart`**: Active conversation view with message bubbles, media previews, and text input.
+- **`contact_profile_screen.dart`**: Detailed view of a specific user.
+- **`create_group_screen.dart`**: Flow to initialize a new group.
+- **`group_info_screen.dart`**: Flow to add/remove members from an existing group.
+- **`home_screen.dart`**: The primary dashboard listing recent chats, contacts, and floating action buttons.
+- **`login_screen.dart`**: Initial splash screen for new users to set their name and connect to the network.
+- **`my_qr_screen.dart`**: Displays the user's ID as a QR code.
+- **`qr_scan_screen.dart`**: Camera scanner to instantly add a peer by scanning their QR code.
+- **`responsive_layout.dart`**: The root responsive shell that controls the desktop split-pane vs mobile navigation.
+- **`settings_screen.dart`**: Configuration page for themes, notifications, and wiping account data.
+
+### 5. `widgets/` (UI Component Layer)
+Houses reusable, stateless, or localized-state UI elements that are shared across multiple screens to enforce DRY principles and maintain visual consistency.
+- **`abyss_snackbar.dart`**: Reusable elegant floating slide-in snackbar.
+- **`floating_dock.dart`**: The Google Meet style UI component for floating call actions/emojis.
+- **`message_text_content.dart`**: Rich text widget that parses links and renders previews/videos inline.
+- **`user_avatar.dart`**: Consistent circular avatar rendering names/colors or icons.
+- **`user_search_delegate.dart`**: The global search bar logic for finding contacts and groups.
+- **`wps_button.dart`**: UI component for quick connect/scan triggers.
+
 ### Key Architecture Rules
-- Use `flutter_riverpod` for all state management.
-- Hardcode initial data using JSON structures for UI testing.
-- UI must follow Material 3 design strictly.
-- Build for all platforms simultaneously.
+- **State Management**: Use `flutter_riverpod` for all reactive state. Avoid complex `StatefulWidget`s unless the state is purely ephemeral (like text field focus or simple animations).
+- **Service Injection**: Services should not access Providers. Providers wrap Services and expose them to the UI.
+- **UI Design**: Strictly follow Material 3 design guidelines. Use dynamic `Theme.of(context)` colors instead of hardcoded hex values.
+- **Platform Agnostic**: Do not use platform-specific plugins (like `dart:io` exclusively) without providing a Web fallback, ensuring the app runs across Android, iOS, Windows, Linux, and Web simultaneously.
 
 ---
 
@@ -170,3 +227,14 @@ abyss_chat/
   - The app establishes a P2P mesh (connecting to every member).
   - Added a warning dialog when calling groups larger than 10 members.
   - Implemented a dynamic `GridView` in `CallScreen` to render multiple remote participants.
+
+### 2026-06-30 — Session 7 (Call UI Polish & SEO)
+- **Call Screen Layout Refactor**: 
+  - Replaced rigid `GridView` with a dynamic `Flex`/`Wrap` layout to prevent clipping on single-stream videos and to adapt better on widescreen monitors.
+  - Video tracks now use `RTCVideoViewObjectFitContain` to prevent awkward zooming and face-cropping on the remote stream.
+  - Disabled scroll-wheel zooming on the `InteractiveViewer`, explicitly restricting zooming to the dedicated UI buttons.
+- **Floating Emoji Dock**: Extracted the emoji buttons into a Google Meet-style floating popup dock overlaid above the video, controlled by a toggle button in the main dock.
+- **Web SEO**: Heavily injected proper metadata into `web/index.html` (Open Graph, Twitter Cards, Keywords, rich meta descriptions).
+- **Bug Fixes**: 
+  - Fixed a `RenderFlex` overflow on the `LoginScreen`.
+  - Fixed a critical "Lazy Initialization" bug where `CallProvider` was not instantiating globally, resulting in the incoming call screen silently failing to appear for receivers.

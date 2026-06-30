@@ -44,6 +44,15 @@ class StorageService {
       return CryptoService.decryptData(ciphertext);
     } catch (e) {
       debugPrint('Error reading encrypted file $filename: $e');
+      try {
+        if (kIsWeb) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('web_$filename');
+        } else {
+          final file = await _getFile(filename);
+          if (await file.exists()) await file.delete();
+        }
+      } catch (_) {}
       return null;
     }
   }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -210,14 +211,30 @@ class HomeScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
             onPressed: () async {
-              final selectedId = await Navigator.push(context, MaterialPageRoute(builder: (_) => const QRScanScreen()));
-              if (selectedId != null && selectedId is String) {
-                ref.read(chatThreadsProvider.notifier).startNewChat(selectedId, peerName: 'Scanned Peer');
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const QRScanScreen()));
+              if (result != null && result is String) {
+                String threadIdToOpen = result;
+                
+                try {
+                  final Map<String, dynamic> decoded = jsonDecode(result);
+                  if (decoded['type'] == 'group_join') {
+                    final groupId = decoded['id'] as String;
+                    final groupName = decoded['name'] as String;
+                    ref.read(chatThreadsProvider.notifier).joinGroup(groupId, groupName, null);
+                    threadIdToOpen = groupId;
+                  } else {
+                    ref.read(chatThreadsProvider.notifier).startNewChat(result, peerName: 'Scanned Peer');
+                  }
+                } catch (e) {
+                  // Not JSON, assume direct Peer ID
+                  ref.read(chatThreadsProvider.notifier).startNewChat(result, peerName: 'Scanned Peer');
+                }
+
                 if (isDesktop) {
-                  ref.read(selectedThreadIdProvider.notifier).select(selectedId);
+                  ref.read(selectedThreadIdProvider.notifier).select(threadIdToOpen);
                 } else {
                   if (context.mounted) {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(threadId: selectedId)));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(threadId: threadIdToOpen)));
                   }
                 }
               }

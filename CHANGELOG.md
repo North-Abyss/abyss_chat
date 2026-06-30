@@ -2,7 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] - 2026-06-30
+### Added
+- **Group QR Joining**: Instantly join group chats by scanning a Group QR code directly from the Home Screen.
+- **Group Customization**: You can now rename groups and upload custom group profile photos!
+- **Call End Syncing**: Voice calls now accurately sync their end states across devices perfectly using a 300ms packet transmit guarantee.
+
+### Fixed
+- Fixed an issue causing camera streams to crash with a `Concurrent modification during iteration` error when toggling video on and off.
+- Fixed an intense bug causing the call overlay UI to duplicate itself multiple times if devices sent simultaneous handshakes.
+- Handled edge case where corrupted local storage JSON files (`Invalid padding character`) caused unrecoverable errors on reboot by seamlessly self-healing/deleting.
+- Fixed a bug where a generic blank icon was shown when you turned your local video off instead of your beautiful customized profile avatar!
+
+## [0.9.3] - 2026-06-29
+
 ## [0.0.0] - In Development
+- **Call Screen Layouts**: Refactored the rigid `GridView` in the Call Screen to a dynamic Flex/Wrap layout that perfectly fits single remote streams and seamlessly wraps for multiple participants.
+- **Floating Emoji Dock**: Emojis in the call screen are now housed in a Google Meet-style floating popup dock above the control bar, toggled by a smiley button.
+- **Video Aspect Ratio**: Remote video streams now use `Contain` instead of `Cover` to prevent face cropping and overlapping. Scroll-to-zoom is disabled on the video viewer; zooming is restricted to dedicated UI buttons.
+- **Web SEO**: Added comprehensive SEO metadata to `web/index.html` including Open Graph and Twitter Card tags.
+- **Bug Fixes**: Fixed a `RenderFlex` overflow on the `LoginScreen` by wrapping it in a `SingleChildScrollView`. Fixed lazy initialization of `CallProvider` that prevented the incoming call screen from appearing on the receiver's end.
 - **WebRTC Calling**: Implemented true P2P video and audio streams using `getUserMedia` and `flutter_webrtc`.
 - **Call Screen Polishes**: Added auto-minimizing floating PiP mode when navigating away from calls, plus Answer/Decline buttons.
 - **Smart Notifications**: Toast notifications are now automatically silenced if the user is actively viewing that chat or in an active call.

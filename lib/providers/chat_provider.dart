@@ -740,6 +740,51 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       ref.read(storageServiceProvider).saveThreads(threads);
     }
   }
+
+  void updateGroupProfile(String groupId, String? name, String? imagePath) {
+    if (!state.hasValue) return;
+    final threads = List<ChatThread>.from(state.value!);
+    final threadIndex = threads.indexWhere((t) => t.id == groupId);
+    if (threadIndex != -1) {
+      final oldThread = threads[threadIndex];
+      threads[threadIndex] = oldThread.copyWith(
+        groupName: name ?? oldThread.groupName,
+        groupImagePath: imagePath ?? oldThread.groupImagePath,
+        peer: oldThread.peer.copyWith(
+          name: name ?? oldThread.groupName,
+          profileImagePath: imagePath ?? oldThread.groupImagePath,
+        ),
+      );
+      state = AsyncData(threads);
+      ref.read(storageServiceProvider).saveThreads(threads);
+    }
+  }
+
+  void joinGroup(String groupId, String groupName, String? imagePath) {
+    if (!state.hasValue) return;
+    final threads = List<ChatThread>.from(state.value!);
+    final threadIndex = threads.indexWhere((t) => t.id == groupId);
+    
+    if (threadIndex == -1) {
+      final myId = ref.read(peerServiceProvider).myId ?? 'me';
+      final myName = this.myName ?? 'Peer $myId';
+      
+      final newGroup = ChatThread(
+        id: groupId,
+        peer: User(id: groupId, name: groupName, avatarIcon: 0xe886, avatarColor: 0xFF2E7D32),
+        messages: [],
+        isGroup: true,
+        groupName: groupName,
+        groupImagePath: imagePath,
+        members: [
+          User(id: myId, name: myName, avatarIcon: 0xe491, avatarColor: 0xFF6750A4)
+        ],
+      );
+      threads.insert(0, newGroup);
+      state = AsyncData(threads);
+      ref.read(storageServiceProvider).saveThreads(threads);
+    }
+  }
 }
 
 final chatThreadsProvider = AsyncNotifierProvider<ChatThreadsNotifier, List<ChatThread>>(() {

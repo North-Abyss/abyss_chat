@@ -32,6 +32,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   bool _isMuted = false;
   bool _isVideoEnabled = true;
   bool _isSpeaker = true;
+  bool _isEmojiDockOpen = false;
   final Map<String, TransformationController> _transformControllers = {};
   
   final List<ReactionInstance> _activeReactions = [];
@@ -175,9 +176,16 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                       : Container(
                           color: Colors.black87,
                           child: Center(
-                            child: UserAvatar(
-                              user: callState.peers.firstWhere((p) => p.id == ref.read(peerServiceProvider).myId, orElse: () => User(id: '', name: 'Me', avatarIcon: 0xe491, avatarColor: 0xFF6750A4)),
-                              radius: 32,
+                            child: ref.watch(myProfileProvider).when(
+                              data: (profile) => UserAvatar(
+                                user: profile ?? User(id: '', name: 'Me', avatarIcon: 0xe491, avatarColor: 0xFF6750A4),
+                                radius: 32,
+                              ),
+                              loading: () => const CircularProgressIndicator(color: Colors.white24),
+                              error: (error, stack) => UserAvatar(
+                                user: User(id: '', name: 'Me', avatarIcon: 0xe491, avatarColor: 0xFF6750A4),
+                                radius: 32,
+                              ),
                             ),
                           ),
                         ),
@@ -214,9 +222,38 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                   ),
                 ),
               ),
-                  ],
+              // Floating Emoji Dock overlaid on video
+              if (_isEmojiDockOpen && isConnected)
+                Positioned(
+                  bottom: 16,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800]?.withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(32),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 4)),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildEmojiDockButton('👍'),
+                          _buildEmojiDockButton('❤️'),
+                          _buildEmojiDockButton('😂'),
+                          _buildEmojiDockButton('👏'),
+                          _buildEmojiDockButton('🎉'),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+            ],
+          ),
+        ),
 
 
               // Floating Controls Shortcut Box / Dock
@@ -257,20 +294,11 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                             ref.read(callProvider.notifier).toggleAudio(!_isMuted);
                           },
                         ),
-                        // Emoji Popup Menu Button
-                        PopupMenuButton<String>(
-                          icon: const Icon(Icons.emoji_emotions, color: Colors.white, size: 28),
-                          color: Colors.grey[850],
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          offset: const Offset(0, -60),
-                          onSelected: (emoji) => ref.read(callProvider.notifier).sendReaction(emoji),
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(value: '👍', child: Text('👍', style: TextStyle(fontSize: 24))),
-                            const PopupMenuItem(value: '❤️', child: Text('❤️', style: TextStyle(fontSize: 24))),
-                            const PopupMenuItem(value: '😂', child: Text('😂', style: TextStyle(fontSize: 24))),
-                            const PopupMenuItem(value: '👏', child: Text('👏', style: TextStyle(fontSize: 24))),
-                            const PopupMenuItem(value: '🎉', child: Text('🎉', style: TextStyle(fontSize: 24))),
-                          ],
+                        // Emoji Toggle Button
+                        _buildControlButton(
+                          icon: Icons.emoji_emotions,
+                          isActive: _isEmojiDockOpen,
+                          onPressed: () => setState(() => _isEmojiDockOpen = !_isEmojiDockOpen),
                         ),
                         _buildActionButton(Icons.call_end, Colors.red, _endCall),
                       ],
@@ -313,13 +341,6 @@ class _CallScreenState extends ConsumerState<CallScreen> {
           );
         }).toList(),
       ),
-    );
-  }
-
-  Widget _buildFixedEmojiButton(String emoji) {
-    return IconButton(
-      icon: Text(emoji, style: const TextStyle(fontSize: 28)),
-      onPressed: () => ref.read(callProvider.notifier).sendReaction(emoji),
     );
   }
 
@@ -516,6 +537,20 @@ class _CallScreenState extends ConsumerState<CallScreen> {
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: Colors.white, size: 16),
+      ),
+    );
+  }
+
+  Widget _buildEmojiDockButton(String emoji) {
+    return InkWell(
+      onTap: () {
+        ref.read(callProvider.notifier).sendReaction(emoji);
+        setState(() => _isEmojiDockOpen = false);
+      },
+      borderRadius: BorderRadius.circular(24),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+        child: Text(emoji, style: const TextStyle(fontSize: 28)),
       ),
     );
   }

@@ -24,11 +24,19 @@ A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clo
 - **Rich Media & Link Previews** - Automatic URL parsing in chats. Web links show rich preview cards, and direct video/image links render inline with playback support.
 - **Floating Mini-Call Window** - Picture-in-picture style floating pill when you navigate away from an active call, plus full Answer/Decline call screens.
 - **Desktop Keyboard Support** - Use `Enter` to seamlessly send messages and `Shift+Enter` for multiline text, just like WhatsApp Web.
+- **End-to-End Encrypted**: All communications are encrypted over WebRTC data channels.
+- **Group Calling**: Full Mesh group video/audio calling (up to 10 participants!).
+- **Group Customization & QR Join**: Easily customize group names/photos and invite friends instantly by letting them scan your Group QR Code!
+- **Cross-Platform**: Runs on Android, iOS, Windows, macOS, Linux, and the Web.
 - **Cloud CI/CD Pipeline** - Automated GitHub Actions release builds for Android, Windows, and Linux on every `v*` tag.
 
 ## 🏗️ Architecture
 
 Abyss Chat follows a clean architecture pattern with a clear separation of concerns, built for all platforms.
+
+> **📚 Deep Dives:**
+> - Check out [EXPLANATION.md](EXPLANATION.md) for a comprehensive Q&A and a visual Mermaid diagram of the architecture (great for interviews!).
+> - Check out [agent-memory.md](agent-memory.md) for a full breakdown of the directory structure and project session logs.
 
 ### State Management
 - **Riverpod** (`flutter_riverpod: ^3.3.2`) - Used for reactive state management.

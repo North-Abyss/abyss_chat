@@ -6,6 +6,7 @@ import 'package:abyss_chat/screens/responsive_layout.dart';
 import 'package:abyss_chat/widgets/abyss_snackbar.dart';
 import 'dart:math';
 import 'package:abyss_chat/services/crypto_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -104,10 +105,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Decentralized P2P Messaging',
+                  'A secure, decentralized, peer-to-peer messaging and video calling application. Connect privately on your local network or over the internet without intermediaries.',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    height: 1.5,
                   ),
                 ),
                 const SizedBox(height: 48),
@@ -164,6 +166,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: _isLoading 
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Text('Connect to Network'),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Created by ',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => launchUrl(Uri.parse('https://github.com/North-Abyss')),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.all(2.0),
+                        child: Text(
+                          'North-Abyss',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      ' on GitHub',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

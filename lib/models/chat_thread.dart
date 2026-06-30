@@ -8,6 +8,7 @@ class ChatThread {
 
   final bool isGroup;
   final String? groupName;
+  final String? groupImagePath;
   final List<User> members; // For groups, this contains all members. For 1:1, this might just be the peer.
   final int unreadCount;
 
@@ -17,6 +18,7 @@ class ChatThread {
     required this.messages,
     this.isGroup = false,
     this.groupName,
+    this.groupImagePath,
     this.members = const [],
     this.unreadCount = 0,
   });
@@ -27,6 +29,7 @@ class ChatThread {
     List<Message>? messages,
     bool? isGroup,
     String? groupName,
+    String? groupImagePath,
     List<User>? members,
     int? unreadCount,
   }) {
@@ -36,6 +39,7 @@ class ChatThread {
       messages: messages ?? this.messages,
       isGroup: isGroup ?? this.isGroup,
       groupName: groupName ?? this.groupName,
+      groupImagePath: groupImagePath ?? this.groupImagePath,
       members: members ?? this.members,
       unreadCount: unreadCount ?? this.unreadCount,
     );
@@ -50,6 +54,7 @@ class ChatThread {
           .toList(),
       isGroup: json['isGroup'] ?? false,
       groupName: json['groupName'],
+      groupImagePath: json['groupImagePath'],
       members: json['members'] != null
           ? (json['members'] as List).map((u) => User.fromJson(u)).toList()
           : [],
@@ -64,6 +69,7 @@ class ChatThread {
       'messages': messages.map((m) => m.toJson()).toList(),
       'isGroup': isGroup,
       'groupName': groupName,
+      'groupImagePath': groupImagePath,
       'members': members.map((m) => m.toJson()).toList(),
       'unreadCount': unreadCount,
     };

@@ -21,6 +21,30 @@ class User {
     this.profileImagePath,
   });
 
+  User copyWith({
+    String? id,
+    String? name,
+    int? avatarIcon,
+    int? avatarColor,
+    bool? isOnline,
+    bool? isWpsActive,
+    String? ipAddress,
+    int? port,
+    String? profileImagePath,
+  }) {
+    return User(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      avatarIcon: avatarIcon ?? this.avatarIcon,
+      avatarColor: avatarColor ?? this.avatarColor,
+      isOnline: isOnline ?? this.isOnline,
+      isWpsActive: isWpsActive ?? this.isWpsActive,
+      ipAddress: ipAddress ?? this.ipAddress,
+      port: port ?? this.port,
+      profileImagePath: profileImagePath ?? this.profileImagePath,
+    );
+  }
+
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'],

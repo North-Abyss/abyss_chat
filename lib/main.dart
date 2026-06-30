@@ -6,8 +6,17 @@ import 'package:abyss_chat/providers/theme_provider.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 
+import 'dart:ui';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Catch unhandled async errors (like WebSockets dropping in peerdart)
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Unhandled Async Error: $error');
+    return true; // Prevents the app from crashing
+  };
+
   runApp(
     const ProviderScope(
       child: AbyssApp(),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:abyss_chat/models/user.dart';
@@ -54,8 +55,15 @@ class CallNotifier extends Notifier<CallSession?> {
   Timer? _timer;
   MediaStream? _localStream;
   RTCVideoRenderer localRenderer = RTCVideoRenderer();
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  AudioPlayer? _audioPlayer;
   Timer? _timeoutTimer;
+
+  bool get _isAudioSupported {
+    if (kIsWeb) return true;
+    return defaultTargetPlatform == TargetPlatform.android ||
+           defaultTargetPlatform == TargetPlatform.iOS ||
+           defaultTargetPlatform == TargetPlatform.macOS;
+  }
   
   final StreamController<Map<String, dynamic>> _reactionStreamController = StreamController.broadcast();
   Stream<Map<String, dynamic>> get reactionStream => _reactionStreamController.stream;
@@ -70,13 +78,16 @@ class CallNotifier extends Notifier<CallSession?> {
   @override
   CallSession? build() {
     _initLocalRenderer();
+    if (_isAudioSupported) {
+      _audioPlayer = AudioPlayer();
+    }
     
     ref.onDispose(() {
       localRenderer.dispose();
       for (final r in remoteRenderers.values) {
         r.dispose();
       }
-      _audioPlayer.dispose();
+      _audioPlayer?.dispose();
     });
     
     // Subscribe to incoming calls from PeerDartService
@@ -109,13 +120,18 @@ class CallNotifier extends Notifier<CallSession?> {
   }
 
   void _playRingtone() async {
-    await _audioPlayer.setLoopMode(LoopMode.one);
-    await _audioPlayer.setAsset('assets/audio/ringtone.wav');
-    _audioPlayer.play();
+    if (_audioPlayer == null) return;
+    try {
+      await _audioPlayer!.setLoopMode(LoopMode.one);
+      await _audioPlayer!.setAsset('assets/audio/ringtone.wav');
+      _audioPlayer!.play();
+    } catch (e) {
+      debugPrint('Failed to play ringtone: $e');
+    }
   }
 
   void _stopRingtone() {
-    _audioPlayer.stop();
+    _audioPlayer?.stop();
   }
 
   Future<void> startCall(List<User> peers, bool isVideo, {bool isGroup = false}) async {
@@ -284,6 +300,12 @@ class CallNotifier extends Notifier<CallSession?> {
   void _handleIncomingCall(MediaConnection mediaConnection) {
     final peerId = mediaConnection.peer;
     
+    if (_activeConnections.containsKey(peerId)) {
+      debugPrint('⏳ Already have active connection for $peerId. Ignoring duplicate media stream.');
+      mediaConnection.close();
+      return;
+    }
+    
     if (state != null) {
       // Are we already in a call? If it's a new peer and we're in a group call, maybe accept?
       // For now, if we're ringing and it's from the person calling us, we accept it when user answers.
@@ -358,10 +380,7 @@ class CallNotifier extends Notifier<CallSession?> {
 
   void _showFullCall({bool isIncoming = false}) {
     debugPrint('📱 _showFullCall called, isIncoming: $isIncoming');
-    if (_overlayEntry != null) {
-      _overlayEntry!.remove();
-      _overlayEntry = null; // Important to nullify after removal
-    }
+    if (_overlayEntry != null) return;
     
     final navState = globalNavigatorKey.currentState;
     debugPrint('📱 navState: $navState');
@@ -411,7 +430,7 @@ class CallNotifier extends Notifier<CallSession?> {
             final newTrack = newStream.getVideoTracks().first;
             
             // Remove old dead tracks
-            for (final track in videoTracks) {
+            for (final track in videoTracks.toList()) {
               _localStream!.removeTrack(track);
             }
             
@@ -477,8 +496,15 @@ class CallNotifier extends Notifier<CallSession?> {
       for (final peer in state!.peers) {
         peerService.sendCallEnded(peer.id);
       }
+      
+      // Brief delay to ensure data channel message transmits before tearing down
+      Future.delayed(const Duration(milliseconds: 300), _cleanupCallConnections);
+    } else {
+      _cleanupCallConnections();
     }
+  }
 
+  void _cleanupCallConnections() {
     _timer?.cancel();
     _timer = null;
     _timeoutTimer?.cancel();
