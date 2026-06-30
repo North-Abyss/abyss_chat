@@ -275,9 +275,14 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       
       if (!inActiveCallWithSender) {
         final thread = threads.firstWhere((t) => t.id == targetThreadId);
+        String notifyBody = message.text;
+        if (message.type == MessageType.audio) notifyBody = '🎤 Voice message';
+        if (message.type == MessageType.image) notifyBody = '📷 Image';
+        
         NotificationService.showMessageNotification(
           thread.isGroup ? (thread.groupName ?? 'Group') : thread.peer.name, 
-          message.text,
+          notifyBody,
+          inAppOnly: message.type != MessageType.text,
           onTap: () {
             ref.read(selectedThreadIdProvider.notifier).select(thread.id);
             final ctx = globalNavigatorKey.currentContext;

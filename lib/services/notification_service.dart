@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
+import 'package:flutter/foundation.dart'; // Add this for kIsWeb
 import 'package:abyss_chat/providers/settings_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:abyss_chat/services/web_notification.dart'; // Add conditional import
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
@@ -28,35 +29,40 @@ class NotificationService {
     _initialized = true;
   }
 
-  static void showMessageNotification(String title, String body, {VoidCallback? onTap}) async {
+  static void showMessageNotification(String title, String body, {VoidCallback? onTap, bool inAppOnly = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final systemEnabled = prefs.getBool('systemNotificationsEnabled') ?? true;
     final positionStr = prefs.getString('notificationPosition');
     final position = positionStr == 'top' ? NotificationPosition.top : NotificationPosition.bottom;
 
-    if (systemEnabled) {
-      if (!_initialized) {
-        await initialize();
-      }
-      
-      try {
-        const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-          'abyss_chat_messages',
-          'Messages',
-          importance: Importance.high,
-          priority: Priority.high,
-        );
-        const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+    if (systemEnabled && !inAppOnly) {
+      if (kIsWeb) {
+        // Use browser's native Notification API
+        showWebNotification(title, body);
+      } else {
+        if (!_initialized) {
+          await initialize();
+        }
         
-        await _plugin.show(
-          id: DateTime.now().millisecond,
-          title: title,
-          body: body,
-          notificationDetails: platformDetails,
-        );
-        return; // Success
-      } catch (e) {
-        // Fallback to in-app
+        try {
+          const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+            'abyss_chat_messages',
+            'Messages',
+            importance: Importance.high,
+            priority: Priority.high,
+          );
+          const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+          
+          await _plugin.show(
+            id: DateTime.now().millisecond,
+            title: title,
+            body: body,
+            notificationDetails: platformDetails,
+          );
+          return; // Success
+        } catch (e) {
+          // Fallback to in-app
+        }
       }
     }
     

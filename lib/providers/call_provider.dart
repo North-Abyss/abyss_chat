@@ -473,11 +473,49 @@ class CallNotifier extends Notifier<CallSession?> {
     }
   }
 
-  void toggleAudio(bool enabled) {
+  Future<void> toggleAudio(bool enabled) async {
     if (_localStream != null) {
       final audioTracks = _localStream!.getAudioTracks();
-      if (audioTracks.isNotEmpty) {
-        audioTracks[0].enabled = enabled;
+      
+      if (enabled) {
+        // We want to turn it back on
+        if (audioTracks.isEmpty || !audioTracks[0].enabled) {
+          try {
+            final newStream = await navigator.mediaDevices.getUserMedia({
+              'audio': true,
+              'video': false,
+            });
+            final newTrack = newStream.getAudioTracks().first;
+            
+            // Remove old dead tracks
+            for (final track in audioTracks.toList()) {
+              _localStream!.removeTrack(track);
+            }
+            
+            _localStream!.addTrack(newTrack);
+            
+            // Replace track in active peer connections
+            for (final conn in _activeConnections.values) {
+              final senders = await conn.peerConnection?.getSenders();
+              if (senders != null) {
+                final audioSender = senders.where((s) => s.track?.kind == 'audio').firstOrNull;
+                if (audioSender != null) {
+                  await audioSender.replaceTrack(newTrack);
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('Failed to restart mic: $e');
+          }
+        } else {
+          audioTracks[0].enabled = true;
+        }
+      } else {
+        // We want to turn it off (kill hardware)
+        if (audioTracks.isNotEmpty) {
+          audioTracks[0].enabled = false;
+          audioTracks[0].stop(); // Physically release mic permission
+        }
       }
     }
 

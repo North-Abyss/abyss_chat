@@ -12,8 +12,21 @@ class QRScanScreen extends ConsumerStatefulWidget {
 }
 
 class _QRScanScreenState extends ConsumerState<QRScanScreen> {
-  final MobileScannerController? cameraController = kIsWeb ? null : MobileScannerController();
+  late final bool _isUnsupportedPlatform;
+  MobileScannerController? cameraController;
   bool _isScanning = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _isUnsupportedPlatform = kIsWeb || 
+        defaultTargetPlatform == TargetPlatform.linux || 
+        defaultTargetPlatform == TargetPlatform.windows;
+    
+    if (!_isUnsupportedPlatform) {
+      cameraController = MobileScannerController();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +34,7 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> {
       appBar: AppBar(
         title: const Text('Scan QR Code'),
       ),
-      body: kIsWeb
+      body: _isUnsupportedPlatform
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -31,8 +44,8 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> {
                     Icon(Icons.qr_code_scanner, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     const SizedBox(height: 16),
                     const Text(
-                      'QR Scanning is optimized for Mobile.',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      'QR Camera Scanning is optimized for Mobile & macOS.',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),

@@ -219,42 +219,43 @@ class ResponsiveLayout extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(32),
                             border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
                           ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primaryContainer,
-                                  shape: BoxShape.circle,
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primaryContainer,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.forum_outlined,
+                                    size: 64,
+                                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                  ),
                                 ),
-                                child: Icon(
-                                  Icons.forum_outlined,
-                                  size: 64,
-                                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                const SizedBox(height: 32),
+                                Text(
+                                  'Welcome to Abyss Web',
+                                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                              ),
-                              const SizedBox(height: 32),
-                              Text(
-                                'Welcome to Abyss Web',
-                                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Select a chat from the left panel or start a new one to begin sending secure P2P messages.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    fontSize: 16,
+                                  ),
                                 ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Select a chat from the left panel or start a new one to begin sending secure P2P messages.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                  height: 1.5,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       )

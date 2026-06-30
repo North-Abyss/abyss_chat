@@ -191,12 +191,15 @@ class HomeScreen extends ConsumerWidget {
                     children: [
                       Icon(Icons.copy, size: 10, color: Theme.of(context).colorScheme.onPrimaryContainer),
                       const SizedBox(width: 4),
-                      Text(
-                        'ID: $myId', 
-                        style: TextStyle(
-                          fontSize: 11, 
-                          fontWeight: FontWeight.bold, 
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      Flexible(
+                        child: Text(
+                          'ID: $myId', 
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11, 
+                            fontWeight: FontWeight.bold, 
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
                         ),
                       ),
                     ],

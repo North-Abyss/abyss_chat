@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 //import 'package:qr_flutter/qr_flutter.dart';
 import 'package:abyss_chat/models/chat_thread.dart';
 import 'package:abyss_chat/models/user.dart';
@@ -22,13 +23,21 @@ class GroupInfoScreen extends ConsumerStatefulWidget {
 class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
   
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final xfile = await picker.pickImage(source: ImageSource.gallery);
-    if (xfile != null) {
+    String? imagePath;
+    if (Platform.isAndroid || Platform.isIOS) {
+      final picker = ImagePicker();
+      final xfile = await picker.pickImage(source: ImageSource.gallery);
+      imagePath = xfile?.path;
+    } else {
+      final result = await FilePicker.pickFiles(type: FileType.image);
+      imagePath = result?.files.single.path;
+    }
+
+    if (imagePath != null) {
       ref.read(chatThreadsProvider.notifier).updateGroupProfile(
         widget.thread.id, 
         null, 
-        xfile.path
+        imagePath
       );
     }
   }
