@@ -240,4 +240,7 @@ Houses reusable, stateless, or localized-state UI elements that are shared acros
   - Fixed a critical "Lazy Initialization" bug where `CallProvider` was not instantiating globally, resulting in the incoming call screen silently failing to appear for receivers.
 
 ### 2026-07-02 — Session 8 (Social Preview)
-- **Web SEO**: Updated `web/index.html` Open Graph and Twitter Card images to use the dedicated social preview asset (`Social Preview Abyss Chat.png`).
+- **Web SEO**: 
+  - Updated `web/index.html` Open Graph and Twitter Card images to use the dedicated social preview asset.
+  - Copied the asset to `web/social-preview.png` for root path access (`https://north-abyss.github.io/abyss_chat/social-preview.png`) to avoid pathing issues on GitHub Pages.
+  - Optimized the social preview image to a 1.91:1 ratio (1200x630) using ImageMagick to satisfy standard Open Graph requirements.
