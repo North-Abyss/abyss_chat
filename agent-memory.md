@@ -238,3 +238,6 @@ Houses reusable, stateless, or localized-state UI elements that are shared acros
 - **Bug Fixes**: 
   - Fixed a `RenderFlex` overflow on the `LoginScreen`.
   - Fixed a critical "Lazy Initialization" bug where `CallProvider` was not instantiating globally, resulting in the incoming call screen silently failing to appear for receivers.
+
+### 2026-07-02 — Session 8 (Social Preview)
+- **Web SEO**: Updated `web/index.html` Open Graph and Twitter Card images to use the dedicated social preview asset (`Social Preview Abyss Chat.png`).
