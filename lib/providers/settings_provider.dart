@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/services/shared_prefs_helper.dart';
+import 'package:flutter/foundation.dart';
 
 enum NotificationPosition { top, bottom }
 
@@ -40,9 +41,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettings> {
   Future<AppSettings> build() async {
     final prefs = await SharedPrefsHelper.instance;
     return AppSettings(
-      notificationPosition: prefs.getString('notificationPosition') == 'top' ? NotificationPosition.top : NotificationPosition.bottom,
+      notificationPosition: prefs.getString('notificationPosition') == 'bottom' ? NotificationPosition.bottom : NotificationPosition.top,
       systemNotificationsEnabled: prefs.getBool('systemNotificationsEnabled') ?? true,
-      inAppNotificationsEnabled: prefs.getBool('inAppNotificationsEnabled') ?? true,
+      inAppNotificationsEnabled: prefs.getBool('inAppNotificationsEnabled') ?? kIsWeb,
       mediaAutoDownloadWifi: prefs.getBool('mediaAutoDownloadWifi') ?? true,
       mediaAutoDownloadCellular: prefs.getBool('mediaAutoDownloadCellular') ?? false,
     );

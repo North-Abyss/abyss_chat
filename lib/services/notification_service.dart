@@ -32,9 +32,9 @@ class NotificationService {
   static void showMessageNotification(String title, String body, {VoidCallback? onTap, bool inAppOnly = false}) async {
     final prefs = await SharedPrefsHelper.instance;
     final systemEnabled = prefs.getBool('systemNotificationsEnabled') ?? true;
-    final inAppEnabled = prefs.getBool('inAppNotificationsEnabled') ?? true;
-    final positionStr = prefs.getString('notificationPosition');
-    final position = positionStr == 'top' ? NotificationPosition.top : NotificationPosition.bottom;
+    final inAppEnabled = prefs.getBool('inAppNotificationsEnabled') ?? kIsWeb;
+    final positionStr = prefs.getString('notificationPosition') ?? 'top';
+    final position = positionStr == 'bottom' ? NotificationPosition.bottom : NotificationPosition.top;
 
     if (systemEnabled && !inAppOnly) {
       if (kIsWeb) {

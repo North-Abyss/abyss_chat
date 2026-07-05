@@ -8,10 +8,13 @@ import 'package:dynamic_color/dynamic_color.dart';
 
 import 'dart:async';
 import 'dart:ui';
+import 'package:abyss_chat/services/shared_prefs_helper.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SharedPrefsHelper.instance;
+
   runZonedGuarded(() {
-    WidgetsFlutterBinding.ensureInitialized();
 
     // Catch unhandled async errors (like WebSockets dropping in peerdart)
     PlatformDispatcher.instance.onError = (error, stack) {
