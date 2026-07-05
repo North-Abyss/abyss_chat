@@ -139,10 +139,14 @@ Houses reusable, stateless, or localized-state UI elements that are shared acros
 - [x] Group Chats
 - [x] Strict Mutual Contacts Enforcement (Privacy)
 - [x] Profile Management & Settings (with Hex Colors)
-- [x] In-App Notification System
-- [x] QR Code Generator & Scanner (`mobile_scanner` / `qr_flutter`)
+- [x] In-App Notification System (with toggles and deduplication)
+- [x] QR Code Generator & Scanner (`mobile_scanner` / `qr_flutter` with Web support and overlay animations)
 - [x] Global Search (`SearchDelegate` for contacts & LAN peers)
 - [x] Contact Blocking & Deletion (Persistent ignored list)
+- [x] Resilient Hot Restart Handling (PeerJS zombie connection handling & Stream disposal)
+- [x] Cross-Platform Voice Messages (Opus encoder on Web, aacLc on Mobile/Desktop)
+- [x] Floating Emoji Keyboard & GIF Dialog Picker
+- [x] Profile Sync Broadcasting across active WebRTC connections
 
 ---
 

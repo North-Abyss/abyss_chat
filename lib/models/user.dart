@@ -5,6 +5,7 @@ class User {
   final int avatarColor;
   final bool isOnline;
   final bool isWpsActive;
+  final String? username;
   final String? ipAddress;
   final int? port;
   final String? profileImagePath;
@@ -16,6 +17,7 @@ class User {
     required this.avatarColor,
     this.isOnline = false,
     this.isWpsActive = false,
+    this.username,
     this.ipAddress,
     this.port,
     this.profileImagePath,
@@ -28,6 +30,7 @@ class User {
     int? avatarColor,
     bool? isOnline,
     bool? isWpsActive,
+    String? username,
     String? ipAddress,
     int? port,
     String? profileImagePath,
@@ -39,6 +42,7 @@ class User {
       avatarColor: avatarColor ?? this.avatarColor,
       isOnline: isOnline ?? this.isOnline,
       isWpsActive: isWpsActive ?? this.isWpsActive,
+      username: username ?? this.username,
       ipAddress: ipAddress ?? this.ipAddress,
       port: port ?? this.port,
       profileImagePath: profileImagePath ?? this.profileImagePath,
@@ -53,6 +57,7 @@ class User {
       avatarColor: json['avatarColor'] ?? 0xFF6750A4, // default color
       isOnline: json['isOnline'] ?? false,
       isWpsActive: json['isWpsActive'] ?? false,
+      username: json['username'],
       ipAddress: json['ipAddress'],
       port: json['port'],
       profileImagePath: json['profileImagePath'],
@@ -67,6 +72,7 @@ class User {
       'avatarColor': avatarColor,
       'isOnline': isOnline,
       'isWpsActive': isWpsActive,
+      'username': username,
       'ipAddress': ipAddress,
       'port': port,
       'profileImagePath': profileImagePath,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/models/user.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ContactProfileScreen extends ConsumerWidget {
   final User peer;
@@ -70,6 +71,16 @@ class ContactProfileScreen extends ConsumerWidget {
                   leading: const Icon(Icons.search),
                   title: const Text('Search'),
                   onTap: () {},
+                ),
+                ListTile(
+                  leading: const Icon(Icons.share),
+                  title: const Text('Share contact'),
+                  onTap: () {
+                    final usernameStr = peer.username != null ? ' (@${peer.username})' : '';
+                    final shareText = 'Add ${peer.name}$usernameStr on Abyss Chat! ID: ${peer.id}';
+                    // ignore: deprecated_member_use
+                    Share.share(shareText);
+                  },
                 ),
                 const Divider(),
                 ListTile(

@@ -35,6 +35,11 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   bool _isEmojiDockOpen = false;
   final Map<String, TransformationController> _transformControllers = {};
   
+  double _pipLeft = -1;
+  double _pipTop = 16.0;
+  double _pipWidth = 100.0;
+  double _pipHeight = 150.0;
+  
   final List<ReactionInstance> _activeReactions = [];
   StreamSubscription? _reactionSub;
   
@@ -115,10 +120,15 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   @override
   Widget build(BuildContext context) {
     final callState = ref.watch(callProvider);
-    if (callState == null) return const Scaffold(backgroundColor: Colors.black);
+    final isConnected = callState?.state == CallState.connected;
+    final remoteRenderers = ref.watch(callProvider.notifier).remoteRenderers;
+    final size = MediaQuery.of(context).size;
     
-    final isConnected = callState.state == CallState.connected;
-    final remoteRenderers = ref.read(callProvider.notifier).remoteRenderers;
+    if (_pipLeft == -1) {
+      _pipLeft = size.width - 100 - 16;
+    }
+
+    if (callState == null) return const Scaffold(backgroundColor: Colors.black);
     
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
@@ -149,46 +159,95 @@ class _CallScreenState extends ConsumerState<CallScreen> {
               // Local Mini Video (Picture in Picture)
               if (isConnected && callState.isVideo)
                 Positioned(
-                  right: 16,
-                  top: 16,
-                  width: 100,
-                  height: 150,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white24, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: _isVideoEnabled
-                      ? RTCVideoView(
-                          ref.read(callProvider.notifier).localRenderer,
-                          mirror: true,
-                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                        )
-                      : Container(
-                          color: Colors.black87,
-                          child: Center(
-                            child: ref.watch(myProfileProvider).when(
-                              data: (profile) => UserAvatar(
-                                user: profile ?? User(id: '', name: 'Me', avatarIcon: 0xe491, avatarColor: 0xFF6750A4),
-                                radius: 32,
+                  left: _pipLeft,
+                  top: _pipTop,
+                  width: _pipWidth,
+                  height: _pipHeight,
+                  child: GestureDetector(
+                    onPanUpdate: (details) {
+                      setState(() {
+                        _pipLeft += details.delta.dx;
+                        _pipTop += details.delta.dy;
+                        
+                        // constrain to screen bounds
+                        if (_pipLeft < 0) _pipLeft = 0;
+                        if (_pipTop < 0) _pipTop = 0;
+                        if (_pipLeft > size.width - _pipWidth) _pipLeft = size.width - _pipWidth;
+                        if (_pipTop > size.height - _pipHeight) _pipTop = size.height - _pipHeight;
+                      });
+                    },
+                    child: Stack(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white24, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
                               ),
-                              loading: () => const CircularProgressIndicator(color: Colors.white24),
-                              error: (error, stack) => UserAvatar(
-                                user: User(id: '', name: 'Me', avatarIcon: 0xe491, avatarColor: 0xFF6750A4),
-                                radius: 32,
+                            ],
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: _isVideoEnabled
+                            ? RTCVideoView(
+                                ref.read(callProvider.notifier).localRenderer,
+                                mirror: true,
+                                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                              )
+                            : Container(
+                                color: Colors.black87,
+                                child: Center(
+                                  child: ref.watch(myProfileProvider).when(
+                                    data: (profile) => UserAvatar(
+                                      user: profile ?? User(id: '', name: 'Me', avatarIcon: 0xe491, avatarColor: 0xFF6750A4),
+                                      radius: 20,
+                                    ),
+                                    loading: () => const CircularProgressIndicator(),
+                                    error: (_, _) => const Icon(Icons.person, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                        ),
+                        // Resize Handle
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: GestureDetector(
+                            onPanUpdate: (details) {
+                              setState(() {
+                                _pipWidth += details.delta.dx;
+                                _pipHeight += details.delta.dy;
+                                
+                                // Size constraints
+                                if (_pipWidth < 80) _pipWidth = 80;
+                                if (_pipHeight < 120) _pipHeight = 120;
+                                
+                                final maxWidth = size.width * 0.5;
+                                final maxHeight = size.height * 0.5;
+                                if (_pipWidth > maxWidth) _pipWidth = maxWidth;
+                                if (_pipHeight > maxHeight) _pipHeight = maxHeight;
+                              });
+                            },
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              color: Colors.transparent,
+                              child: const Align(
+                                alignment: Alignment.bottomRight,
+                                child: Padding(
+                                  padding: EdgeInsets.all(4.0),
+                                  child: Icon(Icons.open_in_full, size: 16, color: Colors.white70),
+                                ),
                               ),
                             ),
                           ),
                         ),
+                      ],
+                    ),
                   ),
                 ),
 

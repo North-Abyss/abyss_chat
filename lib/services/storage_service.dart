@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:abyss_chat/services/shared_prefs_helper.dart';
 import 'package:abyss_chat/models/chat_thread.dart';
 import 'package:abyss_chat/models/user.dart';
 import 'package:abyss_chat/models/call_log.dart';
@@ -31,7 +31,7 @@ class StorageService {
   Future<String?> _readEncryptedFile(String filename) async {
     try {
       if (kIsWeb) {
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = await SharedPrefsHelper.instance;
         final ciphertext = prefs.getString('web_$filename');
         if (ciphertext == null || ciphertext.isEmpty) return null;
         return CryptoService.decryptData(ciphertext);
@@ -46,7 +46,7 @@ class StorageService {
       debugPrint('Error reading encrypted file $filename: $e');
       try {
         if (kIsWeb) {
-          final prefs = await SharedPreferences.getInstance();
+          final prefs = await SharedPrefsHelper.instance;
           await prefs.remove('web_$filename');
         } else {
           final file = await _getFile(filename);
@@ -61,7 +61,7 @@ class StorageService {
     try {
       final ciphertext = CryptoService.encryptData(plaintext);
       if (kIsWeb) {
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = await SharedPrefsHelper.instance;
         await prefs.setString('web_$filename', ciphertext);
       } else {
         final file = await _getFile(filename);
@@ -73,7 +73,7 @@ class StorageService {
   }
 
   Future<void> clearAllData() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPrefsHelper.instance;
     await prefs.clear();
     
     if (!kIsWeb) {
@@ -179,10 +179,13 @@ class StorageService {
   }
 
   // --- User Profile (Unencrypted/Prefs) ---
-  Future<void> saveUserProfile(String id, String name, {int avatarIcon = 0xe491, int avatarColor = 0xFF6750A4, String? profileImagePath}) async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> saveUserProfile(String id, String name, {String? username, int avatarIcon = 0xe491, int avatarColor = 0xFF6750A4, String? profileImagePath}) async {
+    final prefs = await SharedPrefsHelper.instance;
     await prefs.setString('my_id', id);
     await prefs.setString('my_name', name);
+    if (username != null) {
+      await prefs.setString('my_username', username);
+    }
     await prefs.setInt('my_avatar_icon', avatarIcon);
     await prefs.setInt('my_avatar_color', avatarColor);
     if (profileImagePath != null) {
@@ -193,9 +196,10 @@ class StorageService {
   }
 
   Future<Map<String, dynamic>?> loadUserProfile() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPrefsHelper.instance;
     String? id = prefs.getString('my_id');
     final name = prefs.getString('my_name');
+    final username = prefs.getString('my_username');
     final icon = prefs.getInt('my_avatar_icon') ?? 0xe491;
     final color = prefs.getInt('my_avatar_color') ?? 0xFF6750A4;
     final imagePath = prefs.getString('my_profile_image');
@@ -203,11 +207,12 @@ class StorageService {
     if (id != null && name != null) {
       if (id.startsWith('#')) {
         id = id.substring(1);
-        await saveUserProfile(id, name, avatarIcon: icon, avatarColor: color, profileImagePath: imagePath);
+        await saveUserProfile(id, name, username: username, avatarIcon: icon, avatarColor: color, profileImagePath: imagePath);
       }
       return {
         'id': id, 
         'name': name,
+        'username': username,
         'avatarIcon': icon,
         'avatarColor': color,
         'profileImagePath': imagePath,

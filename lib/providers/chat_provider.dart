@@ -227,14 +227,25 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     
     final threads = List<ChatThread>.from(state.value!);
     final isGroup = message.groupId != null;
-    final targetThreadId = isGroup ? message.groupId! : message.senderId;
+    final targetThreadId = isGroup ? message.groupId! : (message.networkSenderId ?? message.senderId);
     final currentSelectedId = ref.read(selectedThreadIdProvider);
     
     int threadIndex = threads.indexWhere((t) => t.id == targetThreadId);
     
     if (threadIndex != -1) {
-      final updatedMessages = List<Message>.from(threads[threadIndex].messages)..add(message);
-      threads[threadIndex] = threads[threadIndex].copyWith(messages: updatedMessages);
+      final existingIndex = threads[threadIndex].messages.indexWhere((m) => m.id == message.id);
+      if (existingIndex != -1) {
+        if (message.type == MessageType.activity) {
+          final updatedMessages = List<Message>.from(threads[threadIndex].messages);
+          updatedMessages[existingIndex] = message;
+          threads[threadIndex] = threads[threadIndex].copyWith(messages: updatedMessages);
+        } else {
+          return; // Ignore duplicate message
+        }
+      } else {
+        final updatedMessages = List<Message>.from(threads[threadIndex].messages)..add(message);
+        threads[threadIndex] = threads[threadIndex].copyWith(messages: updatedMessages);
+      }
     } else {
       if (isGroup) {
         final newGroup = ChatThread(
@@ -396,7 +407,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     }
   }
 
-  Future<void> initializePeer(String? customId, String myName) async {
+  Future<void> initializePeer(String? customId, String myName, {String? username}) async {
     _myName = myName;
     
     await ref.read(peerServiceProvider).initialize(
@@ -408,7 +419,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     );
     
     final mdnsNotifier = ref.read(nearbyPeersProvider.notifier);
-    await mdnsNotifier.startBroadcasting(myId ?? 'unknown', myName, port: lanPort);
+    await mdnsNotifier.startBroadcasting(myId ?? 'unknown', myName, username: username, port: lanPort);
     await mdnsNotifier.startScanning(myId ?? 'unknown');
   }
 
@@ -423,13 +434,11 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     final mdnsPeers = ref.read(nearbyPeersProvider);
     final lanPeer = mdnsPeers.where((p) => p.id == peerId).firstOrNull;
     
-    bool lanConnected = false;
+    // Always trigger global WebRTC connection first, it runs async
+    ref.read(peerServiceProvider).connectToPeer(peerId);
+
     if (lanPeer != null && lanPeer.ipAddress != null && lanPeer.port != null) {
-      lanConnected = await ref.read(lanMessengerProvider).connectToPeer(peerId, lanPeer.ipAddress!, lanPeer.port!);
-    }
-    
-    if (!lanConnected) {
-      ref.read(peerServiceProvider).connectToPeer(peerId);
+      await ref.read(lanMessengerProvider).connectToPeer(peerId, lanPeer.ipAddress!, lanPeer.port!);
     }
   }
 
@@ -437,6 +446,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     final storage = ref.read(storageServiceProvider);
     
     String? finalImagePath;
+    String? username;
     if (newImagePath != null) {
       finalImagePath = newImagePath;
     } else if (removeImage) {
@@ -444,16 +454,32 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     } else {
       final oldProfile = await storage.loadUserProfile();
       finalImagePath = oldProfile?['profileImagePath'];
+      username = oldProfile?['username'];
     }
 
-    await storage.saveUserProfile(myId ?? '', name, avatarIcon: iconCodePoint, avatarColor: colorValue, profileImagePath: finalImagePath);
+    await storage.saveUserProfile(myId ?? '', name, username: username, avatarIcon: iconCodePoint, avatarColor: colorValue, profileImagePath: finalImagePath);
     
     _myName = name;
     
     final mdnsNotifier = ref.read(nearbyPeersProvider.notifier);
-    await mdnsNotifier.startBroadcasting(myId ?? 'unknown', name);
+    await mdnsNotifier.startBroadcasting(myId ?? 'unknown', name, username: username);
     
     ref.invalidate(myProfileProvider);
+    
+    // Broadcast profile sync to all known peers
+    if (state.hasValue) {
+      final profileData = {
+        'name': name,
+        'avatarIcon': iconCodePoint,
+        'avatarColor': colorValue,
+      };
+      final threads = state.value!;
+      for (final thread in threads) {
+        if (!thread.isGroup) {
+          ref.read(peerServiceProvider).sendProfileSync(thread.id, profileData);
+        }
+      }
+    }
   }
   
   void startNewChat(String peerId, {String? peerName}) {
@@ -566,6 +592,55 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
 
       // Update to sent or pending
       _updateMessageStatus(msg.id, sent ? MessageStatus.sent : MessageStatus.pending);
+      
+      if (!sent) {
+        if (!thread.isGroup) {
+          _lastConnectAttempt[threadId] = DateTime.now();
+          ref.read(peerServiceProvider).connectToPeer(threadId);
+        } else {
+          for (final member in thread.members) {
+            if (member.id != myId) {
+              _lastConnectAttempt[member.id] = DateTime.now();
+              ref.read(peerServiceProvider).connectToPeer(member.id);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  Future<void> updateMessage(String threadId, Message message) async {
+    if (!state.hasValue) return;
+    
+    final threads = List<ChatThread>.from(state.value!);
+    final threadIndex = threads.indexWhere((t) => t.id == threadId);
+    
+    if (threadIndex != -1) {
+      final thread = threads[threadIndex];
+      final msgIndex = thread.messages.indexWhere((m) => m.id == message.id);
+      if (msgIndex == -1) return;
+      
+      final updatedMessages = List<Message>.from(thread.messages);
+      updatedMessages[msgIndex] = message;
+      threads[threadIndex] = thread.copyWith(messages: updatedMessages);
+      state = AsyncData(threads);
+      ref.read(storageServiceProvider).saveThreads(threads);
+      
+      if (thread.isGroup) {
+        for (final member in thread.members) {
+          if (member.id != myId) {
+            bool memberSent = ref.read(lanMessengerProvider).sendMessage(member.id, message);
+            if (!memberSent) {
+              ref.read(peerServiceProvider).sendMessage(member.id, message);
+            }
+          }
+        }
+      } else {
+        bool sent = ref.read(lanMessengerProvider).sendMessage(threadId, message);
+        if (!sent) {
+          ref.read(peerServiceProvider).sendMessage(threadId, message);
+        }
+      }
     }
   }
 

@@ -4,7 +4,7 @@ import 'package:abyss_chat/providers/call_provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart'; // Add this for kIsWeb
 import 'package:abyss_chat/providers/settings_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:abyss_chat/services/shared_prefs_helper.dart';
 import 'package:abyss_chat/services/web_notification.dart'; // Add conditional import
 
 class NotificationService {
@@ -30,8 +30,9 @@ class NotificationService {
   }
 
   static void showMessageNotification(String title, String body, {VoidCallback? onTap, bool inAppOnly = false}) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPrefsHelper.instance;
     final systemEnabled = prefs.getBool('systemNotificationsEnabled') ?? true;
+    final inAppEnabled = prefs.getBool('inAppNotificationsEnabled') ?? true;
     final positionStr = prefs.getString('notificationPosition');
     final position = positionStr == 'top' ? NotificationPosition.top : NotificationPosition.bottom;
 
@@ -39,6 +40,7 @@ class NotificationService {
       if (kIsWeb) {
         // Use browser's native Notification API
         showWebNotification(title, body);
+        if (!inAppEnabled) return; // Prevent in-app duplicate
       } else {
         if (!_initialized) {
           await initialize();
@@ -59,7 +61,7 @@ class NotificationService {
             body: body,
             notificationDetails: platformDetails,
           );
-          return; // Success
+          if (!inAppEnabled) return; // Prevent in-app duplicate on success
         } catch (e) {
           // Fallback to in-app
         }

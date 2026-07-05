@@ -11,6 +11,9 @@ class PeerDartService {
   final Map<String, DataConnection> _activeConnections = {};
   final Set<String> _pendingConnections = {};
   final Map<String, List<StreamSubscription>> _subscriptions = {};
+  bool _isDisposed = false;
+  bool _isPeerOpen = false;
+  final List<String> _connectionQueue = [];
   
   // Stream controllers for different events
   final StreamController<Message> _incomingMessages = StreamController<Message>.broadcast();
@@ -54,20 +57,32 @@ class PeerDartService {
   String? get myId => _myId;
 
   Future<void> initialize(String? customId) async {
-    _myId = customId ?? const Uuid().v4().substring(0, 8);
+    if (_isDisposed) return;
+    _myId = customId ?? const Uuid().v4();
+    _isPeerOpen = false;
     _peer = Peer(id: _myId);
 
     _peer!.on("open").listen((id) {
+      if (_isDisposed) return;
+      _isPeerOpen = true;
       debugPrint('✅ Connected to Signaling Server. My ID: $id');
       if (!_connectionStatus.isClosed) _connectionStatus.add('Connected as $id');
+      
+      for (final peerId in _connectionQueue) {
+         connectToPeer(peerId);
+      }
+      _connectionQueue.clear();
     });
 
     _peer!.on("connection").listen((connection) {
+      if (_isDisposed) return;
       final DataConnection conn = connection as DataConnection;
       _setupConnection(conn);
     });
 
     _peer!.on("disconnected").listen((_) {
+      if (_isDisposed) return;
+      _isPeerOpen = false;
       debugPrint('⚠️ Disconnected from signaling server. Reconnecting...');
       if (!_peer!.destroyed) {
         _peer!.reconnect();
@@ -75,14 +90,31 @@ class PeerDartService {
     });
 
     _peer!.on("call").listen((call) {
+      if (_isDisposed) return;
       final mediaCall = call as MediaConnection;
       debugPrint('📞 Incoming call from ${mediaCall.peer}');
       if (!_incomingCalls.isClosed) _incomingCalls.add(mediaCall);
     });
 
     _peer!.on("error").listen((err) {
+      if (_isDisposed) return;
       debugPrint('❌ Peer Error: $err');
-      if (!_connectionStatus.isClosed) _connectionStatus.add('Error: $err');
+      
+      // Handle hot-reload zombie connections
+      if (err.toString().toLowerCase().contains('taken')) {
+        debugPrint('ID is taken. Server still holds the zombie connection. Retrying in 4 seconds...');
+        Future.delayed(const Duration(seconds: 4), () {
+          if (_isDisposed) return;
+          if (!_connectionStatus.isClosed) {
+            _peer?.dispose();
+            initialize(_myId); // Retry initialization
+          }
+        });
+      }
+      
+      Future.microtask(() {
+        if (!_connectionStatus.isClosed) _connectionStatus.add('Error: $err');
+      });
     });
   }
 
@@ -92,13 +124,43 @@ class PeerDartService {
 
   void connectToPeer(String peerId) {
     if (_peer == null) return;
+
+    if (_peer!.disconnected || _peer!.destroyed) {
+       debugPrint('Peer is disconnected or destroyed. Re-initializing...');
+       if (_peer!.destroyed) {
+         initialize(_myId).then((_) {
+            // It will be queued because _isPeerOpen is false
+            connectToPeer(peerId);
+         });
+       } else {
+         _peer!.reconnect();
+         Future.delayed(const Duration(milliseconds: 1000), () {
+           connectToPeer(peerId);
+         });
+       }
+       return;
+    }
+
+    if (!_isPeerOpen) {
+      if (!_connectionQueue.contains(peerId)) {
+        debugPrint('⏳ Queuing connection to $peerId until signaling server is ready.');
+        _connectionQueue.add(peerId);
+      }
+      return;
+    }
+
     if (_activeConnections.containsKey(peerId)) {
       if (_activeConnections[peerId]!.open) return;
       // Close stale connection to trigger cleanup asynchronously to avoid bad state
-      final staleConn = _activeConnections[peerId];
-      _activeConnections.remove(peerId);
+      final staleConn = _activeConnections.remove(peerId);
       Future.microtask(() {
-        staleConn?.close();
+        try {
+          if (staleConn != null) {
+            staleConn.close();
+          }
+        } catch (e) {
+          debugPrint('Suppressed close error: $e');
+        }
       });
       _cancelSubscriptions(peerId);
     }
@@ -142,6 +204,9 @@ class PeerDartService {
     final subs = <StreamSubscription>[];
 
     subs.add(conn.on("open").listen((_) {
+      if (_activeConnections.containsKey(conn.peer) && _activeConnections[conn.peer] != conn) {
+        try { _activeConnections[conn.peer]?.close(); } catch (_) {}
+      }
       debugPrint('🤝 Data connection established with ${conn.peer}');
       _activeConnections[conn.peer] = conn;
       _pendingConnections.remove(conn.peer);
@@ -156,6 +221,7 @@ class PeerDartService {
 
         if (type == 'p2p_message') {
           final msg = Message.fromJson(decoded['payload']);
+          msg.networkSenderId = conn.peer;
           if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
           // Auto-send delivery receipt
           _sendPayload(conn.peer, {
@@ -291,6 +357,7 @@ class PeerDartService {
   }
 
   void dispose() {
+    _isDisposed = true;
     _peer?.dispose();
     _incomingMessages.close();
     _connectionStatus.close();

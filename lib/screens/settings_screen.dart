@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/providers/theme_provider.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
 import 'package:abyss_chat/screens/login_screen.dart';
+import 'package:abyss_chat/screens/privacy_policy_screen.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
@@ -524,7 +525,9 @@ class SettingsScreen extends ConsumerWidget {
               ListTile(
                 leading: const Icon(Icons.privacy_tip_outlined),
                 title: const Text('Privacy Policy'),
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()));
+                },
               ),
               const SizedBox(height: 16),
               FilledButton.icon(
@@ -624,21 +627,27 @@ class NotificationsScreen extends ConsumerWidget {
                   ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(systemNotificationsEnabled: val));
                 },
               ),
+              SwitchListTile(
+                title: const Text('In-App Notifications'),
+                subtitle: const Text('Show floating notifications inside the app'),
+                value: settings.inAppNotificationsEnabled,
+                onChanged: (val) {
+                  ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(inAppNotificationsEnabled: val));
+                },
+              ),
               const Divider(),
               ListTile(
                 title: const Text('In-App Notification Position'),
                 subtitle: const Text('Where floating notifications appear'),
-                trailing: DropdownButton<NotificationPosition>(
-                  value: settings.notificationPosition,
-                  items: const [
-                    DropdownMenuItem(value: NotificationPosition.top, child: Text('Top')),
-                    DropdownMenuItem(value: NotificationPosition.bottom, child: Text('Bottom')),
+                trailing: SegmentedButton<NotificationPosition>(
+                  segments: const [
+                    ButtonSegment(value: NotificationPosition.top, label: Text('Top')),
+                    ButtonSegment(value: NotificationPosition.bottom, label: Text('Bottom')),
                   ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(notificationPosition: val));
-                      NotificationService.showMessageNotification('Position Changed', 'Notifications will appear here!');
-                    }
+                  selected: {settings.notificationPosition},
+                  onSelectionChanged: (Set<NotificationPosition> newSelection) {
+                    ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(notificationPosition: newSelection.first));
+                    NotificationService.showMessageNotification('Position Changed', 'Notifications will appear here!');
                   },
                 ),
               ),

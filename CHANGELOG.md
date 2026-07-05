@@ -1,6 +1,19 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.1.0] - 2026-07-05
+### Added
+- **GIF Picker & Auto-Pause**: Added a floating GIF picker sheet with a direct search link to Giphy. Native GIFs auto-pause after 10 seconds with a clean overlay to save battery and computing power!
+- **In-App Notification Toggles**: Added granular controls in the settings screen to independently disable floating in-app notifications if you only want OS system push notifications.
+- **Web QR Scanner Overlay**: Enhanced the Web fallback on the QR scan screen with a sleek animated targeting box to guide users.
+- **Opus Voice Encoder**: Voice messages now dynamically encode in Opus format on Web browsers for maximum compatibility, falling back to aacLc on native apps!
+
+### Fixed
+- **Zombie Connection Loop**: Fixed a critical hot restart loop where PeerJS failed to drop stale WebRTC connections, causing endless "ID is taken" errors and stream memory leaks.
+- **Unexpected Null WebRTC Crash**: Built an internal queuing system to guarantee PeerJS waits for the signaling WebSocket to achieve full 'open' state before dispatching connection requests, completely eliminating "Unexpected null value" crashes.
+- **GIF Animation Support**: Fixed an issue where CachedNetworkImage froze GIFs into static pictures; the app now falls back to native Image.network automatically for .gif extensions!
+- **Fullscreen Image Zooming**: Fully fixed the interactive media viewer for images/GIFs. Images now span to fill maximum available bounds with 5x pinch-to-zoom capabilities, mirroring WhatsApp's behavior.
+
 
 ## [1.0.0] - 2026-06-30
 ### Added

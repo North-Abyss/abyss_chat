@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:abyss_chat/screens/privacy_policy_screen.dart';
 import 'package:abyss_chat/providers/chat_provider.dart';
 import 'package:abyss_chat/screens/responsive_layout.dart';
 import 'package:abyss_chat/widgets/abyss_snackbar.dart';
-import 'dart:math';
 import 'package:abyss_chat/services/crypto_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:math';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +18,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
   bool _isLoading = false;
 
   String _myHash = '';
@@ -34,26 +36,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() {
         _myHash = profile['id']!;
         _nameController.text = profile['name']!;
+        if (profile['username'] != null) {
+          _usernameController.text = profile['username']!;
+        }
       });
       // Optionally auto-login here if they've already set a name
       if (_nameController.text.isNotEmpty) {
         _login();
       }
     } else {
-      // Generate short 5-char hex hash
-      final random = Random();
-      final hashBytes = List<int>.generate(3, (i) => random.nextInt(256));
-      final hashStr = hashBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join().toUpperCase();
       setState(() {
-        _myHash = hashStr.substring(0, 5);
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        final rnd = Random();
+        _myHash = String.fromCharCodes(Iterable.generate(
+          6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
       });
     }
   }
 
   Future<void> _login() async {
     final name = _nameController.text.trim();
+    final username = _usernameController.text.trim().toLowerCase();
+    
     if (name.isEmpty) {
       AbyssSnackBar.show(context, 'Please enter a name', type: SnackBarType.error);
+      return;
+    }
+    
+    if (username.isEmpty || username.contains(' ')) {
+      AbyssSnackBar.show(context, 'Please enter a valid username (no spaces)', type: SnackBarType.error);
       return;
     }
 
@@ -61,11 +72,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final storage = ref.read(storageServiceProvider);
-      await storage.saveUserProfile(_myHash, name);
+      await storage.saveUserProfile(_myHash, name, username: username);
       
       await CryptoService.init(_myHash);
       
-      await ref.read(chatThreadsProvider.notifier).initializePeer(_myHash, name);
+      await ref.read(chatThreadsProvider.notifier).initializePeer(_myHash, name, username: username);
       
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -116,7 +127,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 TextField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Your Name',
+                    labelText: 'Display Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _usernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Username',
+                    prefixText: '@',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -139,10 +159,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Text('Your Abyss ID', style: Theme.of(context).textTheme.bodySmall),
                           const SizedBox(height: 4),
                           Text(
-                            '#$_myHash',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            _myHash,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              letterSpacing: 2,
+                              fontSize: 10,
                             ),
                           ),
                         ],
@@ -198,6 +218,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                   ],
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()));
+                  },
+                  child: const Text('Privacy Policy & Terms', style: TextStyle(fontSize: 12)),
                 ),
               ],
             ),

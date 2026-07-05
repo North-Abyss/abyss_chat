@@ -1,4 +1,4 @@
-enum MessageType { text, system, image, file, audio }
+enum MessageType { text, system, image, file, audio, activity }
 enum MessageStatus { pending, sending, sent, delivered, read, failed }
 
 class Message {
@@ -14,6 +14,7 @@ class Message {
   final String? fileData;
   final String? groupId;
   final String? groupName;
+  String? networkSenderId; // Transient field for P2P routing
 
   Message({
     required this.id,

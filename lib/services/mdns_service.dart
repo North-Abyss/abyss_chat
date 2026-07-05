@@ -13,6 +13,7 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
   
   String _myId = '';
   String _myName = '';
+  String? _myUsername;
 
   @override
   List<User> build() {
@@ -20,9 +21,10 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
     return [];
   }
 
-  Future<void> startBroadcasting(String id, String name, {bool wps = false, int port = 45885}) async {
+  Future<void> startBroadcasting(String id, String name, {String? username, bool wps = false, int port = 45885}) async {
     _myId = id;
     _myName = name;
+    _myUsername = username;
     
     if (kIsWeb) {
       debugPrint('🌐 Web browser detected: Skipping mDNS broadcast.');
@@ -44,6 +46,7 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
           txt: {
             'id': Uint8List.fromList(id.codeUnits),
             'name': Uint8List.fromList(name.codeUnits),
+            if (username != null) 'username': Uint8List.fromList(username.codeUnits),
             'wps': Uint8List.fromList((wps ? '1' : '0').codeUnits),
           },
         ),
@@ -56,7 +59,7 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
 
   Future<void> toggleWps(bool isActive) async {
     if (_myId.isNotEmpty) {
-      await startBroadcasting(_myId, _myName, wps: isActive);
+      await startBroadcasting(_myId, _myName, username: _myUsername, wps: isActive);
     }
   }
 
@@ -82,12 +85,17 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
             final peerName = service.txt!.containsKey('name') 
               ? String.fromCharCodes(service.txt!['name']!) 
               : 'Unknown Peer';
+              
+            final peerUsername = service.txt!.containsKey('username')
+              ? String.fromCharCodes(service.txt!['username']!)
+              : null;
 
             final isWps = service.txt!.containsKey('wps') && String.fromCharCodes(service.txt!['wps']!) == '1';
 
             newPeers.add(User(
               id: peerId,
               name: peerName,
+              username: peerUsername,
               avatarIcon: 0xe491, // default icon (person)
               avatarColor: 0xFF6750A4, // default color
               isWpsActive: isWps,

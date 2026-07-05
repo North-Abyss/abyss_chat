@@ -326,9 +326,14 @@ class CallNotifier extends Notifier<CallSession?> {
            _setupMediaConnection(peerId, mediaConnection);
          }
       } else if (state!.state == CallState.ringing && state!.peers.any((p) => p.id == peerId)) {
-        // We received the media connection for the incoming call request
+        // We received the media connection. If we also initiated a call (localStream != null), auto-answer it to resolve simultaneous calls.
         _activeConnections[peerId] = mediaConnection;
         _setupMediaConnection(peerId, mediaConnection);
+        
+        if (_localStream != null) {
+          mediaConnection.answer(_localStream!);
+          setConnected();
+        }
       } else {
         // Busy
         mediaConnection.close();

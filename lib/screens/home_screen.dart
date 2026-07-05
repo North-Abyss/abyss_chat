@@ -100,55 +100,87 @@ class HomeScreen extends ConsumerWidget {
   void _showNearbyPeersDialog(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) {
-        return Consumer(
-          builder: (context, ref, child) {
-            final peers = ref.watch(nearbyPeersProvider);
-            return Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Nearby Users (mDNS)', style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 16),
-                  if (peers.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text('No users found on local network. Ensure both devices are on the same Wi-Fi.'),
-                    )
-                  else
-                    Expanded(
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: peers.length,
-                        itemBuilder: (context, index) {
-                          final peer = peers[index];
-                          return ListTile(
-                            leading: UserAvatar(user: peer, radius: 20),
-                            title: Text(peer.name),
-                            subtitle: Text('ID: ${peer.id}'),
-                            trailing: FilledButton.tonal(
-                              onPressed: () {
-                                ref.read(chatThreadsProvider.notifier).startNewChat(peer.id, peerName: peer.name);
-                                Navigator.pop(context);
-                                if (isDesktop) {
-                                  ref.read(selectedThreadIdProvider.notifier).select(peer.id);
-                                } else {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => ChatScreen(threadId: peer.id)),
-                                  );
-                                }
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Consumer(
+              builder: (context, ref, child) {
+                final allPeers = ref.watch(nearbyPeersProvider);
+                final peers = allPeers.where((p) {
+                  final query = searchQuery.toLowerCase();
+                  final nameMatches = p.name.toLowerCase().contains(query);
+                  final usernameMatches = p.username?.toLowerCase().contains(query) ?? false;
+                  return nameMatches || usernameMatches;
+                }).toList();
+                
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Nearby Users (mDNS)', style: Theme.of(context).textTheme.titleLarge),
+                        const SizedBox(height: 12),
+                        TextField(
+                          decoration: const InputDecoration(
+                            hintText: 'Search by name or @username...',
+                            prefixIcon: Icon(Icons.search),
+                            isDense: true,
+                          ),
+                          onChanged: (val) {
+                            setState(() {
+                              searchQuery = val;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        if (peers.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Text('No users found on local network matching search criteria.'),
+                          )
+                        else
+                          Expanded(
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: peers.length,
+                              itemBuilder: (context, index) {
+                                final peer = peers[index];
+                                return ListTile(
+                                  leading: UserAvatar(user: peer, radius: 20),
+                                  title: Text(peer.name),
+                                  subtitle: Text(peer.username != null ? '@${peer.username}' : 'ID: ${peer.id}'),
+                                  trailing: FilledButton.tonal(
+                                    onPressed: () {
+                                      ref.read(chatThreadsProvider.notifier).startNewChat(peer.id, peerName: peer.name);
+                                      Navigator.pop(context);
+                                      if (isDesktop) {
+                                        ref.read(selectedThreadIdProvider.notifier).select(peer.id);
+                                      } else {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (_) => ChatScreen(threadId: peer.id)),
+                                        );
+                                      }
+                                    },
+                                    child: const Text('Connect'),
+                                  ),
+                                );
                               },
-                              child: const Text('Connect'),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                      ],
                     ),
-                ],
-              ),
+                  ),
+                );
+              },
             );
           },
         );

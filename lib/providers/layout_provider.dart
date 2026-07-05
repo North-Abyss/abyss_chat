@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:abyss_chat/services/shared_prefs_helper.dart';
 
 enum DockPosition { bottom, left }
 
@@ -12,7 +12,7 @@ class LayoutState {
 class LayoutPreferencesNotifier extends AsyncNotifier<LayoutState> {
   @override
   Future<LayoutState> build() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPrefsHelper.instance;
     final dockStr = prefs.getString('dockPosition');
 
     // For desktop default to left, for mobile default to bottom
@@ -30,7 +30,7 @@ class LayoutPreferencesNotifier extends AsyncNotifier<LayoutState> {
   }
 
   Future<void> setDockPosition(DockPosition position) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPrefsHelper.instance;
     await prefs.setString('dockPosition', position.name);
     state = AsyncData(LayoutState(dockPosition: position));
   }

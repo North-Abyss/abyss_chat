@@ -8,7 +8,7 @@ import 'package:abyss_chat/screens/chat_screen.dart';
 import 'package:abyss_chat/screens/settings_screen.dart';
 import 'package:abyss_chat/screens/call_log_screen.dart';
 import 'package:abyss_chat/widgets/floating_dock.dart';
-import 'package:abyss_chat/services/notification_service.dart';
+import 'package:abyss_chat/widgets/activity_launcher.dart';
 
 class NavigationIndexNotifier extends Notifier<int> {
   @override
@@ -120,7 +120,7 @@ class ResponsiveLayout extends ConsumerWidget {
                 selectedIcon: Icons.show_chart,
                 label: 'Activity',
                 onTap: () {
-                  NotificationService.showMessageNotification('Activity', 'Coming soon in a future update!');
+                  ActivityLauncher.show(context, ref);
                 },
               ),
               FloatingDockItem(

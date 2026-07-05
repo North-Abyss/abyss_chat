@@ -3,7 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:crypto/crypto.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:abyss_chat/services/shared_prefs_helper.dart';
 
 class CryptoService {
   static encrypt.Key? _key;
@@ -12,7 +12,7 @@ class CryptoService {
   static Future<void> init(String userId) async {
     if (_key != null) return;
     
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPrefsHelper.instance;
     String? saltHex = prefs.getString('device_salt');
     
     if (saltHex == null) {

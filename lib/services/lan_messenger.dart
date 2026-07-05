@@ -53,7 +53,7 @@ class LanMessenger {
 
     try {
       debugPrint('🔄 Attempting LAN connection to $ipAddress:$port');
-      final socket = await Socket.connect(ipAddress, port, timeout: const Duration(seconds: 3));
+      final socket = await Socket.connect(ipAddress, port, timeout: const Duration(seconds: 1));
       
       // Handshake: tell the other peer who we are
       socket.writeln(jsonEncode({'type': 'handshake', 'peerId': _myId}));
@@ -94,10 +94,11 @@ class LanMessenger {
             debugPrint('🤝 Handshake complete with $remoteId');
           } else if (type == 'p2p_message') {
             final msg = Message.fromJson(decoded['payload']);
+            msg.networkSenderId = _getPeerId(socket);
             if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
             
             // Auto-send delivery receipt
-            final remoteId = msg.senderId;
+            final remoteId = msg.networkSenderId ?? msg.senderId;
             _sendPayload(remoteId, {
               'type': 'delivery_receipt',
               'messageId': msg.id,
