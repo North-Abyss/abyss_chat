@@ -49,6 +49,7 @@ graph TD
 1. **Services** (Infrastructure) handle heavy I/O like WebRTC signaling, TCP sockets, and local storage. They are completely stateless and UI-agnostic.
 2. **Providers** (State) wrap these services. They hold the active state (like the current list of chat threads or active call status) and listen to streams from the services.
 3. **Screens** (UI) simply watch the Providers. When a new message arrives over a socket, the `chat_provider` updates its state, and the UI automatically rebuilds only where necessary.
+4. **Constants** (Config) are centralized in `app_constants.dart` to serve as a single source of truth for global magic numbers (e.g., LAN ports, mDNS identifiers, timeouts, and UI dimensions).
 
 ### Q: How does the Peer-to-Peer (P2P) communication actually work under the hood?
 **A:** For internet communication, we use **WebRTC** via the `flutter_webrtc` and `peerdart` packages. 

@@ -248,3 +248,14 @@ Houses reusable, stateless, or localized-state UI elements that are shared acros
   - Updated `web/index.html` Open Graph and Twitter Card images to use the dedicated social preview asset.
   - Copied the asset to `web/social-preview.png` for root path access (`https://north-abyss.github.io/abyss_chat/social-preview.png`) to avoid pathing issues on GitHub Pages.
   - Optimized the social preview image to a 1.91:1 ratio (1200x630) using ImageMagick to satisfy standard Open Graph requirements.
+
+### 2026-07-05 — Session 9 (v1.1.0 Enhancements)
+- **GIF Integrations**: Added Giphy floating picker, native `.gif` fallback rendering, and an auto-pause overlay after 10 seconds.
+- **UI Enhancements**: Added a sleek animated targeting box for the Web QR scanner. Rebuilt the interactive media viewer for 5x pinch-to-zoom fullscreen support.
+- **Settings**: Granular in-app notification toggles to silence floating toasts independently of OS push notifications. Defaulted in-app notifications to OFF on native platforms.
+- **Voice Encoding**: Opus voice encoding on Web, falling back to aacLc on native apps.
+- **Connection Stability**: Fixed the PeerJS zombie connection hot-restart loop, and built an internal queueing system to prevent `Unexpected null value` crashes during signaling.
+- **Call State Bypass**: Fixed the "Calling..." UI freeze on the initiator's device by firing a `call_accepted` data payload the exact millisecond the receiver presses answer, entirely bypassing the sluggish WebRTC video handshake delays.
+- **App Constants & Structure**: Extracted all magic numbers (LAN ports, mDNS identifiers, timeouts) into `app_constants.dart`. Deeply sectioned large files with `// --- SECTION ---` comments for unparalleled readability.
+- **Widget Fixes**: Implemented `didUpdateWidget` across `DiceRollBubble`, `CoinTossBubble`, and other activity components to prevent animations from getting stuck during ListView recycling.
+- **App Resilience**: Wrapped `WidgetsFlutterBinding.ensureInitialized()` securely inside `runZonedGuarded` to prevent Zone mismatch crashes during hot restarts. Fixed CI/CD crashing on Windows due to colon characters in asset filenames.

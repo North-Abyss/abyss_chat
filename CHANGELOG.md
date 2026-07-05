@@ -7,12 +7,17 @@ All notable changes to this project will be documented in this file.
 - **In-App Notification Toggles**: Added granular controls in the settings screen to independently disable floating in-app notifications if you only want OS system push notifications.
 - **Web QR Scanner Overlay**: Enhanced the Web fallback on the QR scan screen with a sleek animated targeting box to guide users.
 - **Opus Voice Encoder**: Voice messages now dynamically encode in Opus format on Web browsers for maximum compatibility, falling back to aacLc on native apps!
+- **Global App Constants**: Extracted magic numbers into a central `app_constants.dart` file and added structural segment headers across the codebase for improved readability.
 
 ### Fixed
 - **Zombie Connection Loop**: Fixed a critical hot restart loop where PeerJS failed to drop stale WebRTC connections, causing endless "ID is taken" errors and stream memory leaks.
 - **Unexpected Null WebRTC Crash**: Built an internal queuing system to guarantee PeerJS waits for the signaling WebSocket to achieve full 'open' state before dispatching connection requests, completely eliminating "Unexpected null value" crashes.
 - **GIF Animation Support**: Fixed an issue where CachedNetworkImage froze GIFs into static pictures; the app now falls back to native Image.network automatically for .gif extensions!
 - **Fullscreen Image Zooming**: Fully fixed the interactive media viewer for images/GIFs. Images now span to fill maximum available bounds with 5x pinch-to-zoom capabilities, mirroring WhatsApp's behavior.
+- **Call State Synchronization**: Fixed a bug where the initiator's device would get stuck on the "Calling..." screen by injecting a rapid `call_accepted` data channel packet when the receiver clicks Answer, bypassing WebRTC video stream handshake delays.
+- **Activity Bubble Animations**: Fixed a bug where Dice and Coin Toss animations would get stuck and duplicate previous values due to ListView widget recycling.
+- **Hot Restart Crash**: Fixed a Zone mismatch crash on native apps by properly scoping `WidgetsFlutterBinding.ensureInitialized()` within the asynchronous `runZonedGuarded` block.
+- **Asset Filename Bug**: Renamed image assets containing colons to prevent Windows build runner crashes in CI/CD pipelines.
 
 
 ## [1.0.0] - 2026-06-30

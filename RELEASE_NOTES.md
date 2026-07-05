@@ -9,12 +9,16 @@ Welcome to **Abyss Chat v1.1.0**! This release brings massive improvements to me
 *   **In-App Notification Toggles**: You now have granular control in Settings to independently disable floating in-app toasts if you prefer only OS-level push notifications.
 *   **Opus Voice Encoder on Web**: Voice messages now dynamically encode in Opus format on Web browsers for maximum cross-platform compatibility!
 *   **Web QR Scanner Target**: Added a sleek animated targeting box overlay to the Web QR scanner fallback to guide your camera.
+*   **Codebase Organization**: A massive structural refactor with a new central `AppConstants` hub for developers.
 
 ## 🛠️ Critical Bug Fixes
 
 *   **Zombie Connection Loop Annihilated**: Fixed a severe hot-restart loop where PeerJS failed to drop stale WebRTC connections, completely eliminating the endless "ID is taken" errors and stream memory leaks.
 *   **Unexpected Null Crash Fixed**: Built a robust internal queueing system that guarantees the PeerJS signaling WebSocket achieves full 'open' state before dispatching connection requests, banishing the `Unexpected null value` crash forever.
 *   **GIF Animation Freezes**: Fixed a bug where `CachedNetworkImage` froze GIFs into static pictures.
+*   **Call UI Synchronization**: Banished the perpetual "Calling..." screen for call initiators using instant WebRTC data channel payloads.
+*   **Widget Recycling Animations**: Fixed Dice and Coin Toss activity bubbles getting stuck on old values.
+*   **Startup Crash Resiliency**: Fixed a Zone mismatch crash during app hot-restarts.
 
 ---
 
