@@ -330,11 +330,23 @@ class _CoinTossBubbleState extends State<CoinTossBubble> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _shouldAnimate = !_playedActivityAnimations.contains(widget.msgId);
     _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
+    _initCoin();
+  }
+
+  @override
+  void didUpdateWidget(CoinTossBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.msgId != widget.msgId || oldWidget.data != widget.data) {
+      _initCoin();
+    }
+  }
+  
+  void _initCoin() {
+    _shouldAnimate = !_playedActivityAnimations.contains(widget.msgId);
     if (_shouldAnimate) {
       _playedActivityAnimations.add(widget.msgId);
-      _controller.forward();
+      _controller.forward(from: 0.0);
     } else {
       _controller.value = 1.0;
     }
@@ -427,6 +439,19 @@ class _DiceRollBubbleState extends State<DiceRollBubble> {
   @override
   void initState() {
     super.initState();
+    _initDice();
+  }
+
+  @override
+  void didUpdateWidget(DiceRollBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.msgId != widget.msgId || oldWidget.data != widget.data) {
+      _initDice();
+    }
+  }
+
+  void _initDice() {
+    _timer?.cancel();
     _finalRolls = List<int>.from(widget.data['rolls'] ?? []);
     _shouldAnimate = !_playedActivityAnimations.contains(widget.msgId);
     

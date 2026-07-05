@@ -102,6 +102,9 @@ class CallNotifier extends Notifier<CallSession?> {
           case 'call_ended':
             _handleCallEnded(msg['peerId'] as String);
             break;
+          case 'call_accepted':
+            _handleCallAccepted(msg['peerId'] as String);
+            break;
           case 'media_status':
             _handleMediaStatus(msg);
             break;
@@ -233,6 +236,11 @@ class CallNotifier extends Notifier<CallSession?> {
   void _handleCallEnded(String peerId) {
     if (state != null && state!.peers.any((p) => p.id == peerId)) {
       _handlePeerDisconnected(peerId);
+    }
+  }
+  void _handleCallAccepted(String peerId) {
+    if (state != null && state!.state == CallState.ringing && state!.peers.any((p) => p.id == peerId)) {
+      setConnected();
     }
   }
 
@@ -374,6 +382,11 @@ class CallNotifier extends Notifier<CallSession?> {
       
       for (final mediaConn in _activeConnections.values) {
         mediaConn.answer(_localStream!);
+      }
+      
+      final peerService = ref.read(peerServiceProvider);
+      for (final peer in state!.peers) {
+        peerService.sendCustomData(peer.id, {'type': 'call_accepted', 'peerId': peerService.myId ?? 'local'});
       }
       
       setConnected();

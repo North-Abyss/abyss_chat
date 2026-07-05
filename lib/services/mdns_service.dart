@@ -4,12 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:nsd/nsd.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/models/user.dart';
+import 'package:abyss_chat/constants/app_constants.dart';
 
 class NearbyPeersNotifier extends Notifier<List<User>> {
   Registration? _registration;
   Discovery? _discovery;
   
-  final String _serviceType = '_abysschat._tcp';
+  final String _serviceType = AppConstants.mDnsServiceType;
   
   String _myId = '';
   String _myName = '';
@@ -21,7 +22,8 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
     return [];
   }
 
-  Future<void> startBroadcasting(String id, String name, {String? username, bool wps = false, int port = 45885}) async {
+  Future<void> startBroadcasting(String id, String name, {String? username, bool wps = false, int? port}) async {
+    final activePort = port ?? AppConstants.lanServerPort;
     _myId = id;
     _myName = name;
     _myUsername = username;
@@ -42,7 +44,7 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
           name: 'AbyssChat-$id',
           type: _serviceType,
           host: InternetAddress.anyIPv4.address,
-          port: port,
+          port: activePort,
           txt: {
             'id': Uint8List.fromList(id.codeUnits),
             'name': Uint8List.fromList(name.codeUnits),

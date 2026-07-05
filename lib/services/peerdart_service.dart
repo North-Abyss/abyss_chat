@@ -5,6 +5,9 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:peerdart/peerdart.dart';
 import 'package:abyss_chat/models/message.dart';
 import 'package:uuid/uuid.dart';
+import 'package:abyss_chat/constants/app_constants.dart';
+
+// --- SERVICE DEFINITION ---
 
 class PeerDartService {
   Peer? _peer;
@@ -102,8 +105,8 @@ class PeerDartService {
       
       // Handle hot-reload zombie connections
       if (err.toString().toLowerCase().contains('taken')) {
-        debugPrint('ID is taken. Server still holds the zombie connection. Retrying in 4 seconds...');
-        Future.delayed(const Duration(seconds: 4), () {
+        debugPrint('ID is taken. Server still holds the zombie connection. Retrying in ${AppConstants.webrtcReconnectDelay.inSeconds} seconds...');
+        Future.delayed(AppConstants.webrtcReconnectDelay, () {
           if (_isDisposed) return;
           if (!_connectionStatus.isClosed) {
             _peer?.dispose();
@@ -134,7 +137,7 @@ class PeerDartService {
          });
        } else {
          _peer!.reconnect();
-         Future.delayed(const Duration(milliseconds: 1000), () {
+         Future.delayed(AppConstants.webrtcSignalingTimeout, () {
            connectToPeer(peerId);
          });
        }
@@ -199,6 +202,7 @@ class PeerDartService {
     }
   }
 
+  // --- CONNECTION MANAGEMENT ---
   void _setupConnection(DataConnection conn) {
     _cancelSubscriptions(conn.peer);
     final subs = <StreamSubscription>[];

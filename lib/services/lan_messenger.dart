@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:abyss_chat/models/message.dart';
+import 'package:abyss_chat/constants/app_constants.dart';
+
+// --- SERVICE DEFINITION ---
 
 class LanMessenger {
   ServerSocket? _serverSocket;
@@ -25,8 +28,9 @@ class LanMessenger {
   Stream<String> get onTypingReceived => _typingIndicators.stream;
 
   String? _myId;
-  int _port = 45886; // Dedicated port for Abyss TCP messaging
+  int _port = AppConstants.lanServerPort;
 
+  // --- SERVER LIFECYCLE ---
   Future<int> startServer(String myId) async {
     _myId = myId;
     try {
@@ -53,7 +57,7 @@ class LanMessenger {
 
     try {
       debugPrint('🔄 Attempting LAN connection to $ipAddress:$port');
-      final socket = await Socket.connect(ipAddress, port, timeout: const Duration(seconds: 1));
+      final socket = await Socket.connect(ipAddress, port, timeout: AppConstants.webrtcSignalingTimeout);
       
       // Handshake: tell the other peer who we are
       socket.writeln(jsonEncode({'type': 'handshake', 'peerId': _myId}));

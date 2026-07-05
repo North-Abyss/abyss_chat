@@ -15,6 +15,9 @@ import 'package:abyss_chat/screens/contact_profile_screen.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
 import 'package:flutter/services.dart';
+import 'package:abyss_chat/constants/app_constants.dart';
+
+// --- MAIN CHAT SCREEN WIDGET ---
 import 'package:flutter/foundation.dart';
 import 'package:abyss_chat/widgets/abyss_snackbar.dart';
 import 'package:abyss_chat/models/message.dart';
@@ -1052,6 +1055,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 }
 
+// --- AUDIO BUBBLE WIDGET ---
 class AudioMessageBubble extends StatefulWidget {
   final Message msg;
   final bool isMe;
@@ -1155,6 +1159,7 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
   }
 }
 
+// --- NATIVE GIF PLAYER WIDGET ---
 class _GifPlayer extends StatefulWidget {
   final String url;
   final BoxFit fit;
@@ -1177,7 +1182,7 @@ class _GifPlayerState extends State<_GifPlayer> {
 
   void _startTimer() {
     _timer?.cancel();
-    _timer = Timer(const Duration(seconds: 10), () {
+    _timer = Timer(AppConstants.gifPauseDelay, () {
       if (mounted) {
         setState(() {
           _isPlaying = false;

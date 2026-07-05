@@ -10,11 +10,11 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:abyss_chat/services/shared_prefs_helper.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await SharedPrefsHelper.instance;
-
-  runZonedGuarded(() {
+// --- MAIN ENTRY POINT ---
+void main() {
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await SharedPrefsHelper.instance;
 
     // Catch unhandled async errors (like WebSockets dropping in peerdart)
     PlatformDispatcher.instance.onError = (error, stack) {
@@ -32,6 +32,7 @@ void main() async {
   });
 }
 
+// --- ROOT APPLICATION WIDGET ---
 class AbyssApp extends ConsumerWidget {
   const AbyssApp({super.key});
 
@@ -77,6 +78,7 @@ class AbyssApp extends ConsumerWidget {
     );
   }
 
+  // --- THEME CONFIGURATION ---
   ThemeData _buildTheme(Color? seedColor, Brightness brightness, ColorScheme? dynamicScheme) {
     ColorScheme colorScheme;
     
