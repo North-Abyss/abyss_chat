@@ -1,2 +1,1 @@
-package com.abyss.abyss_chat;
-public class Dummy {}
+package com.abyss.abyss_chat; public class Dummy {}

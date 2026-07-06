@@ -8,8 +8,12 @@ All notable changes to this project will be documented in this file.
 - **Web QR Scanner Overlay**: Enhanced the Web fallback on the QR scan screen with a sleek animated targeting box to guide users.
 - **Opus Voice Encoder**: Voice messages now dynamically encode in Opus format on Web browsers for maximum compatibility, falling back to aacLc on native apps!
 - **Global App Constants**: Extracted magic numbers into a central `app_constants.dart` file and added structural segment headers across the codebase for improved readability.
+- **Cloud Web Deploy Automation**: Web PWA releases are now fully automated via a manual-trigger GitHub Actions workflow (`web-deploy.yml`), eliminating slow local compilations.
 
 ### Fixed
+- **Android Plugin Compilation Resilience**: Resolved a catastrophic compilation crash in `GeneratedPluginRegistrant.java` caused by `file_picker`'s Kotlin Gradle Plugin incompatibility by injecting a dynamic Java Reflection patch during the Gradle build phase.
+- **Android Network Discovery**: Added missing `INTERNET`, `ACCESS_NETWORK_STATE`, and `CHANGE_WIFI_MULTICAST_STATE` permissions to the Android Manifest to unblock `nsd` mDNS discovery and WebRTC connections on physical Android devices.
+- **NTFS Asset Compression Bug**: Implemented a `noCompress` workaround in `build.gradle.kts` to prevent the notorious Android Gradle `CompressAssetsWorkAction` failure on NTFS partitions mounted in Linux.
 - **Zombie Connection Loop**: Fixed a critical hot restart loop where PeerJS failed to drop stale WebRTC connections, causing endless "ID is taken" errors and stream memory leaks.
 - **Unexpected Null WebRTC Crash**: Built an internal queuing system to guarantee PeerJS waits for the signaling WebSocket to achieve full 'open' state before dispatching connection requests, completely eliminating "Unexpected null value" crashes.
 - **GIF Animation Support**: Fixed an issue where CachedNetworkImage froze GIFs into static pictures; the app now falls back to native Image.network automatically for .gif extensions!

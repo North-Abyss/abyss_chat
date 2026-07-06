@@ -34,6 +34,7 @@ A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clo
 - **Group Customization & QR Join**: Easily customize group names/photos and invite friends instantly by letting them scan your Group QR Code!
 - **Cross-Platform**: Runs on Android, iOS, Windows, macOS, Linux, and the Web.
 - **Cloud CI/CD Pipeline** - Automated GitHub Actions release builds for Android, Windows, and Linux on every `v*` tag.
+- **Cloud Web Deploy Automation** - Web PWA releases are now fully automated and deployed to GitHub Pages via a manual-trigger Cloud Actions workflow (`web-deploy.yml`), eliminating slow local compilations.
 - **Maintainable Codebase** - Centralized `AppConstants` hub and deeply documented structural layout for easy onboarding.
 
 ## 🏗️ Architecture

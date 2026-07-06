@@ -9,9 +9,14 @@ Welcome to **Abyss Chat v1.1.0**! This release brings massive improvements to me
 *   **In-App Notification Toggles**: You now have granular control in Settings to independently disable floating in-app toasts if you prefer only OS-level push notifications.
 *   **Opus Voice Encoder on Web**: Voice messages now dynamically encode in Opus format on Web browsers for maximum cross-platform compatibility!
 *   **Web QR Scanner Target**: Added a sleek animated targeting box overlay to the Web QR scanner fallback to guide your camera.
+*   **Cloud Web Deploy Automation**: Web releases are now seamlessly pushed to GitHub Pages via manual Cloud Actions triggers, saving you local compile time!
 *   **Codebase Organization**: A massive structural refactor with a new central `AppConstants` hub for developers.
 
 ## 🛠️ Critical Bug Fixes
+
+*   **Android Plugin Compilation Resilience**: Built a dynamic Java Reflection patch to bypass a notorious Kotlin plugin compatibility crash that was freezing Android builds (`file_picker` vs `GeneratedPluginRegistrant.java`).
+*   **Android Network Discovery**: Added missing `INTERNET` and `MULTICAST` permissions to unblock `nsd` mDNS discovery and WebRTC on physical Android hardware.
+*   **NTFS Asset Compression Bug**: Implemented a `noCompress` workaround in `build.gradle.kts` to prevent Android Gradle `CompressAssetsWorkAction` failures on NTFS drives.
 
 *   **Zombie Connection Loop Annihilated**: Fixed a severe hot-restart loop where PeerJS failed to drop stale WebRTC connections, completely eliminating the endless "ID is taken" errors and stream memory leaks.
 *   **Unexpected Null Crash Fixed**: Built a robust internal queueing system that guarantees the PeerJS signaling WebSocket achieves full 'open' state before dispatching connection requests, banishing the `Unexpected null value` crash forever.

@@ -63,7 +63,30 @@ class PeerDartService {
     if (_isDisposed) return;
     _myId = customId ?? const Uuid().v4();
     _isPeerOpen = false;
-    _peer = Peer(id: _myId);
+    
+    // Inject reliable free TURN server (OpenRelay) to bypass strict NAT/Hairpinning
+    // without requiring users to change browser mDNS flags
+    final customConfig = {
+      'iceServers': [
+        {'urls': 'stun:stun.l.google.com:19302'},
+        {'urls': 'stun:stun1.l.google.com:19302'},
+        {
+          'urls': [
+            'turn:openrelay.metered.ca:80',
+            'turn:openrelay.metered.ca:443',
+            'turn:openrelay.metered.ca:443?transport=tcp',
+          ],
+          'username': 'openrelayproject',
+          'credential': 'openrelayproject',
+        },
+      ],
+      'sdpSemantics': 'unified-plan',
+    };
+
+    _peer = Peer(
+      id: _myId,
+      options: PeerOptions(config: customConfig),
+    );
 
     _peer!.on("open").listen((id) {
       if (_isDisposed) return;

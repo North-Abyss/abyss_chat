@@ -12,6 +12,7 @@ import 'package:abyss_chat/models/call_log.dart';
 import 'package:abyss_chat/services/lan_messenger.dart';
 import 'package:abyss_chat/services/notification_service.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
+import 'package:abyss_chat/services/cloud_relay_service.dart';
 import 'package:uuid/uuid.dart';
 
 final storageServiceProvider = Provider((ref) => StorageService());
@@ -106,6 +107,14 @@ final peerServiceProvider = Provider<PeerDartService>((ref) {
   return service;
 });
 
+final cloudRelayServiceProvider = Provider<CloudRelayService>((ref) {
+  final service = CloudRelayService();
+  ref.onDispose(() {
+    service.dispose();
+  });
+  return service;
+});
+
 class SelectedThreadIdNotifier extends Notifier<String?> {
   @override
   String? build() => null;
@@ -137,20 +146,22 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   final Map<String, DateTime> _lastConnectAttempt = {};
 
   @override
-  @override
   Future<List<ChatThread>> build() async {
     final storage = ref.watch(storageServiceProvider);
     final peer = ref.watch(peerServiceProvider);
     final lan = ref.watch(lanMessengerProvider);
+    final relay = ref.watch(cloudRelayServiceProvider);
 
     final profile = await storage.loadUserProfile();
     if (profile != null) {
       _myName = profile['name'];
+      relay.initialize(profile['id']); // Initialize relay with our Peer ID
     }
     
     // Message streams
     final sub1 = peer.onMessageReceived.listen(_handleIncomingMessage);
     final sub2 = lan.onMessageReceived.listen(_handleIncomingMessage);
+    final sub11 = relay.onMessageReceived.listen(_handleIncomingMessage);
     
     // Receipt streams
     final sub3 = peer.onDeliveryReceipt.listen(_handleDeliveryReceipt);
@@ -174,7 +185,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     ref.onDispose(() {
       sub1.cancel(); sub2.cancel(); sub3.cancel(); sub4.cancel();
       sub5.cancel(); sub6.cancel(); sub7.cancel(); sub8.cancel();
-      sub9.cancel(); sub10.cancel();
+      sub9.cancel(); sub10.cancel(); sub11.cancel();
       _retryTimer?.cancel();
     });
 
@@ -578,19 +589,22 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
             if (!memberSent) {
               memberSent = ref.read(peerServiceProvider).sendMessage(member.id, msg);
             }
+            if (!memberSent) {
+              memberSent = await ref.read(cloudRelayServiceProvider).sendMessage(member.id, msg);
+            }
             if (memberSent) sent = true;
           }
         }
       } else {
-        // Try LAN first
         sent = ref.read(lanMessengerProvider).sendMessage(threadId, msg);
-        // Try WebRTC if LAN failed
         if (!sent) {
           sent = ref.read(peerServiceProvider).sendMessage(threadId, msg);
         }
+        if (!sent) {
+          sent = await ref.read(cloudRelayServiceProvider).sendMessage(threadId, msg);
+        }
       }
 
-      // Update to sent or pending
       _updateMessageStatus(msg.id, sent ? MessageStatus.sent : MessageStatus.pending);
       
       if (!sent) {
@@ -631,14 +645,20 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
           if (member.id != myId) {
             bool memberSent = ref.read(lanMessengerProvider).sendMessage(member.id, message);
             if (!memberSent) {
-              ref.read(peerServiceProvider).sendMessage(member.id, message);
+              memberSent = ref.read(peerServiceProvider).sendMessage(member.id, message);
+            }
+            if (!memberSent) {
+              await ref.read(cloudRelayServiceProvider).sendMessage(member.id, message);
             }
           }
         }
       } else {
         bool sent = ref.read(lanMessengerProvider).sendMessage(threadId, message);
         if (!sent) {
-          ref.read(peerServiceProvider).sendMessage(threadId, message);
+          sent = ref.read(peerServiceProvider).sendMessage(threadId, message);
+        }
+        if (!sent) {
+          await ref.read(cloudRelayServiceProvider).sendMessage(threadId, message);
         }
       }
     }
@@ -665,6 +685,9 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
                 if (!memberSent) {
                   memberSent = ref.read(peerServiceProvider).sendMessage(member.id, msgs[i]);
                 }
+                if (!memberSent) {
+                  memberSent = await ref.read(cloudRelayServiceProvider).sendMessage(member.id, msgs[i]);
+                }
                 if (memberSent) sent = true;
               }
             }
@@ -672,6 +695,9 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
             sent = ref.read(lanMessengerProvider).sendMessage(peerId, msgs[i]);
             if (!sent) {
               sent = ref.read(peerServiceProvider).sendMessage(peerId, msgs[i]);
+            }
+            if (!sent) {
+              sent = await ref.read(cloudRelayServiceProvider).sendMessage(peerId, msgs[i]);
             }
           }
           

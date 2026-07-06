@@ -82,44 +82,21 @@ fi
 # 🌐 GITHUB PAGES WEB DEPLOY
 # ==========================================
 echo -e "${YELLOW}--- Web Deploy (GitHub Pages) ---${NC}"
-read -p "Do you want to deploy the Web PWA to GitHub Pages? (y/n): " deploy_web
+read -p "Do you want to trigger a Cloud Deploy for the Web PWA? (y/n): " deploy_web
 
 if [[ "$deploy_web" == "y" || "$deploy_web" == "Y" ]]; then
-    # 1. Capture the remote URL of your repo so we know where to push
-    REMOTE_URL=$(git config --get remote.origin.url)
+    # Generate a unique tag based on current timestamp
+    web_tag="web-deploy-$(date +%Y%m%d-%H%M%S)"
     
-    echo -e "${BLUE}Preparing Flutter Web Deployment...${NC}"
+    echo -e "${BLUE}Tagging current code as $web_tag to trigger Cloud Web Deploy...${NC}"
+    git tag "$web_tag"
+    git push origin "$web_tag"
     
-    # Optional Build Step
-    read -p "Do you want to compile a fresh web build? (y/n): " web_build
-    if [[ "$web_build" == "y" || "$web_build" == "Y" ]]; then
-        echo -e "${BLUE}Cleaning build cache and Compiling with WebAssembly (--wasm)...${NC}"
-        flutter clean
-        flutter pub get
-        # CRITICAL: The base-href MUST match your GitHub repository name! 
-        flutter build web --release --wasm --base-href "/abyss_chat/"
-    fi
-
-    echo -e "${BLUE}Pushing compiled web app to 'gh-pages' branch...${NC}"
-    
-    # 2. Go into the compiled web folder
-    cd build/web
-    
-    # 3. Create a temporary git repo just for these compiled files
-    rm -rf .git # <--- THE FIX: Nuke any leftover git history to prevent crashes
-    git init
-    git checkout -b gh-pages
-    git add .
-    git commit -m "Auto-Deploy Web PWA"
-    
-    # 4. Force push ONLY this folder to the gh-pages branch on GitHub
-    git push -f $REMOTE_URL gh-pages
-    
-    # 5. Clean up and return to the main project folder
-    rm -rf .git
-    cd ../..
-    
-    echo -e "${GREEN}Web deployment pushed! Your PWA will be live shortly.${NC}"
+    echo -e "${GREEN}Web deployment triggered! The Cloud Compiler is now building and deploying to GitHub Pages.${NC}"
+    echo -e "${GREEN}Your web version will be live in ~2-3 minutes.${NC}"
 else
     echo -e "${BLUE}Skipping Web Deploy.${NC}"
 fi
+
+echo -e "${BLUE}Have a great day!${NC}"
+

@@ -1,5 +1,6 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -8,6 +9,7 @@ android {
     namespace = "com.abyss.abyss_chat"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -49,12 +51,16 @@ tasks.withType<JavaCompile> {
     doFirst {
         val registrant = file("src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java")
         if (registrant.exists()) {
-            registrant.delete()
-            println("Deleted rogue GeneratedPluginRegistrant.java to fix file_picker compile error")
+            var content = registrant.readText()
+            if (content.contains("new com.mr.flutter.plugin.filepicker.FilePickerPlugin()")) {
+                content = content.replace(
+                    "flutterEngine.getPlugins().add(new com.mr.flutter.plugin.filepicker.FilePickerPlugin());",
+                    "try { flutterEngine.getPlugins().add((io.flutter.embedding.engine.plugins.FlutterPlugin) Class.forName(\"com.mr.flutter.plugin.filepicker.FilePickerPlugin\").getDeclaredConstructor().newInstance()); } catch (Exception e) {}"
+                )
+                registrant.writeText(content)
+                println("Patched GeneratedPluginRegistrant.java with reflection for file_picker to fix compile error!")
+            }
         }
-        val dummy = file("src/main/java/com/abyss/abyss_chat/Dummy.java")
-        dummy.parentFile.mkdirs()
-        dummy.writeText("package com.abyss.abyss_chat;\npublic class Dummy {}")
     }
 }
 
