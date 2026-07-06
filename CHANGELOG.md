@@ -1,6 +1,11 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.1.1] - 2026-07-07
+### Added
+- **Cloud Relay Fallback**: Built a foolproof, zero-config text messaging fallback using `ntfy.sh`. If WebRTC local routing is blocked by a strict NAT Hairpinning router, text messages instantly and silently route through an encrypted cloud relay!
+- **TURN Server Integrations**: Injected reliable public TURN servers into `peerdart_service.dart` to maximize WebRTC connection success rates across restrictive enterprise firewalls.
+
 ## [1.1.0] - 2026-07-05
 ### Added
 - **GIF Picker & Auto-Pause**: Added a floating GIF picker sheet with a direct search link to Giphy. Native GIFs auto-pause after 10 seconds with a clean overlay to save battery and computing power!

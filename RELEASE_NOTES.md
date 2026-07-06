@@ -1,8 +1,11 @@
-# Abyss Chat - v1.1.0 🚀
+# Abyss Chat - v1.1.1 🚀
 
-Welcome to **Abyss Chat v1.1.0**! This release brings massive improvements to media handling, voice messages, and connection stability.
+Welcome to **Abyss Chat v1.1.1**! This release introduces an indestructible Cloud Relay fallback and fixes critical native build bugs.
 
 ## 🎁 What's New
+
+*   **Cloud Relay Fallback**: Built a foolproof, zero-config text messaging fallback using `ntfy.sh`. If WebRTC local routing is blocked by a strict router, text messages instantly and silently route through an encrypted cloud relay!
+*   **TURN Server Enhancements**: Injected reliable public TURN servers directly into the signaling layer to maximize WebRTC connection success rates across restrictive enterprise firewalls.
 
 *   **GIF Auto-Pause & Picker**: A brand new floating GIF picker with Giphy integration. Native GIFs now elegantly auto-pause after 10 seconds with a sleek WhatsApp-style play overlay to save battery and computing power!
 *   **Zoom Like A Pro**: The interactive media viewer has been rebuilt. Images and GIFs now span to fill your screen's maximum bounds with flawless 5x pinch-to-zoom capabilities.
