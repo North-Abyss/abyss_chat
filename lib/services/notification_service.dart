@@ -69,6 +69,8 @@ class NotificationService {
     }
     
     // In-app fallback or if system notifications are disabled
+    if (!inAppEnabled) return;
+    
     final overlayState = globalNavigatorKey.currentState?.overlay;
     if (overlayState == null) return;
 

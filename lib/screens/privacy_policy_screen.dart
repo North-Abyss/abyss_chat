@@ -13,10 +13,10 @@ Welcome to Abyss Chat. This application is an open-source, decentralized, peer-t
 Abyss Chat is provided 100% free of charge and is open-source software. You are free to inspect, modify, and distribute the code under the terms of its open-source license.
 
 ## 2. No Central Servers & Privacy
-Your messages, voice calls, video calls, and files are transmitted directly between you and your peers using WebRTC and local network discovery (mDNS). 
+Your messages, voice calls, video calls, and files are transmitted directly between you and your peers. 
 - **We do not store your data.** 
 - **We do not track your activity.**
-- All communication is end-to-end encrypted when possible.
+- All communication is end-to-end encrypted locally before network transit.
 
 ## 3. Limitations of Liability (Not at Blame)
 Because Abyss Chat operates on a decentralized P2P network, the developers and contributors of Abyss Chat have absolutely no control over:
@@ -30,8 +30,6 @@ Because Abyss Chat operates on a decentralized P2P network, the developers and c
 - **Stay Safe:** Only connect and share your 6-digit Peer ID with people you trust.
 - **Local Network:** You can use the app seamlessly on a local Wi-Fi network without internet access.
 - **Global Network:** Connecting over the internet requires both peers to be online and able to negotiate a WebRTC connection.
-- **Group Mechanics & Limitations:** Because Abyss Chat is entirely Peer-to-Peer without central servers, group chats require your device to maintain direct connections to every other participant. This means group calls (especially with video) are extremely resource-intensive. **Group calls with many participants are not recommended** as they may cause high battery drain, network lag, or device overheating. Messages in groups are also sent individually to each connected peer.
-- **Respect Others:** Do not use this application to harass, abuse, or distribute illegal content.
 
 Thank you for using Abyss Chat!
 ''';
@@ -44,6 +42,22 @@ class PrivacyPolicyScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Privacy Policy & Terms'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.description),
+            tooltip: 'View License',
+            onPressed: () {
+              launchUrl(Uri.parse('https://github.com/North-Abyss/abyss_chat/blob/main/LICENSE'));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.policy),
+            tooltip: 'View on GitHub',
+            onPressed: () {
+              launchUrl(Uri.parse('https://github.com/North-Abyss/abyss_chat/blob/main/PRIVACY.md'));
+            },
+          ),
+        ],
       ),
       body: Markdown(
         data: _privacyPolicyContent,
@@ -56,3 +70,4 @@ class PrivacyPolicyScreen extends StatelessWidget {
     );
   }
 }
+

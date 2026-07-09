@@ -70,15 +70,9 @@ class PeerDartService {
       'iceServers': [
         {'urls': 'stun:stun.l.google.com:19302'},
         {'urls': 'stun:stun1.l.google.com:19302'},
-        {
-          'urls': [
-            'turn:openrelay.metered.ca:80',
-            'turn:openrelay.metered.ca:443',
-            'turn:openrelay.metered.ca:443?transport=tcp',
-          ],
-          'username': 'openrelayproject',
-          'credential': 'openrelayproject',
-        },
+        {'urls': 'stun:stun2.l.google.com:19302'},
+        {'urls': 'stun:stun3.l.google.com:19302'},
+        {'urls': 'stun:stun4.l.google.com:19302'},
       ],
       'sdpSemantics': 'unified-plan',
     };
@@ -92,7 +86,9 @@ class PeerDartService {
       if (_isDisposed) return;
       _isPeerOpen = true;
       debugPrint('✅ Connected to Signaling Server. My ID: $id');
-      if (!_connectionStatus.isClosed) _connectionStatus.add('Connected as $id');
+      Future.microtask(() {
+        if (!_connectionStatus.isClosed) _connectionStatus.add('Connected as $id');
+      });
       
       for (final peerId in _connectionQueue) {
          connectToPeer(peerId);
@@ -104,6 +100,24 @@ class PeerDartService {
       if (_isDisposed) return;
       final DataConnection conn = connection as DataConnection;
       _setupConnection(conn);
+      
+      // Process any urgent signals embedded in the connection metadata
+      try {
+        dynamic meta = conn.metadata;
+        if (meta is String) {
+          meta = jsonDecode(meta);
+        }
+        if (meta != null && meta is Map && meta.containsKey('urgent_signal')) {
+          final decoded = meta['urgent_signal'];
+          if (decoded is Map) {
+            _processDecodedPayload(Map<String, dynamic>.from(decoded));
+          } else if (decoded is String) {
+            _processDecodedPayload(jsonDecode(decoded));
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to process urgent signal from metadata: $e');
+      }
     });
 
     _peer!.on("disconnected").listen((_) {
@@ -148,7 +162,7 @@ class PeerDartService {
     return _activeConnections.containsKey(peerId) && _activeConnections[peerId]!.open;
   }
 
-  void connectToPeer(String peerId) {
+  void connectToPeer(String peerId, {dynamic metadata}) {
     if (_peer == null) return;
 
     if (_peer!.disconnected || _peer!.destroyed) {
@@ -199,7 +213,8 @@ class PeerDartService {
     _pendingConnections.add(peerId);
     debugPrint('🔄 Attempting to connect to $peerId...');
     try {
-      final conn = _peer!.connect(peerId);
+      final options = metadata != null ? PeerConnectOption(metadata: metadata) : null;
+      final conn = _peer!.connect(peerId, options: options);
       _setupConnection(conn);
     } catch (e) {
       _pendingConnections.remove(peerId);
@@ -237,43 +252,16 @@ class PeerDartService {
       debugPrint('🤝 Data connection established with ${conn.peer}');
       _activeConnections[conn.peer] = conn;
       _pendingConnections.remove(conn.peer);
-      if (!_connectionStatus.isClosed) _connectionStatus.add('Connected to ${conn.peer}');
+      Future.microtask(() {
+        if (!_connectionStatus.isClosed) _connectionStatus.add('Connected to ${conn.peer}');
+      });
       if (!_connectionOpened.isClosed) _connectionOpened.add(conn.peer);
     }));
 
     subs.add(conn.on("data").listen((data) {
       try {
         final decoded = jsonDecode(data.toString());
-        final type = decoded['type'];
-
-        if (type == 'p2p_message') {
-          final msg = Message.fromJson(decoded['payload']);
-          msg.networkSenderId = conn.peer;
-          if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
-          // Auto-send delivery receipt
-          _sendPayload(conn.peer, {
-            'type': 'delivery_receipt',
-            'messageId': msg.id,
-            'peerId': _myId,
-          });
-        } else if (type == 'delivery_receipt') {
-          if (!_deliveryReceipts.isClosed) _deliveryReceipts.add(decoded);
-        } else if (type == 'read_receipt') {
-          if (!_readReceipts.isClosed) _readReceipts.add(decoded);
-        } else if (type == 'call_ended') {
-          if (!_callEnded.isClosed) _callEnded.add(decoded['peerId']);
-        } else if (type == 'media_status') {
-          if (!_mediaStatus.isClosed) _mediaStatus.add(decoded);
-        } else if (type == 'typing') {
-          if (!_typingIndicators.isClosed) _typingIndicators.add(decoded['peerId']);
-        } else if (type == 'profile_sync') {
-          if (!_profileSyncs.isClosed) _profileSyncs.add(decoded);
-        } else if (type == 'call_request') {
-          if (!_callRequests.isClosed) _callRequests.add(decoded);
-        }
-        
-        // Also broadcast all raw JSON for generic listeners
-        if (!_dataMessages.isClosed) _dataMessages.add(decoded);
+        _processDecodedPayload(decoded);
       } catch (e) {
         debugPrint('Error parsing incoming P2P data: $e');
       }
@@ -294,6 +282,40 @@ class PeerDartService {
     }));
 
     _subscriptions[conn.peer] = subs;
+  }
+  
+  void _processDecodedPayload(Map<String, dynamic> decoded) {
+    final type = decoded['type'];
+
+    if (type == 'p2p_message') {
+      final msg = Message.fromJson(decoded['payload']);
+      // Fallback: If we don't have the connection object handy in this scope (e.g. from metadata), we rely on msg.senderId
+      msg.networkSenderId = msg.senderId; 
+      if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
+      // Auto-send delivery receipt
+      _sendPayload(msg.senderId, {
+        'type': 'delivery_receipt',
+        'messageId': msg.id,
+        'peerId': _myId,
+      });
+    } else if (type == 'delivery_receipt') {
+      if (!_deliveryReceipts.isClosed) _deliveryReceipts.add(decoded);
+    } else if (type == 'read_receipt') {
+      if (!_readReceipts.isClosed) _readReceipts.add(decoded);
+    } else if (type == 'call_ended') {
+      if (!_callEnded.isClosed) _callEnded.add(decoded['peerId']);
+    } else if (type == 'media_status') {
+      if (!_mediaStatus.isClosed) _mediaStatus.add(decoded);
+    } else if (type == 'typing') {
+      if (!_typingIndicators.isClosed) _typingIndicators.add(decoded['peerId']);
+    } else if (type == 'profile_sync') {
+      if (!_profileSyncs.isClosed) _profileSyncs.add(decoded);
+    } else if (type == 'call_request') {
+      if (!_callRequests.isClosed) _callRequests.add(decoded);
+    }
+    
+    // Also broadcast all raw JSON for generic listeners
+    if (!_dataMessages.isClosed) _dataMessages.add(decoded);
   }
 
   bool _sendPayload(String peerId, Map<String, dynamic> payload) {
@@ -316,17 +338,24 @@ class PeerDartService {
       return true;
     } else {
       debugPrint('⚠️ Cannot send message. Not connected to $peerId');
-      connectToPeer(peerId);
       return false;
     }
   }
 
   bool sendCustomData(String peerId, Map<String, dynamic> payload) {
     final success = _sendPayload(peerId, payload);
-    if (!success) {
-      connectToPeer(peerId);
-    }
     return success;
+  }
+
+  /// Sends a payload, and if the data channel is closed, it immediately initiates a 
+  /// new connection with the payload embedded in the PeerJS SDP metadata.
+  /// This ensures delivery even if ICE candidates fail to resolve (Native->Web on LAN).
+  void sendUrgentSignal(String peerId, Map<String, dynamic> payload) {
+    final success = _sendPayload(peerId, payload);
+    if (!success && _peer != null) {
+      debugPrint('🚀 Sending urgent signal via PeerJS metadata to $peerId');
+      connectToPeer(peerId, metadata: jsonEncode({'urgent_signal': payload}));
+    }
   }
 
   void sendReadReceipt(String peerId, List<String> messageIds) {

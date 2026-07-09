@@ -27,6 +27,9 @@ class LanMessenger {
   final StreamController<String> _typingIndicators = StreamController<String>.broadcast();
   Stream<String> get onTypingReceived => _typingIndicators.stream;
 
+  final StreamController<Map<String, dynamic>> _dataMessages = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onDataMessage => _dataMessages.stream;
+
   String? _myId;
   int _port = AppConstants.lanServerPort;
 
@@ -115,6 +118,9 @@ class LanMessenger {
             if (!_readReceipts.isClosed) _readReceipts.add(decoded);
           } else if (type == 'typing') {
             if (!_typingIndicators.isClosed) _typingIndicators.add(decoded['peerId']);
+          } else {
+            // Forward any other custom data (like call signaling) to the data stream
+            if (!_dataMessages.isClosed) _dataMessages.add(decoded as Map<String, dynamic>);
           }
         } catch (e) {
           debugPrint('Error parsing LAN message: $e');
@@ -147,6 +153,10 @@ class LanMessenger {
       return true;
     }
     return false;
+  }
+
+  bool sendCustomData(String peerId, Map<String, dynamic> payload) {
+    return _sendPayload(peerId, payload);
   }
 
   bool sendMessage(String peerId, Message message) {
@@ -187,6 +197,7 @@ class LanMessenger {
     _deliveryReceipts.close();
     _readReceipts.close();
     _typingIndicators.close();
+    _dataMessages.close();
   }
 }
 

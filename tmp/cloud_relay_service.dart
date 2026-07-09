@@ -20,6 +20,14 @@ class CloudRelayService {
   final _connectionStatus = StreamController<String>.broadcast();
   Stream<String> get onConnectionStatus => _connectionStatus.stream;
 
+  // ignore: close_sinks
+  final _connectRequests = StreamController<String>.broadcast();
+  Stream<String> get onConnectRequest => _connectRequests.stream;
+
+  // ignore: close_sinks
+  final _dataMessages = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onDataMessage => _dataMessages.stream;
+
   Future<void> initialize(String myId) async {
     if (_isDisposed) return;
     _myId = myId;
@@ -54,6 +62,10 @@ class CloudRelayService {
               if (decodedPayload['type'] == 'p2p_message') {
                 final msg = Message.fromJson(decodedPayload['payload']);
                 if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
+              } else if (decodedPayload['type'] == 'connect_request') {
+                if (!_connectRequests.isClosed) _connectRequests.add(decodedPayload['peerId']);
+              } else {
+                if (!_dataMessages.isClosed) _dataMessages.add(decodedPayload);
               }
             }
           } catch (e) {
@@ -111,6 +123,51 @@ class CloudRelayService {
       }
     } catch (e) {
       debugPrint('❌ Cloud Relay send error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> sendConnectRequest(String peerId) async {
+    if (_isDisposed || _myId == null) return false;
+    
+    final topic = 'abyss_relay_$peerId';
+    final url = Uri.parse('https://ntfy.sh/$topic');
+    
+    try {
+      final payload = {
+        'type': 'connect_request',
+        'peerId': _myId,
+      };
+      
+      final response = await http.post(
+        url,
+        body: jsonEncode(payload),
+      );
+      
+      if (response.statusCode == 200) {
+        debugPrint('☁️ Sent connect request via Cloud Relay to $peerId');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> sendCustomData(String peerId, Map<String, dynamic> payload) async {
+    if (_isDisposed) return false;
+    
+    final topic = 'abyss_relay_$peerId';
+    final url = Uri.parse('https://ntfy.sh/$topic');
+    
+    try {
+      final response = await http.post(
+        url,
+        body: jsonEncode(payload),
+      );
+      
+      return response.statusCode == 200;
+    } catch (e) {
       return false;
     }
   }

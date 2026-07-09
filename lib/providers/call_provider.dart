@@ -93,12 +93,18 @@ class CallNotifier extends Notifier<CallSession?> {
     // Subscribe to incoming calls from PeerDartService
     Future.microtask(() {
       final peerService = ref.read(peerServiceProvider);
+      final lanService = ref.read(lanMessengerProvider);
+      
       peerService.onCallReceived.listen(_handleIncomingCall);
       peerService.onCallRequest.listen(_handleCallRequest);
       peerService.onCallEnded.listen(_handleCallEnded);
       peerService.onMediaStatus.listen(_handleMediaStatus);
-      peerService.onDataMessage.listen((msg) {
+
+      void handleTunneledSignal(Map<String, dynamic> msg) {
         switch (msg['type']) {
+          case 'call_request':
+            _handleCallRequest(msg);
+            break;
           case 'call_ended':
             _handleCallEnded(msg['peerId'] as String);
             break;
@@ -112,7 +118,10 @@ class CallNotifier extends Notifier<CallSession?> {
             _handleReaction(msg);
             break;
         }
-      });
+      }
+      
+      lanService.onDataMessage.listen(handleTunneledSignal);
+      peerService.onDataMessage.listen(handleTunneledSignal);
     });
     
     return null;
@@ -160,15 +169,15 @@ class CallNotifier extends Notifier<CallSession?> {
           ref.read(chatThreadsProvider.notifier).connectToPeer(peer.id);
         }
         
-        peerService.sendCallRequest(peer.id, isVideo, myProfile);
-        
-        // Give time for signaling connect
-        Future.delayed(const Duration(seconds: 1), () {
-          final mediaConnection = peerService.makeCall(peer.id, _localStream!);
-          if (mediaConnection != null) {
-            _setupMediaConnection(peer.id, mediaConnection);
-          }
-        });
+        // Send the call request via LAN and PeerJS metadata signaling
+        final payload = {
+          'type': 'call_request',
+          'peerId': ref.read(chatThreadsProvider.notifier).myId,
+          'callerName': myProfile,
+          'isVideo': isVideo,
+        };
+        ref.read(lanMessengerProvider).sendCustomData(peer.id, payload);
+        peerService.sendUrgentSignal(peer.id, payload);
       }
       
       _timeoutTimer?.cancel();
@@ -380,13 +389,21 @@ class CallNotifier extends Notifier<CallSession?> {
       });
       localRenderer.srcObject = _localStream;
       
-      for (final mediaConn in _activeConnections.values) {
-        mediaConn.answer(_localStream!);
-      }
-      
       final peerService = ref.read(peerServiceProvider);
       for (final peer in state!.peers) {
-        peerService.sendCustomData(peer.id, {'type': 'call_accepted', 'peerId': peerService.myId ?? 'local'});
+        if (_activeConnections.containsKey(peer.id)) {
+          // Backward compatibility / simultaneous calls
+          _activeConnections[peer.id]!.answer(_localStream!);
+        } else {
+          // FLIP THE HOST: The Callee initiates the stream!
+          final mediaConnection = peerService.makeCall(peer.id, _localStream!);
+          if (mediaConnection != null) {
+            _setupMediaConnection(peer.id, mediaConnection);
+          }
+        }
+        final payload = {'type': 'call_accepted', 'peerId': peerService.myId ?? 'local'};
+        ref.read(lanMessengerProvider).sendCustomData(peer.id, payload);
+        peerService.sendUrgentSignal(peer.id, payload);
       }
       
       setConnected();
@@ -551,6 +568,8 @@ class CallNotifier extends Notifier<CallSession?> {
       final peerService = ref.read(peerServiceProvider);
       for (final peer in state!.peers) {
         peerService.sendCallEnded(peer.id);
+        final payload = {'type': 'call_ended', 'peerId': peerService.myId ?? 'local'};
+        peerService.sendUrgentSignal(peer.id, payload);
       }
       
       // Brief delay to ensure data channel message transmits before tearing down

@@ -13,6 +13,7 @@ import 'package:abyss_chat/screens/group_info_screen.dart';
 import 'package:abyss_chat/screens/chat_media_screen.dart';
 import 'package:abyss_chat/screens/contact_profile_screen.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:abyss_chat/constants/app_constants.dart';
@@ -345,14 +346,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                           if (thread.isGroup)
-                            Text(
-                              '${thread.members.length} members',
-                              style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                            Row(
+                              children: [
+                                const Icon(Icons.lock, size: 10, color: Colors.green),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    'E2EE • ${thread.members.length} members',
+                                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             )
-                          else if (thread.peer.isOnline)
-                            Text(
-                              'Online',
-                              style: TextStyle(fontSize: 12, color: cs.primary),
+                          else
+                            Row(
+                              children: [
+                                const Icon(Icons.lock, size: 10, color: Colors.green),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    thread.peer.isOnline ? 'E2EE • Online' : 'E2EE • Offline',
+                                    style: TextStyle(fontSize: 12, color: thread.peer.isOnline ? cs.primary : cs.onSurfaceVariant),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                         ],
                       ),
@@ -742,6 +761,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               focusNode: _focusNode,
                               keyboardType: TextInputType.multiline,
                               textInputAction: TextInputAction.newline,
+                              contentInsertionConfiguration: ContentInsertionConfiguration(
+                                onContentInserted: (KeyboardInsertedContent content) {
+                                  if (content.data != null) {
+                                    final isImage = content.mimeType.startsWith('image/');
+                                    if (isImage) {
+                                      final base64Data = base64Encode(content.data!);
+                                      ref.read(chatThreadsProvider.notifier).sendMessage(
+                                        widget.threadId, 
+                                        'Sent an image', 
+                                        type: MessageType.image,
+                                        fileName: content.uri.isEmpty ? 'pasted_image' : content.uri,
+                                        fileData: base64Data,
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
                               decoration: const InputDecoration(
                                 hintText: 'Message',
                                 border: InputBorder.none,
@@ -853,8 +889,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           IconButton(
                             icon: const Icon(Icons.camera_alt_outlined),
                             color: cs.onSurfaceVariant,
-                            onPressed: () {
-                              AbyssSnackBar.show(context, 'Camera coming soon', type: SnackBarType.info);
+                            onPressed: () async {
+                              if (kIsWeb) {
+                                AbyssSnackBar.show(context, 'Camera not supported on Web', type: SnackBarType.info);
+                                return;
+                              }
+                              try {
+                                final picker = ImagePicker();
+                                final image = await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+                                if (image != null) {
+                                  final bytes = await image.readAsBytes();
+                                  final base64Data = base64Encode(bytes);
+                                  ref.read(chatThreadsProvider.notifier).sendMessage(
+                                    widget.threadId, 
+                                    'Sent a photo', 
+                                    type: MessageType.image,
+                                    fileName: image.name,
+                                    fileData: base64Data,
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  AbyssSnackBar.show(context, 'Failed to open camera: $e', type: SnackBarType.error);
+                                }
+                              }
                             },
                           ),
                         ],

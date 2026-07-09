@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:nsd/nsd.dart';
@@ -52,8 +53,10 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
             'wps': Uint8List.fromList((wps ? '1' : '0').codeUnits),
           },
         ),
-      );
+      ).timeout(const Duration(seconds: 2));
       debugPrint('📡 mDNS Broadcasting as $name ($id) | WPS: $wps');
+    } on TimeoutException {
+      debugPrint('⚠️ mDNS Broadcasting timed out. The native Android daemon might be locked up.');
     } catch (e) {
       debugPrint('Error starting mDNS broadcast: $e');
     }
@@ -75,7 +78,7 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
       _discovery = await startDiscovery(
         _serviceType,
         autoResolve: true,
-      );
+      ).timeout(const Duration(seconds: 2));
 
       _discovery!.addListener(() {
         final List<User> newPeers = [];

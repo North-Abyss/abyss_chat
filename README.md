@@ -83,3 +83,18 @@ To run this project locally, ensure you have Flutter installed.
 2. Run `flutter pub get` to install dependencies.
 3. Use `flutter run` to launch on your connected device or emulator.
 4. For Linux specifically, ensure the necessary dependencies for `flutter_webrtc` are present on your system.
+
+## 📖 Usage Guide
+
+Abyss Chat is a 100% decentralized P2P application. This means there are no servers storing your messages or routing your data!
+
+1. **Setting up your Profile:** When you first launch the app, enter a display name and choose a unique Avatar color/icon.
+2. **Connecting to Peers Locally:** If you and your friends are on the same Wi-Fi network, the app will automatically discover them (using mDNS). They will appear instantly on your screen!
+3. **Connecting Globally (Internet):** If you are not on the same Wi-Fi, you can still connect anywhere in the world! Simply tap **"Connect via ID"** and enter your friend's 6-digit Peer ID (found on their profile or QR Code). Both of you must have the app open and connected to the internet.
+4. **Group Chats:** You can create Group Chats and invite your peers. Note: Group chats and calls are Full Mesh P2P, meaning your device connects directly to every other person. Large groups (10+ people) require strong internet connections and devices.
+5. **WPS Pairing:** If you are physically next to someone, you can use the WPS (Wi-Fi Protected Setup) style button to instantly pair without typing IDs.
+
+## ⚖️ Legal & Privacy
+
+- **Privacy Policy:** Abyss Chat is heavily focused on privacy. We collect zero data. Read the full [Privacy Policy](PRIVACY.md).
+- **License:** This project is open-source and licensed under the [MIT License](LICENSE).

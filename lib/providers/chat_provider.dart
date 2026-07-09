@@ -1,18 +1,19 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/models/chat_thread.dart';
 import 'package:abyss_chat/models/message.dart';
 import 'package:abyss_chat/models/user.dart';
+import "package:abyss_chat/services/mdns_service.dart";
 import 'package:abyss_chat/screens/chat_screen.dart';
 import 'package:abyss_chat/services/peerdart_service.dart';
 import 'package:abyss_chat/services/storage_service.dart';
-import 'package:abyss_chat/services/mdns_service.dart';
 import 'package:abyss_chat/models/call_log.dart';
 import 'package:abyss_chat/services/lan_messenger.dart';
 import 'package:abyss_chat/services/notification_service.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
-import 'package:abyss_chat/services/cloud_relay_service.dart';
+// removed
 import 'package:uuid/uuid.dart';
 
 final storageServiceProvider = Provider((ref) => StorageService());
@@ -20,7 +21,20 @@ final storageServiceProvider = Provider((ref) => StorageService());
 class ContactsNotifier extends AsyncNotifier<List<User>> {
   @override
   Future<List<User>> build() async {
-    return await ref.watch(storageServiceProvider).loadContacts();
+    final storage = ref.watch(storageServiceProvider);
+    final contacts = await storage.loadContacts();
+    
+    // Automatically clean up any accidental "self" contacts (duplicate bug)
+    final profile = await storage.loadUserProfile();
+    if (profile != null && profile['id'] != null) {
+      final myId = profile['id'] as String;
+      final filtered = contacts.where((c) => c.id != myId).toList();
+      if (filtered.length != contacts.length) {
+        storage.saveContacts(filtered);
+        return filtered;
+      }
+    }
+    return contacts;
   }
 
   void addContact(User user) {
@@ -107,14 +121,6 @@ final peerServiceProvider = Provider<PeerDartService>((ref) {
   return service;
 });
 
-final cloudRelayServiceProvider = Provider<CloudRelayService>((ref) {
-  final service = CloudRelayService();
-  ref.onDispose(() {
-    service.dispose();
-  });
-  return service;
-});
-
 class SelectedThreadIdNotifier extends Notifier<String?> {
   @override
   String? build() => null;
@@ -147,45 +153,47 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
 
   @override
   Future<List<ChatThread>> build() async {
-    final storage = ref.watch(storageServiceProvider);
-    final peer = ref.watch(peerServiceProvider);
-    final lan = ref.watch(lanMessengerProvider);
-    final relay = ref.watch(cloudRelayServiceProvider);
+    final storage = ref.read(storageServiceProvider);
+    
+    // Subscribe to incoming messages
+    final lan = ref.read(lanMessengerProvider);
+    final peer = ref.read(peerServiceProvider);
+    
+    final sub1 = lan.onMessageReceived.listen(_handleIncomingMessage);
+    final sub2 = peer.onMessageReceived.listen(_handleIncomingMessage);
+    
+    final sub3 = lan.onDeliveryReceipt.listen(_handleDeliveryReceipt);
+    final sub4 = peer.onDeliveryReceipt.listen(_handleDeliveryReceipt);
+    
+    final sub5 = lan.onReadReceipt.listen(_handleReadReceipt);
+    final sub6 = peer.onReadReceipt.listen(_handleReadReceipt);
+    
+    final sub7 = peer.onConnectionOpened.listen(_handleConnectionOpened);
+    final sub8 = peer.onProfileSyncReceived.listen(_handleProfileSync);
 
-    final profile = await storage.loadUserProfile();
-    if (profile != null) {
-      _myName = profile['name'];
-      relay.initialize(profile['id']); // Initialize relay with our Peer ID
+    // Activity sync and reverse connect handler
+    void handleTunneledSignal(Map<String, dynamic> data) {
+      if (data['type'] == 'activity_sync') {
+        _handleActivitySync(data);
+      } else if (data['type'] == 'reverse_connect_request') {
+        final peerId = data['peerId'] as String;
+        debugPrint('📞 Received reverse connect request from $peerId. I will act as the host!');
+        connectToPeer(peerId, isReverseConnect: true);
+      }
     }
     
-    // Message streams
-    final sub1 = peer.onMessageReceived.listen(_handleIncomingMessage);
-    final sub2 = lan.onMessageReceived.listen(_handleIncomingMessage);
-    final sub11 = relay.onMessageReceived.listen(_handleIncomingMessage);
-    
-    // Receipt streams
-    final sub3 = peer.onDeliveryReceipt.listen(_handleDeliveryReceipt);
-    final sub4 = lan.onDeliveryReceipt.listen(_handleDeliveryReceipt);
-    final sub5 = peer.onReadReceipt.listen(_handleReadReceipt);
-    final sub6 = lan.onReadReceipt.listen(_handleReadReceipt);
-    
-    // Typing indicator streams
-    final sub7 = peer.onTypingReceived.listen(_handleTypingIndicator);
-    final sub8 = lan.onTypingReceived.listen(_handleTypingIndicator);
-    
-    // PeerDart specialized streams
-    final sub9 = peer.onConnectionOpened.listen(_handleConnectionOpened);
-    final sub10 = peer.onProfileSyncReceived.listen(_handleProfileSync);
-    
-    // Start background retry loop for pending messages
-    _retryTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    final sub9 = lan.onDataMessage.listen(handleTunneledSignal);
+    final sub10 = peer.onDataMessage.listen(handleTunneledSignal);
+
+    // Periodically process queue for offline peers
+    _retryTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _flushAllPendingQueues();
     });
     
     ref.onDispose(() {
       sub1.cancel(); sub2.cancel(); sub3.cancel(); sub4.cancel();
       sub5.cancel(); sub6.cancel(); sub7.cancel(); sub8.cancel();
-      sub9.cancel(); sub10.cancel(); sub11.cancel();
+      sub9.cancel(); sub10.cancel();
       _retryTimer?.cancel();
     });
 
@@ -195,27 +203,15 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   void _flushAllPendingQueues() {
     if (!state.hasValue) return;
     final threads = state.value!;
-    final now = DateTime.now();
     for (final thread in threads) {
       if (thread.messages.any((m) => m.status == MessageStatus.pending)) {
         if (thread.isGroup) {
           for (final member in thread.members) {
-            if (member.id != myId) {
-              final lastAttempt = _lastConnectAttempt[member.id];
-              if (lastAttempt == null || now.difference(lastAttempt).inSeconds > 30) {
-                _lastConnectAttempt[member.id] = now;
-                connectToPeer(member.id);
-              }
-            }
+            if (member.id != myId) _trySend(member.id, thread.messages.lastWhere((m) => m.status == MessageStatus.pending));
           }
         } else {
-          final lastAttempt = _lastConnectAttempt[thread.id];
-          if (lastAttempt == null || now.difference(lastAttempt).inSeconds > 30) {
-            _lastConnectAttempt[thread.id] = now;
-            connectToPeer(thread.id);
-          }
+          _trySend(thread.id, thread.messages.lastWhere((m) => m.status == MessageStatus.pending));
         }
-        _flushQueueForPeer(thread.id);
       }
     }
   }
@@ -225,16 +221,23 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     
     final blockedList = ref.read(blockedContactsProvider).value ?? [];
     if (blockedList.contains(message.senderId)) {
-      return; // Ignore messages from blocked peers
+      return; 
     }
     
-    // Auto-add unknown sender to contacts
-    ref.read(contactsProvider.notifier).addContact(User(
-      id: message.senderId,
-      name: message.senderName ?? 'Peer ${message.senderId}',
-      avatarIcon: 0xe491,
-      avatarColor: 0xFF6750A4,
-    ));
+    final contactsList = ref.read(contactsProvider).value ?? [];
+    final isMe = message.senderId == myId;
+    final isKnownContact = isMe || contactsList.any((c) => c.id == message.senderId);
+
+    if (!isKnownContact) {
+      final newUser = User(
+        id: message.senderId,
+        name: message.senderName ?? 'Peer ${message.senderId}',
+        avatarIcon: 0xe491,
+        avatarColor: 0xFF6750A4,
+      );
+      _requestAirDropInvite(newUser, message: message);
+      return;
+    }
     
     final threads = List<ChatThread>.from(state.value!);
     final isGroup = message.groupId != null;
@@ -251,7 +254,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
           updatedMessages[existingIndex] = message;
           threads[threadIndex] = threads[threadIndex].copyWith(messages: updatedMessages);
         } else {
-          return; // Ignore duplicate message
+          return;
         }
       } else {
         final updatedMessages = List<Message>.from(threads[threadIndex].messages)..add(message);
@@ -288,7 +291,6 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     state = AsyncData(threads);
     ref.read(storageServiceProvider).saveThreads(threads);
     
-    // Send Read Receipt if currently viewing this thread
     if (currentSelectedId == targetThreadId) {
       if (!isGroup) sendReadReceipt(message.senderId, [message.id]);
     } else {
@@ -304,7 +306,6 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         NotificationService.showMessageNotification(
           thread.isGroup ? (thread.groupName ?? 'Group') : thread.peer.name, 
           notifyBody,
-          inAppOnly: message.type != MessageType.text,
           onTap: () {
             ref.read(selectedThreadIdProvider.notifier).select(thread.id);
             final ctx = globalNavigatorKey.currentContext;
@@ -334,13 +335,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     }
   }
 
-  void _handleTypingIndicator(String peerId) {
-    // We could add typing state to ChatThread here, e.g., thread.isTyping = true
-    // For now, this is a placeholder where UI can watch a typing provider
-  }
-
   void _handleConnectionOpened(String peerId) async {
-    // Send our profile
     final myProfile = await ref.read(myProfileProvider.future);
     if (myProfile != null) {
       ref.read(peerServiceProvider).sendProfileSync(peerId, {
@@ -355,15 +350,12 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         'avatarColor': 0xFF6750A4,
       });
     }
-    
-    // Flush pending queue
-    _flushQueueForPeer(peerId);
+    _flushAllPendingQueues();
   }
 
   void _handleProfileSync(Map<String, dynamic> data) {
     final peerId = data['peerId'] as String;
     final profile = data['profile'] as Map<String, dynamic>;
-    
     final newUser = User(
       id: peerId,
       name: profile['name'],
@@ -371,23 +363,89 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       avatarColor: profile['avatarColor'],
     );
     
-    ref.read(contactsProvider.notifier).addContact(newUser);
+    final blockedList = ref.read(blockedContactsProvider).value ?? [];
+    if (blockedList.contains(peerId)) return;
+
+    final contactsList = ref.read(contactsProvider).value ?? [];
+    final isKnownContact = contactsList.any((c) => c.id == peerId);
     
-    // Update or create thread
+    if (!isKnownContact) {
+      _requestAirDropInvite(newUser);
+      return;
+    }
+    
+    _acceptPeer(newUser);
+  }
+
+  final Set<String> _pendingInvites = {};
+  final Map<String, List<Message>> _pendingInviteMessages = {};
+
+  void _requestAirDropInvite(User user, {Message? message}) {
+    if (message != null) {
+      _pendingInviteMessages.putIfAbsent(user.id, () => []).add(message);
+    }
+    
+    if (_pendingInvites.contains(user.id)) return;
+    _pendingInvites.add(user.id);
+
+    final ctx = globalNavigatorKey.currentContext;
+    if (ctx == null) return;
+    
+    NotificationService.showMessageNotification('New Connection Request', '${user.name} wants to connect with you.', inAppOnly: true);
+
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (c) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: const Text('New Connection Request'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: Color(user.avatarColor),
+              child: Icon(IconData(0xe491, fontFamily: 'MaterialIcons'), size: 40, color: Colors.white),
+            ),
+            const SizedBox(height: 16),
+            Text('${user.name} would like to share data and chat with you.'),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () { Navigator.pop(c); _rejectPeer(user.id); }, child: const Text('Decline', style: TextStyle(color: Colors.red))),
+          FilledButton(onPressed: () { Navigator.pop(c); _acceptPeer(user); }, child: const Text('Accept')),
+        ],
+      ),
+    );
+  }
+
+  void _rejectPeer(String id) {
+    _pendingInvites.remove(id);
+    _pendingInviteMessages.remove(id);
+    ref.read(blockedContactsProvider.notifier).blockPeer(id);
+  }
+
+  void _acceptPeer(User user) {
+    _pendingInvites.remove(user.id);
+    ref.read(contactsProvider.notifier).addContact(user);
+    
     if (state.hasValue) {
       final threads = List<ChatThread>.from(state.value!);
-      final threadIndex = threads.indexWhere((t) => t.id == peerId);
+      final threadIndex = threads.indexWhere((t) => t.id == user.id);
       if (threadIndex != -1) {
-        threads[threadIndex] = threads[threadIndex].copyWith(peer: newUser);
+        threads[threadIndex] = threads[threadIndex].copyWith(peer: user);
       } else {
-        threads.insert(0, ChatThread(
-          id: peerId,
-          peer: newUser,
-          messages: [],
-        ));
+        threads.insert(0, ChatThread(id: user.id, peer: user, messages: []));
       }
       state = AsyncData(threads);
       ref.read(storageServiceProvider).saveThreads(threads);
+      
+      if (_pendingInviteMessages.containsKey(user.id)) {
+        final messages = _pendingInviteMessages.remove(user.id)!;
+        for (final m in messages) {
+          _handleIncomingMessage(m);
+        }
+      }
     }
   }
 
@@ -395,12 +453,10 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     if (!state.hasValue) return;
     final threads = List<ChatThread>.from(state.value!);
     bool updated = false;
-    
     for (int i = 0; i < threads.length; i++) {
       final msgs = List<Message>.from(threads[i].messages);
       for (int j = msgs.length - 1; j >= 0; j--) {
         if (msgs[j].id == messageId) {
-          // Prevent downgrading status (e.g. read -> delivered)
           if (msgs[j].status != MessageStatus.read) {
             msgs[j] = msgs[j].copyWith(status: newStatus);
             threads[i] = threads[i].copyWith(messages: msgs);
@@ -411,7 +467,6 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       }
       if (updated) break;
     }
-    
     if (updated) {
       state = AsyncData(threads);
       ref.read(storageServiceProvider).saveThreads(threads);
@@ -420,42 +475,56 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
 
   Future<void> initializePeer(String? customId, String myName, {String? username}) async {
     _myName = myName;
-    
-    await ref.read(peerServiceProvider).initialize(
-      customId
-    );
-    
-    final lanPort = await ref.read(lanMessengerProvider).startServer(
-      customId ?? 'unknown'
-    );
-    
-    final mdnsNotifier = ref.read(nearbyPeersProvider.notifier);
-    await mdnsNotifier.startBroadcasting(myId ?? 'unknown', myName, username: username, port: lanPort);
-    await mdnsNotifier.startScanning(myId ?? 'unknown');
+    await ref.read(peerServiceProvider).initialize(customId);
+    try {
+      final lanPort = await ref.read(lanMessengerProvider).startServer(customId ?? 'unknown');
+      final mdnsNotifier = ref.read(nearbyPeersProvider.notifier);
+      await mdnsNotifier.startBroadcasting(myId ?? 'unknown', myName, username: username, port: lanPort);
+      await mdnsNotifier.startScanning(myId ?? 'unknown');
+    } catch (e) {
+      debugPrint('⚠️ Local Networking Initialization failed: $e');
+    }
   }
 
-  Future<void> connectToPeer(String peerId) async {
+  Future<void> connectToPeer(String peerId, {bool isReverseConnect = false}) async {
     final now = DateTime.now();
     if (_lastConnectAttempt.containsKey(peerId)) {
       final diff = now.difference(_lastConnectAttempt[peerId]!);
-      if (diff.inSeconds < 3) return; // Prevent connect spam
+      if (diff.inSeconds < 3) return;
     }
     _lastConnectAttempt[peerId] = now;
     
+    // Reverse-Host: Ask the peer to connect to us to punch through mDNS/Firewalls
+    final metadata = isReverseConnect ? null : jsonEncode({
+      'urgent_signal': {
+        'type': 'reverse_connect_request',
+        'peerId': myId ?? 'unknown',
+      }
+    });
+    
+    ref.read(peerServiceProvider).connectToPeer(peerId, metadata: metadata);
+    
     final mdnsPeers = ref.read(nearbyPeersProvider);
     final lanPeer = mdnsPeers.where((p) => p.id == peerId).firstOrNull;
-    
-    // Always trigger global WebRTC connection first, it runs async
-    ref.read(peerServiceProvider).connectToPeer(peerId);
-
     if (lanPeer != null && lanPeer.ipAddress != null && lanPeer.port != null) {
       await ref.read(lanMessengerProvider).connectToPeer(peerId, lanPeer.ipAddress!, lanPeer.port!);
     }
   }
 
+  bool _trySend(String targetId, Message message) {
+    bool sent = ref.read(lanMessengerProvider).sendMessage(targetId, message);
+    if (!sent) {
+      sent = ref.read(peerServiceProvider).sendMessage(targetId, message);
+    }
+    if (!sent) {
+      // Trigger our full connect flow which includes reverse_connect_request
+      connectToPeer(targetId);
+    }
+    return sent;
+  }
+
   Future<void> updateMyProfile(String name, int iconCodePoint, int colorValue, {String? newImagePath, bool removeImage = false}) async {
     final storage = ref.read(storageServiceProvider);
-    
     String? finalImagePath;
     String? username;
     if (newImagePath != null) {
@@ -467,28 +536,15 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       finalImagePath = oldProfile?['profileImagePath'];
       username = oldProfile?['username'];
     }
-
     await storage.saveUserProfile(myId ?? '', name, username: username, avatarIcon: iconCodePoint, avatarColor: colorValue, profileImagePath: finalImagePath);
-    
     _myName = name;
-    
     final mdnsNotifier = ref.read(nearbyPeersProvider.notifier);
     await mdnsNotifier.startBroadcasting(myId ?? 'unknown', name, username: username);
-    
     ref.invalidate(myProfileProvider);
-    
-    // Broadcast profile sync to all known peers
     if (state.hasValue) {
-      final profileData = {
-        'name': name,
-        'avatarIcon': iconCodePoint,
-        'avatarColor': colorValue,
-      };
-      final threads = state.value!;
-      for (final thread in threads) {
-        if (!thread.isGroup) {
-          ref.read(peerServiceProvider).sendProfileSync(thread.id, profileData);
-        }
+      final profileData = {'name': name, 'avatarIcon': iconCodePoint, 'avatarColor': colorValue};
+      for (final thread in state.value!) {
+        if (!thread.isGroup) ref.read(peerServiceProvider).sendProfileSync(thread.id, profileData);
       }
     }
   }
@@ -496,13 +552,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   void startNewChat(String peerId, {String? peerName}) {
     if (!state.hasValue) return;
     final threads = List<ChatThread>.from(state.value!);
-    
     if (!threads.any((t) => t.id == peerId)) {
-      threads.insert(0, ChatThread(
-        id: peerId,
-        peer: User(id: peerId, name: peerName ?? 'Peer $peerId', avatarIcon: 0xe491, avatarColor: 0xFF6750A4),
-        messages: [],
-      ));
+      threads.insert(0, ChatThread(id: peerId, peer: User(id: peerId, name: peerName ?? 'Peer $peerId', avatarIcon: 0xe491, avatarColor: 0xFF6750A4), messages: []));
       state = AsyncData(threads);
       ref.read(storageServiceProvider).saveThreads(threads);
     }
@@ -512,33 +563,13 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   void createGroup(String groupName, List<User> members) {
     if (!state.hasValue) return;
     final threads = List<ChatThread>.from(state.value!);
-    
     final groupId = const Uuid().v4();
-    final groupThread = ChatThread(
-      id: groupId,
-      peer: User(id: groupId, name: groupName, avatarIcon: 0xe886, avatarColor: 0xFF2E7D32),
-      messages: [],
-      isGroup: true,
-      groupName: groupName,
-      members: members,
-    );
-    
+    final groupThread = ChatThread(id: groupId, peer: User(id: groupId, name: groupName, avatarIcon: 0xe886, avatarColor: 0xFF2E7D32), messages: [], isGroup: true, groupName: groupName, members: members);
     threads.insert(0, groupThread);
     state = AsyncData(threads);
     ref.read(storageServiceProvider).saveThreads(threads);
-    
     ref.read(selectedThreadIdProvider.notifier).select(groupId);
-    
-    final sysMsg = Message(
-      id: const Uuid().v4(),
-      senderId: myId ?? 'me',
-      senderName: myName ?? 'You',
-      text: 'Group "$groupName" created',
-      timestamp: DateTime.now(),
-      type: MessageType.system,
-      status: MessageStatus.sent,
-    );
-    sendMessage(groupId, sysMsg.text, type: MessageType.system);
+    sendMessage(groupId, 'Group "$groupName" created', type: MessageType.system);
   }
 
   void updateGroupMembers(String groupId, List<User> members) {
@@ -554,19 +585,17 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
 
   Future<void> sendMessage(String threadId, String text, {MessageType type = MessageType.text, String? localFilePath, String? fileName, String? fileData}) async {
     if (!state.hasValue) return;
-    
     final threads = List<ChatThread>.from(state.value!);
     final threadIndex = threads.indexWhere((t) => t.id == threadId);
-    
     if (threadIndex != -1) {
       final thread = threads[threadIndex];
       final msg = Message(
         id: const Uuid().v4(),
-        senderId: ref.read(peerServiceProvider).myId ?? 'me',
+        senderId: myId ?? 'me',
         senderName: _myName ?? 'Me',
         text: text,
         timestamp: DateTime.now(),
-        status: MessageStatus.sending, // Initial status
+        status: MessageStatus.sending,
         type: type,
         localFilePath: localFilePath,
         fileName: fileName,
@@ -574,147 +603,75 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         groupId: thread.isGroup ? thread.id : null,
         groupName: thread.isGroup ? thread.groupName : null,
       );
-
       final updatedMessages = List<Message>.from(thread.messages)..add(msg);
       threads[threadIndex] = thread.copyWith(messages: updatedMessages);
       state = AsyncData(threads);
       ref.read(storageServiceProvider).saveThreads(threads);
       
       bool sent = false;
-      
       if (thread.isGroup) {
         for (final member in thread.members) {
-          if (member.id != myId) {
-            bool memberSent = ref.read(lanMessengerProvider).sendMessage(member.id, msg);
-            if (!memberSent) {
-              memberSent = ref.read(peerServiceProvider).sendMessage(member.id, msg);
-            }
-            if (!memberSent) {
-              memberSent = await ref.read(cloudRelayServiceProvider).sendMessage(member.id, msg);
-            }
-            if (memberSent) sent = true;
-          }
+          if (member.id != myId && _trySend(member.id, msg)) sent = true;
         }
       } else {
-        sent = ref.read(lanMessengerProvider).sendMessage(threadId, msg);
-        if (!sent) {
-          sent = ref.read(peerServiceProvider).sendMessage(threadId, msg);
-        }
-        if (!sent) {
-          sent = await ref.read(cloudRelayServiceProvider).sendMessage(threadId, msg);
-        }
+        sent = _trySend(threadId, msg);
       }
-
       _updateMessageStatus(msg.id, sent ? MessageStatus.sent : MessageStatus.pending);
-      
-      if (!sent) {
-        if (!thread.isGroup) {
-          _lastConnectAttempt[threadId] = DateTime.now();
-          ref.read(peerServiceProvider).connectToPeer(threadId);
-        } else {
-          for (final member in thread.members) {
-            if (member.id != myId) {
-              _lastConnectAttempt[member.id] = DateTime.now();
-              ref.read(peerServiceProvider).connectToPeer(member.id);
-            }
-          }
-        }
-      }
     }
   }
 
-  Future<void> updateMessage(String threadId, Message message) async {
+  void syncActivityUpdate(String threadId, String messageId, String fileData) {
     if (!state.hasValue) return;
-    
     final threads = List<ChatThread>.from(state.value!);
     final threadIndex = threads.indexWhere((t) => t.id == threadId);
-    
     if (threadIndex != -1) {
       final thread = threads[threadIndex];
-      final msgIndex = thread.messages.indexWhere((m) => m.id == message.id);
+      final msgIndex = thread.messages.indexWhere((m) => m.id == messageId);
       if (msgIndex == -1) return;
-      
       final updatedMessages = List<Message>.from(thread.messages);
-      updatedMessages[msgIndex] = message;
+      final oldMsg = updatedMessages[msgIndex];
+      updatedMessages[msgIndex] = oldMsg.copyWith(fileData: fileData);
       threads[threadIndex] = thread.copyWith(messages: updatedMessages);
       state = AsyncData(threads);
       ref.read(storageServiceProvider).saveThreads(threads);
       
+      final payload = {'type': 'activity_sync', 'threadId': threadId, 'messageId': messageId, 'fileData': fileData};
       if (thread.isGroup) {
         for (final member in thread.members) {
-          if (member.id != myId) {
-            bool memberSent = ref.read(lanMessengerProvider).sendMessage(member.id, message);
-            if (!memberSent) {
-              memberSent = ref.read(peerServiceProvider).sendMessage(member.id, message);
-            }
-            if (!memberSent) {
-              await ref.read(cloudRelayServiceProvider).sendMessage(member.id, message);
-            }
-          }
+          if (member.id != myId) _trySendSyncPayload(member.id, payload);
         }
       } else {
-        bool sent = ref.read(lanMessengerProvider).sendMessage(threadId, message);
-        if (!sent) {
-          sent = ref.read(peerServiceProvider).sendMessage(threadId, message);
-        }
-        if (!sent) {
-          await ref.read(cloudRelayServiceProvider).sendMessage(threadId, message);
-        }
+        _trySendSyncPayload(threadId, payload);
       }
     }
   }
 
-  Future<void> _flushQueueForPeer(String peerId) async {
+  void _trySendSyncPayload(String targetId, Map<String, dynamic> payload) {
+    if (!ref.read(lanMessengerProvider).sendCustomData(targetId, payload)) {
+      ref.read(peerServiceProvider).sendCustomData(targetId, payload);
+    }
+  }
+  
+  void _handleActivitySync(Map<String, dynamic> data) {
     if (!state.hasValue) return;
-    
+    final messageId = data['messageId'] as String;
+    final fileData = data['fileData'] as String;
     final threads = List<ChatThread>.from(state.value!);
-    final threadIndex = threads.indexWhere((t) => t.id == peerId);
-    
-    if (threadIndex != -1) {
-      final thread = threads[threadIndex];
-      bool updated = false;
-      final msgs = List<Message>.from(thread.messages);
-      
-      for (int i = 0; i < msgs.length; i++) {
-        if (msgs[i].status == MessageStatus.pending || msgs[i].status == MessageStatus.sending) {
-          bool sent = false;
-          if (thread.isGroup) {
-            for (final member in thread.members) {
-              if (member.id != myId) {
-                bool memberSent = ref.read(lanMessengerProvider).sendMessage(member.id, msgs[i]);
-                if (!memberSent) {
-                  memberSent = ref.read(peerServiceProvider).sendMessage(member.id, msgs[i]);
-                }
-                if (!memberSent) {
-                  memberSent = await ref.read(cloudRelayServiceProvider).sendMessage(member.id, msgs[i]);
-                }
-                if (memberSent) sent = true;
-              }
-            }
-          } else {
-            sent = ref.read(lanMessengerProvider).sendMessage(peerId, msgs[i]);
-            if (!sent) {
-              sent = ref.read(peerServiceProvider).sendMessage(peerId, msgs[i]);
-            }
-            if (!sent) {
-              sent = await ref.read(cloudRelayServiceProvider).sendMessage(peerId, msgs[i]);
-            }
-          }
-          
-          if (sent) {
-            msgs[i] = msgs[i].copyWith(status: MessageStatus.sent);
-            updated = true;
-          }
-        }
-      }
-      
-      if (updated) {
-        threads[threadIndex] = thread.copyWith(messages: msgs);
+    for (int tIdx = 0; tIdx < threads.length; tIdx++) {
+      final thread = threads[tIdx];
+      final mIdx = thread.messages.indexWhere((m) => m.id == messageId);
+      if (mIdx != -1) {
+        final updatedMessages = List<Message>.from(thread.messages);
+        updatedMessages[mIdx] = updatedMessages[mIdx].copyWith(fileData: fileData);
+        threads[tIdx] = thread.copyWith(messages: updatedMessages);
         state = AsyncData(threads);
         ref.read(storageServiceProvider).saveThreads(threads);
+        break;
       }
     }
   }
+
+
 
   void sendTypingIndicator(String threadId) {
     if (!state.hasValue) return;

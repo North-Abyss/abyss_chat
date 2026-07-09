@@ -13,6 +13,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:abyss_chat/services/notification_service.dart';
 import 'package:abyss_chat/services/crypto_service.dart';
 import 'package:abyss_chat/providers/settings_provider.dart';
+import 'package:abyss_chat/widgets/abyss_snackbar.dart';
+
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -393,73 +395,108 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  // Predefined themes
-                  ...predefinedThemes.entries.map((entry) {
-                    final isSelected = themeState.themeName == entry.key;
-                    return GestureDetector(
-                      onTap: () {
-                        ref.read(themeProvider.notifier).setTheme(entry.key);
-                      },
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: entry.value,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isSelected ? cs.onSurface : Colors.transparent,
-                                width: 3,
-                              ),
-                            ),
-                            child: isSelected
-                                ? Icon(Icons.check, color: entry.value.computeLuminance() > 0.5 ? Colors.black : Colors.white)
-                                : null,
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    // Dynamic Theme Option
+                    GestureDetector(
+                      onTap: () => ref.read(themeProvider.notifier).setTheme('Default'),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 16),
+                        width: 100,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: themeState.themeName == 'Default' ? cs.primary : Colors.transparent,
+                            width: 3,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            entry.key.split(' ').last,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                  // Custom color option
-                  GestureDetector(
-                    onTap: () => _showCustomColorPicker(context, ref),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: themeState.themeName == 'Custom' ? cs.onSurface : cs.outlineVariant,
-                              width: themeState.themeName == 'Custom' ? 3 : 2,
-                            ),
-                            gradient: const SweepGradient(
-                              colors: [Colors.red, Colors.orange, Colors.yellow, Colors.green, Colors.blue, Colors.purple, Colors.red],
-                            ),
-                          ),
-                          child: themeState.themeName == 'Custom'
-                              ? const Icon(Icons.check, color: Colors.white)
-                              : null,
+                          boxShadow: themeState.themeName == 'Default' ? [BoxShadow(color: cs.primary.withValues(alpha: 0.3), blurRadius: 12)] : null,
                         ),
-                        const SizedBox(height: 4),
-                        Text('Custom', style: Theme.of(context).textTheme.bodySmall),
-                      ],
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.auto_awesome, size: 32, color: themeState.themeName == 'Default' ? cs.primary : cs.onSurfaceVariant),
+                            const SizedBox(height: 12),
+                            Text('Dynamic\nColor', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: themeState.themeName == 'Default' ? cs.primary : cs.onSurfaceVariant)),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                    
+                    // Predefined themes
+                    ...predefinedThemes.entries.map((entry) {
+                      final isSelected = themeState.themeName == entry.key;
+                      return GestureDetector(
+                        onTap: () => ref.read(themeProvider.notifier).setTheme(entry.key),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 16),
+                          width: 100,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: entry.value,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected ? cs.onSurface : Colors.transparent,
+                              width: 3,
+                            ),
+                            boxShadow: isSelected ? [BoxShadow(color: entry.value.withValues(alpha: 0.5), blurRadius: 12, offset: const Offset(0, 4))] : null,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (isSelected)
+                                Icon(Icons.check_circle, size: 32, color: entry.value.computeLuminance() > 0.5 ? Colors.black : Colors.white),
+                              if (isSelected) const SizedBox(height: 12),
+                              Text(
+                                entry.key.split(' ').last,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 13, 
+                                  color: entry.value.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+
+                    // Custom color option
+                    GestureDetector(
+                      onTap: () => _showCustomColorPicker(context, ref),
+                      child: Container(
+                        width: 100,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: themeState.themeName == 'Custom' ? cs.onSurface : Colors.transparent,
+                            width: 3,
+                          ),
+                          gradient: const SweepGradient(
+                            colors: [Colors.red, Colors.orange, Colors.yellow, Colors.green, Colors.blue, Colors.purple, Colors.red],
+                          ),
+                          boxShadow: themeState.themeName == 'Custom' ? [BoxShadow(color: cs.onSurface.withValues(alpha: 0.3), blurRadius: 12)] : null,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (themeState.themeName == 'Custom')
+                               const Icon(Icons.color_lens, size: 32, color: Colors.white),
+                            if (themeState.themeName == 'Custom') const SizedBox(height: 12),
+                            const Text('Custom', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white, shadows: [Shadow(color: Colors.black54, blurRadius: 4)])),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const Divider(height: 32),
 
@@ -628,8 +665,8 @@ class NotificationsScreen extends ConsumerWidget {
                 },
               ),
               SwitchListTile(
-                title: const Text('In-App Notifications'),
-                subtitle: const Text('Show floating notifications inside the app'),
+                title: const Text('In-App Chat Notifications'),
+                subtitle: const Text('Show floating notifications for new messages'),
                 value: settings.inAppNotificationsEnabled,
                 onChanged: (val) {
                   ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(inAppNotificationsEnabled: val));
@@ -715,8 +752,10 @@ class StorageAndDataScreen extends ConsumerWidget {
                 icon: const Icon(Icons.cleaning_services),
                 label: const Text('Clear Cache'),
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Cache cleared! Saved 24 MB.')),
+                  AbyssSnackBar.show(
+                    context, 
+                    'Cache cleared! Saved 24 MB.',
+                    type: SnackBarType.success,
                   );
                 },
               ),

@@ -1,7 +1,8 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/providers/gif_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class GifPickerSheet extends ConsumerStatefulWidget {
   final Function(String) onGifSelected;
@@ -13,23 +14,52 @@ class GifPickerSheet extends ConsumerStatefulWidget {
 
 class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final TextEditingController _urlController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+  List<String> _searchResults = [];
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _urlController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
+  Future<void> _searchGifs(String query) async {
+    if (query.trim().isEmpty) return;
+    setState(() {
+      _isSearching = true;
+      _tabController.animateTo(0);
+    });
+    
+    try {
+      // Using public Giphy Beta API Key for demo purposes
+      final response = await http.get(Uri.parse('https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${Uri.encodeComponent(query)}&limit=24'));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> items = data['data'];
+        setState(() {
+          _searchResults = items.map((item) => item['images']['fixed_height']['url'] as String).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error searching GIFs: $e');
+    } finally {
+      if (mounted) setState(() => _isSearching = false);
+    }
+  }
+
   void _submitUrl(String url) {
-    if (url.trim().isEmpty || !url.startsWith('http')) return;
+    if (url.trim().isEmpty || !url.startsWith('http')) {
+      _searchGifs(url);
+      return;
+    }
     ref.read(gifProvider.notifier).addRecent(url.trim());
     widget.onGifSelected(url.trim());
     Navigator.pop(context);
@@ -41,7 +71,7 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
     final cs = Theme.of(context).colorScheme;
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.6,
+      height: MediaQuery.of(context).size.height * 0.7,
       width: MediaQuery.of(context).size.width * 0.9,
       decoration: BoxDecoration(
         color: cs.surface,
@@ -55,10 +85,10 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _urlController,
+                    controller: _searchController,
                     decoration: InputDecoration(
-                      hintText: 'Paste GIF/Meme URL here...',
-                      prefixIcon: const Icon(Icons.link),
+                      hintText: 'Search Giphy or paste URL...',
+                      prefixIcon: const Icon(Icons.search),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
@@ -67,22 +97,8 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
                 ),
                 const SizedBox(width: 8),
                 IconButton.filled(
-                  icon: const Icon(Icons.send),
-                  onPressed: () => _submitUrl(_urlController.text),
-                ),
-                const SizedBox(width: 8),
-                Tooltip(
-                  message: 'Find GIFs online',
-                  child: IconButton(
-                    icon: const Icon(Icons.search),
-                    onPressed: () {
-                      launchUrl(Uri.parse('https://giphy.com/'));
-                    },
-                    style: IconButton.styleFrom(
-                      backgroundColor: cs.primaryContainer,
-                      foregroundColor: cs.onPrimaryContainer,
-                    ),
-                  ),
+                  icon: _isSearching ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.send),
+                  onPressed: _isSearching ? null : () => _submitUrl(_searchController.text),
                 ),
               ],
             ),
@@ -90,6 +106,7 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
           TabBar(
             controller: _tabController,
             tabs: const [
+              Tab(text: 'Search', icon: Icon(Icons.search)),
               Tab(text: 'Recents', icon: Icon(Icons.history)),
               Tab(text: 'Favorites', icon: Icon(Icons.favorite)),
             ],
@@ -98,6 +115,7 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
             child: TabBarView(
               controller: _tabController,
               children: [
+                _buildGifGrid(_searchResults, gifState.favoriteGifs, isSearchTab: true),
                 _buildGifGrid(gifState.recentGifs, gifState.favoriteGifs),
                 _buildGifGrid(gifState.favoriteGifs, gifState.favoriteGifs, isFavoritesTab: true),
               ],
@@ -108,11 +126,11 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
     );
   }
 
-  Widget _buildGifGrid(List<String> urls, List<String> favorites, {bool isFavoritesTab = false}) {
+  Widget _buildGifGrid(List<String> urls, List<String> favorites, {bool isFavoritesTab = false, bool isSearchTab = false}) {
     if (urls.isEmpty) {
       return Center(
         child: Text(
-          isFavoritesTab ? 'No favorites yet.' : 'No recent GIFs.',
+          isSearchTab ? 'Search for GIFs to see results.' : (isFavoritesTab ? 'No favorites yet.' : 'No recent GIFs.'),
           style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       );

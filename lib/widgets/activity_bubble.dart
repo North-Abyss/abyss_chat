@@ -84,6 +84,19 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
     final isMyTurn = (myId == initiator && turn == 'X') || (myId != initiator && turn == 'O');
     final cs = Theme.of(context).colorScheme;
 
+    final threads = ref.read(chatThreadsProvider).value ?? [];
+    final thread = threads.where((t) => t.id == widget.threadId).firstOrNull;
+    
+    String getPlayerName(String playerTurn) {
+      if (playerTurn == 'X') {
+        if (myId == initiator) return 'You';
+        return thread?.isGroup == false ? thread!.peer.name : 'Initiator';
+      } else {
+        if (myId != initiator) return 'You';
+        return thread?.isGroup == false ? thread!.peer.name : 'Opponent';
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -96,11 +109,11 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
           const Text('❌ Tic-Tac-Toe ⭕', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           if (state == 'playing')
-            Text(isMyTurn ? 'Your turn ($turn)' : 'Waiting for opponent...')
+            Text(isMyTurn ? 'Your turn ($turn)' : 'Waiting for ${getPlayerName(turn)}...')
           else if (state == 'won_X')
-            const Text('X Wins! 🎉', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green))
+            Text('${getPlayerName('X')} Won! 🎉', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green))
           else if (state == 'won_O')
-            const Text('O Wins! 🎉', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green))
+            Text('${getPlayerName('O')} Won! 🎉', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green))
           else if (state == 'draw')
             const Text('Draw!', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
           const SizedBox(height: 12),
@@ -292,24 +305,10 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
       'votes': newVotes,
     });
     
-    final updatedMsg = Message(
-      id: widget.msg.id,
-      senderId: widget.msg.senderId,
-      senderName: widget.msg.senderName,
-      text: widget.msg.text,
-      timestamp: widget.msg.timestamp,
-      status: widget.msg.status,
-      type: MessageType.activity,
-      localFilePath: widget.msg.localFilePath,
-      fileName: widget.msg.fileName,
-      fileData: payload,
-      groupId: widget.msg.groupId,
-      groupName: widget.msg.groupName,
-    );
-    
-    ref.read(chatThreadsProvider.notifier).updateMessage(
+    ref.read(chatThreadsProvider.notifier).syncActivityUpdate(
       widget.threadId,
-      updatedMsg,
+      widget.msg.id,
+      payload,
     );
   }
 }
