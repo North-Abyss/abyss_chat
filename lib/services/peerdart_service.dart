@@ -17,6 +17,9 @@ class PeerDartService {
   bool _isDisposed = false;
   bool _isPeerOpen = false;
   final List<String> _connectionQueue = [];
+  int _reconnectAttempts = 0;
+  final Map<String, Timer> _pingTimers = {};
+  final Map<String, int> _pingMisses = {};
   
   // Stream controllers for different events
   final StreamController<Message> _incomingMessages = StreamController<Message>.broadcast();
@@ -85,6 +88,7 @@ class PeerDartService {
     _peer!.on("open").listen((id) {
       if (_isDisposed) return;
       _isPeerOpen = true;
+      _reconnectAttempts = 0;
       debugPrint('✅ Connected to Signaling Server. My ID: $id');
       Future.microtask(() {
         if (!_connectionStatus.isClosed) _connectionStatus.add('Connected as $id');
@@ -110,9 +114,9 @@ class PeerDartService {
         if (meta != null && meta is Map && meta.containsKey('urgent_signal')) {
           final decoded = meta['urgent_signal'];
           if (decoded is Map) {
-            _processDecodedPayload(Map<String, dynamic>.from(decoded));
+            _processDecodedPayload(conn.peer, Map<String, dynamic>.from(decoded));
           } else if (decoded is String) {
-            _processDecodedPayload(jsonDecode(decoded));
+            _processDecodedPayload(conn.peer, jsonDecode(decoded));
           }
         }
       } catch (e) {
@@ -123,10 +127,16 @@ class PeerDartService {
     _peer!.on("disconnected").listen((_) {
       if (_isDisposed) return;
       _isPeerOpen = false;
-      debugPrint('⚠️ Disconnected from signaling server. Reconnecting...');
-      if (!_peer!.destroyed) {
-        _peer!.reconnect();
-      }
+      _reconnectAttempts++;
+      final backoffSeconds = (1 << _reconnectAttempts).clamp(1, 30);
+      debugPrint('⚠️ Disconnected from signaling server. Reconnecting in $backoffSeconds seconds... (Attempt $_reconnectAttempts)');
+      
+      Future.delayed(Duration(seconds: backoffSeconds), () {
+        if (_isDisposed) return;
+        if (!_peer!.destroyed && _peer!.disconnected) {
+          _peer!.reconnect();
+        }
+      });
     });
 
     _peer!.on("call").listen((call) {
@@ -238,6 +248,9 @@ class PeerDartService {
       }
       _subscriptions.remove(peerId);
     }
+    _pingTimers[peerId]?.cancel();
+    _pingTimers.remove(peerId);
+    _pingMisses.remove(peerId);
   }
 
   // --- CONNECTION MANAGEMENT ---
@@ -252,6 +265,27 @@ class PeerDartService {
       debugPrint('🤝 Data connection established with ${conn.peer}');
       _activeConnections[conn.peer] = conn;
       _pendingConnections.remove(conn.peer);
+      
+      // Start ping/pong health check
+      _pingMisses[conn.peer] = 0;
+      _pingTimers[conn.peer]?.cancel();
+      _pingTimers[conn.peer] = Timer.periodic(const Duration(seconds: 5), (timer) {
+        if (!_activeConnections.containsKey(conn.peer) || !_activeConnections[conn.peer]!.open) {
+          timer.cancel();
+          return;
+        }
+        
+        _pingMisses[conn.peer] = (_pingMisses[conn.peer] ?? 0) + 1;
+        if ((_pingMisses[conn.peer] ?? 0) > 3) {
+          debugPrint('⏱️ Ping timeout for ${conn.peer}, forcing disconnect');
+          conn.close();
+          timer.cancel();
+          return;
+        }
+        
+        _sendPayload(conn.peer, {'type': 'ping'});
+      });
+
       Future.microtask(() {
         if (!_connectionStatus.isClosed) _connectionStatus.add('Connected to ${conn.peer}');
       });
@@ -261,7 +295,7 @@ class PeerDartService {
     subs.add(conn.on("data").listen((data) {
       try {
         final decoded = jsonDecode(data.toString());
-        _processDecodedPayload(decoded);
+        _processDecodedPayload(conn.peer, decoded);
       } catch (e) {
         debugPrint('Error parsing incoming P2P data: $e');
       }
@@ -284,7 +318,7 @@ class PeerDartService {
     _subscriptions[conn.peer] = subs;
   }
   
-  void _processDecodedPayload(Map<String, dynamic> decoded) {
+  void _processDecodedPayload(String sourcePeerId, Map<String, dynamic> decoded) {
     final type = decoded['type'];
 
     if (type == 'p2p_message') {
@@ -312,10 +346,15 @@ class PeerDartService {
       if (!_profileSyncs.isClosed) _profileSyncs.add(decoded);
     } else if (type == 'call_request') {
       if (!_callRequests.isClosed) _callRequests.add(decoded);
+    } else if (type == 'ping') {
+      // Respond with pong to keep connection alive
+      _sendPayload(sourcePeerId, {'type': 'pong'});
+    } else if (type == 'pong') {
+      _pingMisses[sourcePeerId] = 0;
+    } else {
+      // Broadcast unhandled raw JSON for generic listeners (e.g., custom call signaling)
+      if (!_dataMessages.isClosed) _dataMessages.add(decoded);
     }
-    
-    // Also broadcast all raw JSON for generic listeners
-    if (!_dataMessages.isClosed) _dataMessages.add(decoded);
   }
 
   bool _sendPayload(String peerId, Map<String, dynamic> payload) {

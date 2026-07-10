@@ -61,9 +61,15 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
         return _buildTicTacToe(context);
       case 'poll':
         return _buildPoll(context);
+      case 'event':
+        return _buildEvent(context);
       default:
         return const Text('Unknown activity');
     }
+  }
+
+  Widget _buildEvent(BuildContext context) {
+    return EventBubble(data: data, isMe: widget.isMe, msgId: widget.msg.id, threadId: widget.threadId);
   }
 
   Widget _buildCoinToss(BuildContext context) {
@@ -536,6 +542,140 @@ class _DiceRollBubbleState extends State<DiceRollBubble> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class EventBubble extends ConsumerWidget {
+  final Map<String, dynamic> data;
+  final bool isMe;
+  final String msgId;
+  final String threadId;
+
+  const EventBubble({super.key, required this.data, required this.isMe, required this.msgId, required this.threadId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final title = data['title'] as String? ?? 'Event';
+    final date = data['date'] as String? ?? 'TBD';
+    final time = data['time'] as String? ?? 'TBD';
+    final location = data['location'] as String? ?? 'TBD';
+    
+    final rsvps = Map<String, String>.from(data['rsvps'] ?? {}); // user_id -> 'going' | 'declined'
+    
+    final myId = ref.read(chatThreadsProvider.notifier).myId;
+    final myStatus = rsvps[myId];
+
+    final cs = Theme.of(context).colorScheme;
+
+    int goingCount = rsvps.values.where((v) => v == 'going').length;
+    int declinedCount = rsvps.values.where((v) => v == 'declined').length;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isMe ? cs.onPrimaryContainer.withValues(alpha: 0.1) : cs.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.event, color: Colors.blue),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.calendar_today, size: 16),
+              const SizedBox(width: 8),
+              Text(date),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.access_time, size: 16),
+              const SizedBox(width: 8),
+              Text(time),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.location_on, size: 16),
+              const SizedBox(width: 8),
+              Expanded(child: Text(location)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Going ($goingCount)'),
+              Text('Declined ($declinedCount)'),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonal(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: myStatus == 'going' ? Colors.green : null,
+                    foregroundColor: myStatus == 'going' ? Colors.white : null,
+                  ),
+                  onPressed: () => _updateRsvp(ref, 'going'),
+                  child: const Text('✓ Going'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.tonal(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: myStatus == 'declined' ? Colors.red : null,
+                    foregroundColor: myStatus == 'declined' ? Colors.white : null,
+                  ),
+                  onPressed: () => _updateRsvp(ref, 'declined'),
+                  child: const Text('✕ Decline'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _updateRsvp(WidgetRef ref, String status) {
+    final myId = ref.read(chatThreadsProvider.notifier).myId;
+    if (myId == null) return;
+
+    final newRsvps = Map<String, String>.from(data['rsvps'] ?? {});
+    newRsvps[myId] = status;
+
+    final payload = jsonEncode({
+      'activity': 'event',
+      'title': data['title'],
+      'date': data['date'],
+      'time': data['time'],
+      'location': data['location'],
+      'rsvps': newRsvps,
+    });
+
+    ref.read(chatThreadsProvider.notifier).syncActivityUpdate(
+      threadId,
+      msgId,
+      payload,
     );
   }
 }

@@ -1,4 +1,4 @@
-import 'dart:io';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -44,7 +44,7 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
         Service(
           name: 'AbyssChat-$id',
           type: _serviceType,
-          host: InternetAddress.anyIPv4.address,
+          host: '0.0.0.0',
           port: activePort,
           txt: {
             'id': Uint8List.fromList(id.codeUnits),

@@ -38,7 +38,13 @@ abyss_chat/
 │   ├── screens/              ← Top-level UI pages & routing destinations
 │   ├── services/             ← Network, storage, & infrastructure logic
 │   └── widgets/              ← Reusable UI components & dialogs
-└── agent-memory.md           ← Persistent AI context tracking
+├── agent-memory.md           ← Persistent AI context tracking
+├── CHANGELOG.md              ← Log of releases and development sessions
+├── EXPLANATION.md            ← Detailed technical explanation of the codebase
+├── PRIVACY.md                ← Privacy policy and data handling details
+├── README.md                 ← Project setup and overview
+├── RELEASE_NOTES.md          ← Notes for specific releases
+└── Ref.md                    ← Miscellaneous references
 ```
 
 ### 1. `models/` (Domain Layer)
@@ -161,111 +167,3 @@ Houses reusable, stateless, or localized-state UI elements that are shared acros
 
 - [Trackify-Flutter](https://github.com/North-Abyss/Trackify-Flutter) — Reference for GitHub actions and git sync files.
 
----
-
-## 🔄 Session Log
-
-### 2026-06-27 — Session 1
-- Initial project bootstrapping.
-- Named the project "Abyss Chat".
-- Decided on P2P Mesh and PocketBase for backend, but starting with JSON dummy data to build the UI first.
-- Finished full Phase 7 Implementation:
-  - Added SharedPreferences for local storage
-  - Built full Material 3 dynamic theme system with custom color support
-  - Created Home, Chat, Settings, Groups, Profile, and Call screens
-  - Replaced all hardcoded WhatsApp colors with dynamic colorScheme tokens
-- Finished Phase 8 Polish:
-  - Replaced bottom sheet emoji picker with a floating overlay menu
-  - Added hex color input to Custom Color picker
-  - Added black/white options to Profile avatars
-  - Built `InAppNotificationService` for floating toast alerts
-  - Built `MiniCallOverlay` to show a floating draggable pill when minimizing calls
-  - Integrated `flutter_webrtc` media streams into `PeerDartService`
-
-### 2026-06-28 — Session 2 (Phase 9 Polish & WebRTC)
-- Implemented True P2P Audio/Video streaming using `RTCVideoRenderer` and `getUserMedia`.
-- Added Desktop/Web specific UI polishes:
-  - Floating left-pane layout without harsh divider lines.
-  - Interactive "Copy ID" chip on the Home screen App Bar.
-  - Added WhatsApp-style keyboard shortcuts (Enter to send, Shift+Enter to newline).
-- Polished Notifications:
-  - Smart Notification Silencer (mutes toast if the user is in the active chat or active call).
-  - Swapped bottom snackbars for slide-in notifications globally.
-  - Fixed Web Platform bugs:
-    - Bypassed `path_provider` `MissingPluginException` by using `SharedPreferences` for Web encrypted file storage.
-    - Removed duplicate `Hero` tags in the desktop split-pane layout to prevent exceptions.
-    - Fixed `pubspec.yaml` to correctly serve web assets.
-
-### 2026-06-28 — Session 3 (Phase 11 QR & Search)
-- Reset project versioning to `v0.0.0` baseline across `pubspec.yaml`, GitHub CI/CD, and CHANGELOG.
-- Implemented **QR Code Generator & Scanner**:
-  - `MyQRScreen` generates a QR code from the user's Peer ID.
-  - `QRScanScreen` uses `mobile_scanner` to scan and connect instantly.
-- Implemented **Global Search** via `SearchDelegate` to find saved contacts and nearby LAN peers.
-- Added full **Contact Management**:
-  - Implemented true blocking in `ChatProvider` & `StorageService` using `blocked.abyss` (silently drops incoming messages).
-  - Deleting a contact now automatically wipes their entire chat history.
-  - Added safety confirmation dialogs for both blocking and deleting.
-
-### 2026-06-28 — Session 4 (Connection Resilience & Rich Previews)
-- **PeerDart Stability**: Fixed a critical "Bad state" crash that occurred upon reconnections by explicitly tracking and canceling `StreamSubscription`s in `PeerDartService`.
-- **Account Data Isolation**: Separated "Log Out" (disconnect only) and "Delete Account" (full local wipe). The full wipe cleans SharedPreferences, deletes encrypted `.abyss` files, and resets the AES key in `CryptoService` to prevent data merging between accounts.
-- **Enhanced Call Signaling**: Added a `call_request` packet via the WebRTC data channel prior to opening the media stream, allowing the UI to show the caller's true name and avatar instantly. Added 'Connection failed' UI state for dropped calls.
-- **Rich Media & Link Previews**: 
-  - Integrated `url_launcher`, `any_link_preview`, and `video_player`.
-  - Automatically parses URLs in chat. Web URLs render rich preview cards.
-  - Image URLs render inline.
-  - Video URLs (`.mp4`, `.webm`) render a playable inline video widget.
-- **Web Fallback Improvements**: Added a manual entry text field to the Web QR screen, and a `CircularProgressIndicator` for the mobile camera initialization phase.
-
-### 2026-06-28 — Session 5 (Group UI & Call Fixes)
-- **P2P Group Chat**: Fixed group message routing by injecting a `groupId` into the message payload. Fixed background queue connecting loop that erroneously attempted WebRTC peer connections against the Group UUID rather than iterating through its members.
-- **Group Creation UX**: Users can now instantly create a group by providing just a name, and dynamically add members later using the new "Add Participants" sheet inside Group Info.
-- **Call Screen Fixes**: Fixed a bug where incoming calls incorrectly loaded outgoing UI controls, preventing users from answering the call.
-- **Connection Stability**: Fixed the internal `peerId` routing loop. Calling `ref.invalidate()` on core providers now completely resets Bad State errors on logout or account deletion.
-
-### 2026-06-29 — Session 6 (Group Calls & Mutual Contacts)
-- **Mutual Contacts Enforcement**: Added strict validation in `lan_messenger.dart` and `peerdart_service.dart`. Incoming connections from unknown peers (not in the contacts list) are now instantly rejected and their sockets destroyed.
-- **Robust Call States**: Refactored `CallSession` and `CallNotifier` to listen to `MediaConnection` close/error events. Calls now clean up properly on timeout or unexpected drops, fixing UI freeze issues.
-- **Group Calls (P2P Mesh)**: Enabled Audio and Video group calls. 
-  - The app establishes a P2P mesh (connecting to every member).
-  - Added a warning dialog when calling groups larger than 10 members.
-  - Implemented a dynamic `GridView` in `CallScreen` to render multiple remote participants.
-
-### 2026-06-30 — Session 7 (Call UI Polish & SEO)
-- **Call Screen Layout Refactor**: 
-  - Replaced rigid `GridView` with a dynamic `Flex`/`Wrap` layout to prevent clipping on single-stream videos and to adapt better on widescreen monitors.
-  - Video tracks now use `RTCVideoViewObjectFitContain` to prevent awkward zooming and face-cropping on the remote stream.
-  - Disabled scroll-wheel zooming on the `InteractiveViewer`, explicitly restricting zooming to the dedicated UI buttons.
-- **Floating Emoji Dock**: Extracted the emoji buttons into a Google Meet-style floating popup dock overlaid above the video, controlled by a toggle button in the main dock.
-- **Web SEO**: Heavily injected proper metadata into `web/index.html` (Open Graph, Twitter Cards, Keywords, rich meta descriptions).
-- **Bug Fixes**: 
-  - Fixed a `RenderFlex` overflow on the `LoginScreen`.
-  - Fixed a critical "Lazy Initialization" bug where `CallProvider` was not instantiating globally, resulting in the incoming call screen silently failing to appear for receivers.
-
-### 2026-07-02 — Session 8 (Social Preview)
-- **Web SEO**: 
-  - Updated `web/index.html` Open Graph and Twitter Card images to use the dedicated social preview asset.
-  - Copied the asset to `web/social-preview.png` for root path access (`https://north-abyss.github.io/abyss_chat/social-preview.png`) to avoid pathing issues on GitHub Pages.
-  - Optimized the social preview image to a 1.91:1 ratio (1200x630) using ImageMagick to satisfy standard Open Graph requirements.
-
-### 2026-07-05 — Session 9 (v1.1.0 Enhancements)
-- **GIF Integrations**: Added Giphy floating picker, native `.gif` fallback rendering, and an auto-pause overlay after 10 seconds.
-- **UI Enhancements**: Added a sleek animated targeting box for the Web QR scanner. Rebuilt the interactive media viewer for 5x pinch-to-zoom fullscreen support.
-- **Settings**: Granular in-app notification toggles to silence floating toasts independently of OS push notifications. Defaulted in-app notifications to OFF on native platforms.
-- **Voice Encoding**: Opus voice encoding on Web, falling back to aacLc on native apps.
-- **Connection Stability**: Fixed the PeerJS zombie connection hot-restart loop, and built an internal queueing system to prevent `Unexpected null value` crashes during signaling.
-- **Call State Bypass**: Fixed the "Calling..." UI freeze on the initiator's device by firing a `call_accepted` data payload the exact millisecond the receiver presses answer, entirely bypassing the sluggish WebRTC video handshake delays.
-- **App Constants & Structure**: Extracted all magic numbers (LAN ports, mDNS identifiers, timeouts) into `app_constants.dart`. Deeply sectioned large files with `// --- SECTION ---` comments for unparalleled readability.
-- **Widget Fixes**: Implemented `didUpdateWidget` across `DiceRollBubble`, `CoinTossBubble`, and other activity components to prevent animations from getting stuck during ListView recycling.
-- **App Resilience**: Wrapped `WidgetsFlutterBinding.ensureInitialized()` securely inside `runZonedGuarded` to prevent Zone mismatch crashes during hot restarts. Fixed CI/CD crashing on Windows due to colon characters in asset filenames.
-
-### 2026-07-06 — Session 10 (Android Plugin Compilation & Web Deploy)
-- **Plugin Registrant Fix via Reflection**: Resolved a critical issue where the app would install but freeze on a loading screen because Android native plugins (`shared_preferences`, `nsd`) were completely broken due to a hack deleting `GeneratedPluginRegistrant.java`.
-  - **Root Cause**: Flutter was forcefully generating a Java registrant which crashed trying to compile the Kotlin-based `file_picker` plugin (KGP incompatibility).
-  - **The Real Fix**: Instead of deleting the registrant or forcing Kotlin generation (which failed due to cache persistence), I injected a `doFirst` task inside `build.gradle.kts` `JavaCompile` step. This task reads `GeneratedPluginRegistrant.java` and uses **Java Reflection** to dynamically instantiate `FilePickerPlugin`. This cleanly bypasses the Java compiler error without breaking native plugin registration!
-- **NTFS Asset Compression Fix**: Added `noCompress.add("")` to `build.gradle.kts` to prevent the `CompressAssetsWorkAction` from failing on Linux NTFS drives.
-- **Android Network Permissions**: Added `INTERNET`, `ACCESS_NETWORK_STATE`, and `CHANGE_WIFI_MULTICAST_STATE` to `AndroidManifest.xml`, completely unblocking the `nsd` plugin and WebRTC from functioning on physical Android devices.
-- **Cloud Web Deploy Automation**: Web PWA releases are now automated via a manual-trigger GitHub Actions workflow (`web-deploy.yml`). Users simply push a `web-deploy-*` tag to trigger the cloud compilation.
-- **WebRTC Seamless Local Testing (TURN Server)**: Fixed a major limitation where Web-to-Mobile P2P connections failed on the exact same Wi-Fi network due to Firefox/Chrome mDNS IP obfuscation and strict router NAT Hairpinning. Injected a highly reliable, free public TURN server (`openrelay.metered.ca`) directly into `peerdart_service.dart`.
-- **Cloud Relay Fallback (`CloudRelayService`)**: Built an indestructible, zero-config text messaging fallback using `ntfy.sh`. When a user's strict router aggressively blocks WebRTC local routing despite the TURN servers, text messages instantly and silently route through the encrypted cloud relay. Because Abyss Chat AES-encrypts payloads before sending, the public broker only receives opaque blobs, guaranteeing flawless delivery without compromising privacy or requiring user network configuration.

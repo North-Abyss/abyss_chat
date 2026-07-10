@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'package:abyss_chat/services/file_reader.dart';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:abyss_chat/services/peerdart_service.dart';
@@ -52,12 +52,11 @@ class FileTransferService {
   static const int chunkSize = 64 * 1024; // 64KB per chunk
 
   Future<void> sendFile(String peerId, String filePath, String fileName) async {
-    if (kIsWeb) return; // Web file sending needs HTML File API
+    if (kIsWeb) return; // For Web, use sendFileFromBytes
     
-    final file = File(filePath);
-    if (!await file.exists()) return;
+    if (!await fileExists(filePath)) return;
     
-    final totalSize = await file.length();
+    final totalSize = await getFileSize(filePath);
     final fileId = DateTime.now().millisecondsSinceEpoch.toString();
     
     // 1. Send Metadata
@@ -70,7 +69,8 @@ class FileTransferService {
     
     // 2. Read and Send Chunks
     int bytesSent = 0;
-    final stream = file.openRead();
+    final stream = await getFileStream(filePath);
+    if (stream == null) return;
     
     await for (final chunk in stream) {
       final base64Chunk = base64Encode(chunk);
@@ -94,6 +94,47 @@ class FileTransferService {
       ));
       
       // Add a tiny delay to not choke the WebRTC data channel buffer
+      await Future.delayed(const Duration(milliseconds: 5));
+    }
+  }
+
+  Future<void> sendFileFromBytes(String peerId, Uint8List fileBytes, String fileName) async {
+    final totalSize = fileBytes.length;
+    final fileId = DateTime.now().millisecondsSinceEpoch.toString();
+    
+    // 1. Send Metadata
+    _peerService.sendCustomData(peerId, {
+      'type': 'file_meta',
+      'fileId': fileId,
+      'fileName': fileName,
+      'totalSize': totalSize,
+    });
+    
+    // 2. Read and Send Chunks
+    int bytesSent = 0;
+    for (int i = 0; i < totalSize; i += chunkSize) {
+      final end = (i + chunkSize < totalSize) ? i + chunkSize : totalSize;
+      final chunk = fileBytes.sublist(i, end);
+      final base64Chunk = base64Encode(chunk);
+      
+      _peerService.sendCustomData(peerId, {
+        'type': 'file_chunk',
+        'fileId': fileId,
+        'data': base64Chunk,
+      });
+      
+      bytesSent += chunk.length;
+      
+      _progressController.add(FileTransferProgress(
+        fileId: fileId,
+        fileName: fileName,
+        totalSize: totalSize,
+        bytesTransferred: bytesSent,
+        isSending: true,
+        isCompleted: bytesSent >= totalSize,
+      ));
+      
+      // Delay to not choke buffer
       await Future.delayed(const Duration(milliseconds: 5));
     }
   }

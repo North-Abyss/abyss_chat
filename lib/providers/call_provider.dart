@@ -158,7 +158,7 @@ class CallNotifier extends Notifier<CallSession?> {
     try {
       _localStream = await navigator.mediaDevices.getUserMedia({
         'audio': true,
-        'video': isVideo ? {'facingMode': 'user'} : false,
+        'video': isVideo ? (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) ? {'facingMode': 'user'} : true : false,
       });
       localRenderer.srcObject = _localStream;
       
@@ -219,6 +219,19 @@ class CallNotifier extends Notifier<CallSession?> {
     mediaConnection.on("error").listen((_) {
       _handlePeerDisconnected(peerId);
     });
+
+    // Monitor ICE connection state for drops
+    final pc = mediaConnection.peerConnection;
+    if (pc != null) {
+      pc.onIceConnectionState = (RTCIceConnectionState state) {
+        if (state == RTCIceConnectionState.RTCIceConnectionStateFailed || 
+            state == RTCIceConnectionState.RTCIceConnectionStateDisconnected ||
+            state == RTCIceConnectionState.RTCIceConnectionStateClosed) {
+          debugPrint('🧊 ICE Connection state failed for $peerId: $state');
+          _handlePeerDisconnected(peerId);
+        }
+      };
+    }
   }
 
   void _handlePeerDisconnected(String peerId) {
@@ -385,7 +398,7 @@ class CallNotifier extends Notifier<CallSession?> {
     try {
       _localStream = await navigator.mediaDevices.getUserMedia({
         'audio': true,
-        'video': state!.isVideo ? {'facingMode': 'user'} : false,
+        'video': state!.isVideo ? (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) ? {'facingMode': 'user'} : true : false,
       });
       localRenderer.srcObject = _localStream;
       
@@ -460,7 +473,7 @@ class CallNotifier extends Notifier<CallSession?> {
           try {
             final newStream = await navigator.mediaDevices.getUserMedia({
               'audio': false,
-              'video': {'facingMode': 'user'},
+              'video': (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) ? {'facingMode': 'user'} : true,
             });
             final newTrack = newStream.getVideoTracks().first;
             

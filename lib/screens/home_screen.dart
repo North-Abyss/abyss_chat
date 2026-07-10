@@ -15,6 +15,9 @@ import 'package:abyss_chat/screens/create_group_screen.dart';
 import 'package:abyss_chat/widgets/user_search_delegate.dart';
 import 'package:abyss_chat/screens/qr_scan_screen.dart';
 import 'package:abyss_chat/screens/my_qr_screen.dart';
+import 'package:abyss_chat/screens/contacts_screen.dart';
+
+
 class HomeScreen extends ConsumerWidget {
   final bool isDesktop;
   const HomeScreen({super.key, this.isDesktop = false});
@@ -509,6 +512,14 @@ class HomeScreen extends ConsumerWidget {
                     onTap: () {
                       Navigator.pop(context);
                       _showNewChatDialog(context, ref);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.contacts),
+                    title: const Text('Contacts'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen()));
                     },
                   ),
                   ListTile(

@@ -15,6 +15,7 @@ import 'package:abyss_chat/screens/contact_profile_screen.dart';
 import 'package:abyss_chat/widgets/user_avatar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:abyss_chat/providers/call_provider.dart';
+import 'package:abyss_chat/providers/gif_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:abyss_chat/constants/app_constants.dart';
 
@@ -199,6 +200,240 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } catch (e) {
       debugPrint('Error stopping record: $e');
     }
+  }
+
+  void _showEventPlanningDialog(BuildContext context) {
+    final titleController = TextEditingController();
+    final dateController = TextEditingController();
+    final timeController = TextEditingController();
+    final locationController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Plan an Event'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: 'Event Title', icon: Icon(Icons.event)),
+              ),
+              TextField(
+                controller: dateController,
+                decoration: const InputDecoration(labelText: 'Date (e.g., Oct 25)', icon: Icon(Icons.calendar_today)),
+              ),
+              TextField(
+                controller: timeController,
+                decoration: const InputDecoration(labelText: 'Time (e.g., 7:00 PM)', icon: Icon(Icons.access_time)),
+              ),
+              TextField(
+                controller: locationController,
+                decoration: const InputDecoration(labelText: 'Location', icon: Icon(Icons.location_on)),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (titleController.text.trim().isEmpty) return;
+              
+              final payload = jsonEncode({
+                'activity': 'event',
+                'title': titleController.text.trim(),
+                'date': dateController.text.trim().isEmpty ? 'TBD' : dateController.text.trim(),
+                'time': timeController.text.trim().isEmpty ? 'TBD' : timeController.text.trim(),
+                'location': locationController.text.trim().isEmpty ? 'TBD' : locationController.text.trim(),
+                'rsvps': {ref.read(chatThreadsProvider.notifier).myId: 'going'},
+              });
+              
+              ref.read(chatThreadsProvider.notifier).sendMessage(
+                widget.threadId, 
+                '📅 Planned: ${titleController.text.trim()}', 
+                type: MessageType.activity, 
+                fileData: payload
+              );
+              Navigator.pop(context);
+            },
+            child: const Text('Create Event'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAttachmentMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        margin: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Wrap(
+              spacing: 24,
+              runSpacing: 24,
+              alignment: WrapAlignment.center,
+              children: [
+                _buildAttachIcon(context, Icons.insert_drive_file, Colors.indigo, 'Document', () async {
+                  Navigator.pop(context);
+                  final result = await FilePicker.pickFiles(withData: true);
+                  if (result != null && result.files.isNotEmpty) {
+                    final file = result.files.single;
+                    final name = file.name;
+                    final path = file.path;
+                    Uint8List? bytes = file.bytes;
+                    if (bytes == null && path != null && !kIsWeb) {
+                      bytes = await File(path).readAsBytes();
+                    }
+                    if (bytes == null) return;
+                    if (bytes.length > 10 * 1024 * 1024) {
+                      if (context.mounted) AbyssSnackBar.show(context, 'File is larger than 10MB', type: SnackBarType.error);
+                      return;
+                    }
+                    final base64Data = base64Encode(bytes);
+                    final isImage = name.toLowerCase().endsWith('.png') || name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.jpeg') || name.toLowerCase().endsWith('.gif');
+                    ref.read(chatThreadsProvider.notifier).sendMessage(
+                      widget.threadId, 
+                      isImage ? 'Sent an image' : 'Sent a file', 
+                      type: isImage ? MessageType.image : MessageType.file,
+                      localFilePath: path,
+                      fileName: name,
+                      fileData: base64Data,
+                    );
+                  }
+                }),
+                _buildAttachIcon(context, Icons.camera_alt, Colors.pink, 'Camera', () async {
+                  Navigator.pop(context);
+                  if (kIsWeb) {
+                    AbyssSnackBar.show(context, 'Camera not supported on Web', type: SnackBarType.info);
+                    return;
+                  }
+                  try {
+                    final picker = ImagePicker();
+                    final image = await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+                    if (image != null) {
+                      final bytes = await image.readAsBytes();
+                      final base64Data = base64Encode(bytes);
+                      ref.read(chatThreadsProvider.notifier).sendMessage(
+                        widget.threadId, 
+                        'Sent an image', 
+                        type: MessageType.image,
+                        localFilePath: image.path,
+                        fileName: 'camera_image.jpg',
+                        fileData: base64Data,
+                      );
+                    }
+                  } catch (e) {
+                    debugPrint('Error picking image: $e');
+                  }
+                }),
+                _buildAttachIcon(context, Icons.gif_box, Colors.teal, 'GIF', () {
+                  Navigator.pop(context);
+                  showDialog(
+                    context: context,
+                    builder: (context) => Dialog(
+                      backgroundColor: Colors.transparent,
+                      insetPadding: const EdgeInsets.all(16),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: GifPickerSheet(
+                          onGifSelected: (url) {
+                            ref.read(chatThreadsProvider.notifier).sendMessage(
+                              widget.threadId,
+                              'GIF',
+                              type: MessageType.image,
+                              fileData: url,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                _buildAttachIcon(context, Icons.event, Colors.blue, 'Event', () {
+                  Navigator.pop(context);
+                  _showEventPlanningDialog(context);
+                }),
+                _buildAttachIcon(context, Icons.monetization_on, Colors.amber, 'Coin Toss', () {
+                  Navigator.pop(context);
+                  final result = Random().nextBool() ? 'Heads' : 'Tails';
+                  final payload = jsonEncode({'activity': 'coin', 'result': result});
+                  ref.read(chatThreadsProvider.notifier).sendMessage(widget.threadId, '🪙 Tossed a coin', type: MessageType.activity, fileData: payload);
+                }),
+                _buildAttachIcon(context, Icons.casino, Colors.purple, 'Roll Dice', () {
+                  Navigator.pop(context);
+                  showDialog(context: context, builder: (_) => AlertDialog(
+                    title: const Text('Roll how many dice?'),
+                    content: Wrap(
+                      spacing: 8,
+                      children: List.generate(4, (i) => ChoiceChip(
+                        label: Text('${i+1}'),
+                        selected: false,
+                        onSelected: (_) {
+                          Navigator.pop(context);
+                          final rolls = List.generate(i+1, (_) => Random().nextInt(6) + 1);
+                          final payload = jsonEncode({'activity': 'dice', 'rolls': rolls});
+                          ref.read(chatThreadsProvider.notifier).sendMessage(widget.threadId, '🎲 Rolled ${i+1} dice', type: MessageType.activity, fileData: payload);
+                        },
+                      )),
+                    ),
+                  ));
+                }),
+                _buildAttachIcon(context, Icons.grid_3x3, Colors.red, 'Tic-Tac-Toe', () {
+                  Navigator.pop(context);
+                  final payload = jsonEncode({'activity': 'tictactoe', 'board': List.filled(9, ''), 'turn': 'X', 'state': 'playing', 'initiator': ref.read(chatThreadsProvider.notifier).myId});
+                  ref.read(chatThreadsProvider.notifier).sendMessage(widget.threadId, '❌ Started Tic-Tac-Toe', type: MessageType.activity, fileData: payload);
+                }),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttachIcon(BuildContext context, IconData icon, Color color, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
   }
 
   @override
@@ -632,15 +867,46 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                     margin: const EdgeInsets.only(bottom: 4),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
-                                      child: msg.fileData != null && msg.fileData!.startsWith('http')
-                                          ? (msg.fileData!.toLowerCase().endsWith('.gif')
-                                              ? _GifPlayer(url: msg.fileData!, fit: BoxFit.cover)
-                                              : CachedNetworkImage(imageUrl: msg.fileData!, fit: BoxFit.cover))
-                                          : msg.fileData != null && msg.fileData!.isNotEmpty
-                                              ? Image.memory(base64Decode(msg.fileData!), fit: BoxFit.cover)
-                                              : (msg.localFilePath != null && !kIsWeb
-                                                  ? Image.file(File(msg.localFilePath!), fit: BoxFit.cover) 
-                                                  : const Icon(Icons.broken_image)),
+                                      child: Stack(
+                                        children: [
+                                          msg.fileData != null && msg.fileData!.startsWith('http')
+                                              ? (msg.fileData!.toLowerCase().endsWith('.gif')
+                                                  ? _GifPlayer(url: msg.fileData!, fit: BoxFit.cover)
+                                                  : CachedNetworkImage(imageUrl: msg.fileData!, fit: BoxFit.cover))
+                                              : msg.fileData != null && msg.fileData!.isNotEmpty
+                                                  ? Image.memory(base64Decode(msg.fileData!), fit: BoxFit.cover)
+                                                  : (msg.localFilePath != null && !kIsWeb
+                                                      ? Image.file(File(msg.localFilePath!), fit: BoxFit.cover) 
+                                                      : const Icon(Icons.broken_image)),
+                                          if (msg.fileData != null && msg.fileData!.startsWith('http') && msg.fileData!.toLowerCase().endsWith('.gif'))
+                                            Positioned(
+                                              top: 4,
+                                              right: 4,
+                                              child: Consumer(
+                                                builder: (context, ref, child) {
+                                                  final isFav = ref.watch(gifProvider).favoriteGifs.contains(msg.fileData!);
+                                                  return GestureDetector(
+                                                    onTap: () {
+                                                      ref.read(gifProvider.notifier).toggleFavorite(msg.fileData!);
+                                                    },
+                                                    child: Container(
+                                                      padding: const EdgeInsets.all(4),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.black.withValues(alpha: 0.5),
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                      child: Icon(
+                                                        isFav ? Icons.favorite : Icons.favorite_border,
+                                                        color: isFav ? Colors.red : Colors.white,
+                                                        size: 16,
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 )
@@ -788,133 +1054,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.gif_box),
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => Dialog(
-                                  backgroundColor: Colors.transparent,
-                                  insetPadding: const EdgeInsets.all(16),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: GifPickerSheet(
-                                      onGifSelected: (url) {
-                                        ref.read(chatThreadsProvider.notifier).sendMessage(
-                                          widget.threadId,
-                                          'GIF',
-                                          type: MessageType.image,
-                                          fileData: url,
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
+                            icon: const Icon(Icons.add_circle),
+                            color: cs.primary,
+                            iconSize: 28,
+                            onPressed: () => _showAttachmentMenu(context),
                           ),
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.attach_file),
-                            color: cs.surfaceContainerHigh,
-                            offset: const Offset(0, -220),
-                            onSelected: (value) async {
-                              if (value == 'file') {
-                                final result = await FilePicker.pickFiles(withData: true);
-                                if (result != null && result.files.isNotEmpty) {
-                                  final file = result.files.single;
-                                  final name = file.name;
-                                  final path = file.path;
-                                  
-                                  Uint8List? bytes = file.bytes;
-                                  if (bytes == null && path != null && !kIsWeb) {
-                                    bytes = await File(path).readAsBytes();
-                                  }
-                                  
-                                  if (bytes == null) return;
-                                  
-                                  if (bytes.length > 10 * 1024 * 1024) {
-                                    if (context.mounted) {
-                                      AbyssSnackBar.show(context, 'File is larger than 10MB', type: SnackBarType.error);
-                                    }
-                                    return;
-                                  }
-                                  
-                                  final base64Data = base64Encode(bytes);
-                                  final isImage = name.toLowerCase().endsWith('.png') || 
-                                                  name.toLowerCase().endsWith('.jpg') || 
-                                                  name.toLowerCase().endsWith('.jpeg') || 
-                                                  name.toLowerCase().endsWith('.gif');
-                                  
-                                  ref.read(chatThreadsProvider.notifier).sendMessage(
-                                    widget.threadId, 
-                                    isImage ? 'Sent an image' : 'Sent a file', 
-                                    type: isImage ? MessageType.image : MessageType.file,
-                                    localFilePath: path,
-                                    fileName: name,
-                                    fileData: base64Data,
-                                  );
-                                }
-                              } else if (value == 'coin') {
-                                final result = Random().nextBool() ? 'Heads' : 'Tails';
-                                final payload = jsonEncode({'activity': 'coin', 'result': result});
-                                ref.read(chatThreadsProvider.notifier).sendMessage(widget.threadId, '🪙 Tossed a coin', type: MessageType.activity, fileData: payload);
-                              } else if (value == 'dice') {
-                                showDialog(context: context, builder: (_) => AlertDialog(
-                                  title: const Text('Roll how many dice?'),
-                                  content: Wrap(
-                                    spacing: 8,
-                                    children: List.generate(4, (i) => ChoiceChip(
-                                      label: Text('${i+1}'),
-                                      selected: false,
-                                      onSelected: (_) {
-                                        Navigator.pop(context);
-                                        final rolls = List.generate(i+1, (_) => Random().nextInt(6) + 1);
-                                        final payload = jsonEncode({'activity': 'dice', 'rolls': rolls});
-                                        ref.read(chatThreadsProvider.notifier).sendMessage(widget.threadId, '🎲 Rolled ${i+1} dice', type: MessageType.activity, fileData: payload);
-                                      },
-                                    )),
-                                  ),
-                                ));
-                              } else if (value == 'tictactoe') {
-                                final payload = jsonEncode({'activity': 'tictactoe', 'board': List.filled(9, ''), 'turn': 'X', 'state': 'playing', 'initiator': ref.read(chatThreadsProvider.notifier).myId});
-                                ref.read(chatThreadsProvider.notifier).sendMessage(widget.threadId, '❌ Started Tic-Tac-Toe', type: MessageType.activity, fileData: payload);
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(value: 'file', child: Row(children: [Icon(Icons.insert_drive_file), SizedBox(width: 8), Text('Document / File')])),
-                              const PopupMenuItem(value: 'coin', child: Row(children: [Icon(Icons.monetization_on, color: Colors.amber), SizedBox(width: 8), Text('Coin Toss')])),
-                              const PopupMenuItem(value: 'dice', child: Row(children: [Icon(Icons.casino, color: Colors.blue), SizedBox(width: 8), Text('Roll Dice')])),
-                              const PopupMenuItem(value: 'tictactoe', child: Row(children: [Icon(Icons.grid_3x3, color: Colors.red), SizedBox(width: 8), Text('Tic-Tac-Toe')])),
-                            ],
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.camera_alt_outlined),
-                            color: cs.onSurfaceVariant,
-                            onPressed: () async {
-                              if (kIsWeb) {
-                                AbyssSnackBar.show(context, 'Camera not supported on Web', type: SnackBarType.info);
-                                return;
-                              }
-                              try {
-                                final picker = ImagePicker();
-                                final image = await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
-                                if (image != null) {
-                                  final bytes = await image.readAsBytes();
-                                  final base64Data = base64Encode(bytes);
-                                  ref.read(chatThreadsProvider.notifier).sendMessage(
-                                    widget.threadId, 
-                                    'Sent a photo', 
-                                    type: MessageType.image,
-                                    fileName: image.name,
-                                    fileData: base64Data,
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  AbyssSnackBar.show(context, 'Failed to open camera: $e', type: SnackBarType.error);
-                                }
-                              }
-                            },
-                          ),
+                          if (_hasText)
+                            IconButton(
+                              icon: const Icon(Icons.send),
+                              color: cs.primary,
+                              onPressed: _sendMessage,
+                            ),
                         ],
                       ),
                     ),

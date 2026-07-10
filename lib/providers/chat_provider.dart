@@ -150,6 +150,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   String? get myName => _myName;
   Timer? _retryTimer;
   final Map<String, DateTime> _lastConnectAttempt = {};
+  final Set<String> _initiatedConnections = {};
 
   @override
   Future<List<ChatThread>> build() async {
@@ -370,7 +371,11 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     final isKnownContact = contactsList.any((c) => c.id == peerId);
     
     if (!isKnownContact) {
-      _requestAirDropInvite(newUser);
+      if (_initiatedConnections.contains(peerId)) {
+        _acceptPeer(newUser);
+      } else {
+        _requestAirDropInvite(newUser);
+      }
       return;
     }
     
@@ -405,7 +410,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
             CircleAvatar(
               radius: 40,
               backgroundColor: Color(user.avatarColor),
-              child: Icon(IconData(0xe491, fontFamily: 'MaterialIcons'), size: 40, color: Colors.white),
+              child: const Icon(IconData(0xe491, fontFamily: 'MaterialIcons'), size: 40, color: Colors.white),
             ),
             const SizedBox(height: 16),
             Text('${user.name} would like to share data and chat with you.'),
@@ -493,6 +498,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       if (diff.inSeconds < 3) return;
     }
     _lastConnectAttempt[peerId] = now;
+    if (!isReverseConnect) _initiatedConnections.add(peerId);
     
     // Reverse-Host: Ask the peer to connect to us to punch through mDNS/Firewalls
     final metadata = isReverseConnect ? null : jsonEncode({

@@ -139,11 +139,11 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
     return GridView.builder(
       
       padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 250,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
-        childAspectRatio: 1,
+        childAspectRatio: 1.2,
       ),
       itemCount: urls.length,
       itemBuilder: (context, index) {
