@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:abyss_chat/screens/login_screen.dart';
-import 'package:abyss_chat/providers/theme_provider.dart';
-import 'package:abyss_chat/providers/call_provider.dart';
+import 'package:abyss_chat/features/auth/presentation/login_screen.dart';
+import 'package:abyss_chat/core/theme/theme_provider.dart';
+import 'package:abyss_chat/features/calling/domain/call_controller.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 
 import 'dart:async';
 import 'dart:ui';
-import 'package:abyss_chat/services/shared_prefs_helper.dart';
+import 'package:abyss_chat/core/utils/shared_prefs_helper.dart';
 
 // --- MAIN ENTRY POINT ---
 void main() {

@@ -60,20 +60,12 @@ Abyss Chat follows a clean architecture pattern with a clear separation of conce
 
 ### Key Components
 
-#### Models (`lib/models/`)
-- Data structures representing Messages, ChatThreads, Users, and Call states.
+The app follows a **Feature-First Architecture** divided into:
 
-#### Screens (`lib/screens/`)
-- `HomeScreen` - Chat lists, recent messages, and active peer discovery.
-- `ChatScreen` - Active conversation UI with real-time updates and floating emoji picker.
-- `SettingsScreen` - Theme controls, custom hex colors, and app configurations.
-- `ProfileScreen` - Profile management with black/white avatar options.
-
-#### Widgets (`lib/widgets/`)
-- Reusable UI components including the `MiniCallOverlay` for floating calls and `InAppNotificationService` for floating toasts.
-
-#### Services (`lib/services/`)
-- Background network & JSON logic, handling WebRTC handshakes, mDNS discovery, and local persistent data loading.
+- **`lib/core/`**: App-wide constants, theming, and shared widgets.
+- **`lib/features/`**: The main business logic grouped by domain (e.g., `chat`, `calling`, `contacts`, `auth`). Each feature contains its own `data`, `domain`, and `presentation` layers.
+- **`lib/network/`**: Cross-cutting infrastructure services including WebRTC handshakes, mDNS discovery, and encrypted local storage.
+- **`lib/app/`**: High-level app initialization and responsive layout wrappers.
 
 ## 🚀 Getting Started
 

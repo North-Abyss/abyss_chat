@@ -6,29 +6,26 @@ This document is designed to provide a comprehensive explanation of Abyss Chat's
 
 ```mermaid
 graph TD
-    subgraph Presentation Layer
-        UI[Flutter UI / Screens]
-        Widgets[Reusable Components]
+    subgraph Feature Modules [lib/features/]
+        UI[Presentation / Screens]
+        Controllers[Domain / Controllers]
+        Repo[Data / Repositories]
     end
 
-    subgraph State Management
-        Providers[Riverpod Providers]
-    end
-
-    subgraph Infrastructure Services
+    subgraph Network Layer [lib/network/]
         Storage[Storage Service]
         Crypto[Crypto Service]
         WebRTC[PeerDart Service]
         LAN[LAN Messenger]
     end
 
-    UI --> Providers
-    Widgets --> Providers
+    UI --> Controllers
+    Controllers --> Repo
     
-    Providers --> Storage
-    Providers --> Crypto
-    Providers --> WebRTC
-    Providers --> LAN
+    Repo --> Storage
+    Controllers --> Crypto
+    Controllers --> WebRTC
+    Controllers --> LAN
     
     WebRTC -->|Signaling| PeerServer[PeerJS Server]
     WebRTC <-->|P2P WebRTC / Media| RemotePeer[Remote Internet Peer]

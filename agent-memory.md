@@ -27,17 +27,16 @@
 
 ## 🏗️ Architecture Overview
 
-Abyss Chat uses a clean, feature-driven architecture pattern centered around Riverpod for state management and WebRTC/Sockets for network operations. The `lib/` directory is organized into distinct layers to separate UI, state, domain logic, and infrastructure:
+Abyss Chat uses a clean, **Feature-First Architecture** pattern centered around Riverpod for state management and WebRTC/Sockets for network operations. The `lib/` directory is organized into distinct feature modules to separate domain logic and presentation, backed by core network utilities:
 
 ```text
 abyss_chat/
 ├── lib/
-│   ├── main.dart             ← Application entry point & theme initialization
-│   ├── models/               ← Domain models & data structures
-│   ├── providers/            ← Riverpod Notifiers & state controllers
-│   ├── screens/              ← Top-level UI pages & routing destinations
-│   ├── services/             ← Network, storage, & infrastructure logic
-│   └── widgets/              ← Reusable UI components & dialogs
+│   ├── main.dart             ← Application entry point
+│   ├── app/                  ← Root responsive layouts & global providers
+│   ├── core/                 ← App-wide constants, themes, & shared widgets
+│   ├── features/             ← Feature modules (auth, calling, chat, contacts, groups, qr, settings)
+│   └── network/              ← Infrastructure services (WebRTC, LAN, Storage, Crypto)
 ├── agent-memory.md           ← Persistent AI context tracking
 ├── CHANGELOG.md              ← Log of releases and development sessions
 ├── EXPLANATION.md            ← Detailed technical explanation of the codebase
@@ -47,59 +46,38 @@ abyss_chat/
 └── Ref.md                    ← Miscellaneous references
 ```
 
-### 1. `models/` (Domain Layer)
-Contains pure Dart data structures representing the core entities of the app. These models encapsulate data and often include `fromJson`/`toJson` methods for local storage serialization, but do not contain business logic or UI dependencies.
-- **`call_log.dart`**: Represents history records of past calls.
-- **`chat_thread.dart`**: Represents an active conversation (1-on-1 or group).
-- **`message.dart`**: Defines the ChatMessage schema, payload parsing, and timestamping.
-- **`user.dart`**: Schema for saved contacts and the user's own profile.
+### 1. `features/` (Feature Modules)
+The application is split into independent feature directories. Each feature contains its own logical layers:
+- **`domain/`**: Contains pure Dart data models (e.g. `User`, `ChatThread`, `Message`) and Controllers (Riverpod Notifiers that manage the state for this feature).
+- **`data/`**: Contains Repositories that interface with the `network/` services for reading/writing persistent data.
+- **`presentation/`**: Contains the UI layers, broken down into `screens/` (top-level routes) and `widgets/` (components specific to this feature).
 
-### 2. `services/` (Infrastructure Layer)
-Handles all external I/O, networking, and platform-specific operations. Services are stateless utilities that perform heavy lifting without knowing about the UI.
+**Key Features:**
+- `chat`: Thread management, real-time message exchange, media handling.
+- `calling`: WebRTC audio/video call session management and history logs.
+- `contacts`: Identity management, profile syncing, connection requests.
+- `groups`: Group creation, QR invites, and roster management.
+- `settings`: Notifications toggles, permissions, privacy policy.
+- `auth`: Initial splash screen and profile creation.
+- `qr`: QR code scanning and generation utilities.
+
+### 2. `network/` (Infrastructure Layer)
+Handles all external I/O, networking, and platform-specific operations. Services are stateless utilities that perform heavy lifting without knowing about the UI or Feature logic.
 - **`crypto_service.dart`**: AES-GCM encryption utilities for securely wrapping message payloads.
 - **`lan_messenger.dart`**: TCP socket communication for offline local network chats.
 - **`mdns_service.dart`**: Multicast DNS discovery to find active Abyss peers on the LAN.
-- **`notification_service.dart`**: Controls native floating toasts and background notifications.
 - **`peerdart_service.dart`**: WebRTC broker utilizing PeerJS signaling for Internet calls.
 - **`storage_service.dart`**: Manages persisting encrypted data locally using SharedPreferences/path_provider.
 
-### 3. `providers/` (State Management Layer)
-Acts as the bridge between the Services and the UI using `flutter_riverpod`. Providers observe services, hold the reactive state, and expose methods for the UI to trigger actions.
-- **`call_provider.dart`**: Listens for WebRTC connection states, handles ringing logic, manages the active `CallSession`, and controls video/audio track states.
-- **`chat_provider.dart`**: Manages the list of active threads, loaded messages, and sending logic.
-- **`layout_provider.dart`**: Tracks the dynamic responsive window layout constraints (desktop split vs mobile).
-- **`settings_provider.dart`**: Manages persistent app-wide settings (e.g. notifications toggles).
-- **`theme_provider.dart`**: Controls Material 3 dynamic color generation and dark mode state.
-
-### 4. `screens/` (Presentation Layer)
-Contains the top-level route destinations. Screens are primarily `ConsumerWidget`s that watch Riverpod providers to reactively rebuild the UI based on state changes. They handle layout compositions and navigation but delegate core logic to providers.
-- `lib/screens/group_info_screen.dart`: UI for viewing group participants, generating a Group Join QR code, renaming the group, and uploading custom group profile images.
-- `lib/screens/chat_screen.dart`: Primary UI for sending/receiving messages (supports multimedia).
-- **`call_log_screen.dart`**: UI for viewing past audio/video calls.
-- **`call_screen.dart`**: The main WebRTC audio/video call UI with dynamic video grids and controls.
-- **`chat_screen.dart`**: Active conversation view with message bubbles, media previews, and text input.
-- **`contact_profile_screen.dart`**: Detailed view of a specific user.
-- **`create_group_screen.dart`**: Flow to initialize a new group.
-- **`group_info_screen.dart`**: Flow to add/remove members from an existing group.
-- **`home_screen.dart`**: The primary dashboard listing recent chats, contacts, and floating action buttons.
-- **`login_screen.dart`**: Initial splash screen for new users to set their name and connect to the network.
-- **`my_qr_screen.dart`**: Displays the user's ID as a QR code.
-- **`qr_scan_screen.dart`**: Camera scanner to instantly add a peer by scanning their QR code.
-- **`responsive_layout.dart`**: The root responsive shell that controls the desktop split-pane vs mobile navigation.
-- **`settings_screen.dart`**: Configuration page for themes, notifications, and wiping account data.
-
-### 5. `widgets/` (UI Component Layer)
-Houses reusable, stateless, or localized-state UI elements that are shared across multiple screens to enforce DRY principles and maintain visual consistency.
-- **`abyss_snackbar.dart`**: Reusable elegant floating slide-in snackbar.
-- **`floating_dock.dart`**: The Google Meet style UI component for floating call actions/emojis.
-- **`message_text_content.dart`**: Rich text widget that parses links and renders previews/videos inline.
-- **`user_avatar.dart`**: Consistent circular avatar rendering names/colors or icons.
-- **`user_search_delegate.dart`**: The global search bar logic for finding contacts and groups.
-- **`wps_button.dart`**: UI component for quick connect/scan triggers.
+### 3. `core/` & `app/` (Shared Layer)
+Houses reusable utilities, UI elements, and constants that are shared across multiple features to enforce DRY principles and maintain visual consistency.
+- **`app/responsive_layout.dart`**: Controls the desktop split-pane vs mobile navigation.
+- **`core/theme/theme_provider.dart`**: Controls Material 3 dynamic color generation and dark mode state.
+- **`core/widgets/`**: Reusable generic components (e.g. `abyss_snackbar.dart`, `user_avatar.dart`).
 
 ### Key Architecture Rules
-- **State Management**: Use `flutter_riverpod` for all reactive state. Avoid complex `StatefulWidget`s unless the state is purely ephemeral (like text field focus or simple animations).
-- **Service Injection**: Services should not access Providers. Providers wrap Services and expose them to the UI.
+- **State Management**: Use `flutter_riverpod` for all reactive state. Controllers in `domain/` wrap Services in `network/` and expose state to the UI.
+- **Feature Independence**: Features should minimize cross-dependencies. If a widget or model is used by many features, it belongs in `core/`.
 - **UI Design**: Strictly follow Material 3 design guidelines. Use dynamic `Theme.of(context)` colors instead of hardcoded hex values.
 - **Platform Agnostic**: Do not use platform-specific plugins (like `dart:io` exclusively) without providing a Web fallback, ensuring the app runs across Android, iOS, Windows, Linux, and Web simultaneously.
 

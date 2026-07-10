@@ -1,6 +1,11 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.2.0] - 2026-07-10
+### Changed
+- **Feature-First Architecture**: Completely restructured the codebase from a "Type-First" (`models/`, `screens/`, `providers/`) layout to an industry-standard "Feature-First" architecture. All code is now modularized under `lib/features/` (e.g., `chat`, `calling`, `contacts`), `lib/core/`, and `lib/network/`, drastically improving scalability and maintainability.
+- **Provider Decomposition**: Split the monolithic `chat_provider.dart` into domain-specific controllers (`chat_controller.dart`, `contacts_controller.dart`, `settings_controller.dart`) to strictly enforce separation of concerns and prevent massive dependency chains.
+
 ## [1.1.1] - 2026-07-07
 ### Added
 - **Cloud Relay Fallback**: Built a foolproof, zero-config text messaging fallback using `ntfy.sh`. If WebRTC local routing is blocked by a strict NAT Hairpinning router, text messages instantly and silently route through an encrypted cloud relay!
