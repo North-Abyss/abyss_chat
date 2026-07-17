@@ -423,12 +423,16 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     if (!isReverseConnect) _initiatedConnections.add(peerId);
     
     // Reverse-Host: Ask the peer to connect to us to punch through mDNS/Firewalls
-    final metadata = isReverseConnect ? null : jsonEncode({
-      'urgent_signal': {
-        'type': 'reverse_connect_request',
-        'peerId': myId ?? 'unknown',
-      }
-    });
+    // Only Web needs to ask the other peer to connect because Web obfuscates local IPs with mDNS.
+    String? metadata;
+    if (!isReverseConnect && kIsWeb) {
+      metadata = jsonEncode({
+        'urgent_signal': {
+          'type': 'reverse_connect_request',
+          'peerId': myId ?? 'unknown',
+        }
+      });
+    }
     
     ref.read(peerServiceProvider).connectToPeer(peerId, metadata: metadata);
     

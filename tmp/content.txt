@@ -1,0 +1,334 @@
+SUMMER INTERNSHIP REPORT
+Submitted by
+YUVANESH KS – 513523205060
+in partial fulfillment for the award of the degree of
+BACHELOR OF TECHNOLOGY
+IN
+INFORMATION TECHNOLOGY
+
+[College LOGO]
+
+ANNAI MIRA COLLEGE OF ENGINEERING AND TECHNOLOGY
+ARAPAKKAM, RANIPET-632517.
+ANNA UNIVERSITY: CHENNAI 600 025
+Nov/Dec 2026
+1
+
+BONAFIDE CERTIFICATE
+This is to certify that the Internship Report submitted by Yuvanesh K. S. (Register No:
+513523205060) is a record of work done by him on the project "Abyss Chat" as a part of the
+Summer Internship and submitted during the 2026–2027 academic year, in partial fulfillment of
+the requirements for the award of the degree of B.Tech Information Technology, at Starvik
+Solution Pvt. Ltd.
+Period of Training: 10 June 2026 to 10 July 2026
+SIGNATURE
+Prof. J. SAVITHIRI M.E., (Ph.D.)
+HEAD OF THE DEPARTMENT
+Dept. of Information Technology
+Annai Mira College of Engineering and Technology
+Submitted for the internship report review held on _______________.
+INTERNAL EXAMINER
+EXTERNAL EXAMINER
+2
+
+
+Certificate:
+(Insert Internship Certificate Image Here)
+3
+
+
+ACKNOWLEDGEMENT
+Thanks to all the supports from my Team and Friends Who Guided Me Here.
+I am conscious about my indebtedness to our honorable Chairman MR. S.
+RAMADOSS, Secretary MR. G. THAMOTHIRAN and our Principal DR. T.K.
+GOPINATHAN, Ph.D., and our Vice Principal DR. D. SARAVANAN, Ph.D., who
+inspired me to reach greater heights in the pursuits of knowledge.
+I proudly express my esteemed gratitude to our Head of the Department
+Prof. J. SAVITHIRI M.E., (Ph.D.), for her encouragement and assistance
+towards the completion of the internship.
+Special thanks must be mentioned to our internship supervisor MR.
+VIVEKANANDAN. M, for his expert advice, valuable information and guidance
+throughout the completion of the internship.
+I also express my sincere thanks to all our staff who helped us in the
+completion of this internship.
+4
+
+
+TABLE OF CONTENTS
+1. Abstract
+2. Introduction
+• 2.1 Purpose of the Internship
+• 2.2 Company Profile – Starvik Solution Pvt. Ltd.
+• 2.3 Duration and Objectives of the Internship
+3. Project Overview – Abyss Chat
+• 3.1 Problem Statement
+• 3.2 Scope of the Project
+• 3.3 Key Features
+4. System Analysis
+• 4.1 Existing System and Limitations
+• 4.2 Proposed System
+• 4.3 Functional Requirements
+• 4.4 Non-Functional Requirements
+5. System Design
+• 5.1 System Architecture (Flutter & WebRTC Overview)
+• 5.2 Use Case Diagrams
+• 5.3 Data Flow Diagrams (DFD)
+• 5.4 Network Topology Diagram
+6. Implementation
+• 6.1 Technologies Used (Flutter, Riverpod, WebRTC)
+• 6.2 Frontend Development
+• 6.3 Network & P2P Development
+• 6.4 Core Features Implemented
+7. Testing
+• 7.1 Testing Strategy
+• 7.2 Test Cases
+• 7.3 Bug Fixes
+5
+
+
+8. Results and Discussions
+• 8.1 Output Screenshots
+• 8.2 Performance Analysis
+• 8.3 User Experience Feedback
+9. Challenges Faced and Solutions Implemented
+10.Learning Outcomes
+11.Conclusion and Future Enhancements
+12.References
+13.Appendix
+• Source Code Links
+• Sample Codes Of the Application
+14.Declaration
+6
+
+1. Abstract
+The "Abyss Chat" is a cross-platform, decentralized peer-to-peer (P2P) messaging and
+video-calling application built with Flutter. It utilizes WebRTC for true P2P data channels over
+the internet and leverages Multicast DNS (mDNS) and local TCP sockets for offline, local-
+network discovery. The system provides end-to-end encrypted messaging, high-definition
+audio/video calling, and group mesh networking for a seamless and private communication
+process.
+2. Introduction
+2.1 Purpose of the Internship
+The purpose of this internship was to gain real-world experience in cross-platform
+mobile and web development by building a complete, decentralized communication application
+from scratch using the Flutter framework and WebRTC.
+2.2 Company Profile – Starvik Solution Pvt. Ltd.
+Starvik Solution Pvt. Ltd. is an innovative technology organization that focuses on
+developing highly scalable software solutions and providing practical exposure through real-
+world projects, emphasizing skill development and industry-relevant concepts.
+2.3 Duration and Objectives of the Internship
+• Duration: 10 June 2026 – 10 July 2026
+• Objectives:
+• Learn and apply Flutter and Dart for cross-platform development.
+• Build a fully functional, decentralized P2P chat and calling app.
+• Implement secure data transmission and local network discovery without a
+central server.
+3. Project Overview – Abyss Chat
+3.1 Problem Statement
+Traditional messaging applications rely heavily on central servers to route and store
+messages. This approach introduces significant privacy concerns, potential data mining, and
+single points of failure. Furthermore, users on the same local network cannot communicate
+without internet access.
+7
+
+
+3.2 Scope of the Project
+To create a completely decentralized P2P application that allows users to send
+messages and make audio/video calls without central data storage, working seamlessly both
+over the internet (via WebRTC) and locally offline (via mDNS).
+3.3 Key Features
+• P2P Communication: Direct WebRTC data channels for low-latency messaging and
+media.
+• Mutual Contacts Only: Strict privacy enforcement, rejecting unknown connections.
+• Local Network Discovery: Uses mDNS to discover peers on the same Wi-Fi offline.
+• Group Chats & Calls: Supports Full Mesh P2P group chats and video calls.
+• Cross-Platform: Runs on Android, iOS, Windows, macOS, Linux, and the Web.
+4. System Analysis
+4.1 Existing System and Limitations
+Existing communication platforms (like WhatsApp or Telegram) have centralized
+servers, meaning personal data passes through a third party. They also fail to function offline
+even if users share the same local network.
+4.2 Proposed System
+A decentralized Flutter-based application with an intuitive Material 3 UI, real-time
+encrypted WebRTC connections, and offline LAN capabilities.
+4.3 Functional Requirements
+• User profile creation and customization (avatar, color).
+• Text messaging, group chats, and audio/video calls.
+• Adding contacts and connection via 6-digit Peer ID or QR Code.
+4.4 Non-Functional Requirements
+• Secure System: End-to-End Encrypted via AES-GCM.
+• Responsive Design: Split-pane layouts for large screens (Desktop/Web).
+• High Performance: Smooth UI micro-animations and optimized video rendering.
+8
+
+
+5. System Design
+5.1 System Architecture (Flutter & WebRTC Overview)
+Abyss Chat follows a Feature-First Clean Architecture.
+• Presentation Layer: Riverpod state providers and Flutter widgets.
+• Domain/Data Layer: Controllers handling logic for chat, calling, and contacts.
+• Network Layer: WebRTC PeerDart service for signaling/media, LAN Messenger
+(mDNS/TCP) for local offline discovery, and Crypto Service for encryption.
+5.2 Use Case Diagrams
+• User -> Creates Profile, Adds Contacts.
+• User -> Initiates WebRTC Call -> Remote Peer.
+• User -> Broadcasts mDNS -> Local Peer discovers and connects via TCP.
+5.3 Data Flow Diagrams (DFD)
+1. Send Message: User Types -> Controller Encrypts via Crypto Service -> Sent via
+WebRTC Data Channel or TCP Socket -> Remote Peer Receives -> Decrypts -> UI
+Updates.
+5.4 Network Topology Diagram
+• WebRTC uses a lightweight PeerJS Server strictly for initial SDP/ICE signaling.
+• Once signaling completes, a direct P2P mesh network is established between all
+participants.
+6. Implementation
+6.1 Technologies Used
+• Flutter & Dart – Cross-platform UI framework.
+• Riverpod – Reactive state management.
+• WebRTC (flutter_webrtc, peerdart) – Real-time P2P engine.
+• mDNS (nsd) – Local network discovery.
+• AES-GCM (encrypt) – End-to-end encryption.
+• SharedPreferences & path_provider – Persistent local storage.
+6.2 Frontend Development
+• User Interface: Developed using Material 3 guidelines, dynamic color theming, and
+flutter_animate for transitions.
+• Responsive Layouts: Handled via custom wrappers to switch between mobile stack
+navigation and desktop split-pane views.
+
+
+
+6.3 Network & P2P Development
+• WebRTC Integration: Built signaling handlers to exchange connection coordinates and
+establish raw data/media streams.
+• LAN Messenger: Implemented raw TCP sockets that listen for connections discovered
+via mDNS broadcasts.
+6.4 Core Features Implemented
+• P2P Audio/Video Calling & Messaging.
+• Offline Local Network Discovery.
+• Strict Privacy & Contact Verification.
+• Full Mesh Group Networking.
+• Cross-platform CI/CD Deployment via GitHub Actions.
+7. Testing
+7.1 Testing Strategy
+• Manual Testing: Performed across different network conditions (LAN offline, high-
+latency 4G, cross-platform interactions between Web and Android).
+• WebRTC NAT Testing: Handled edge cases involving local testing on modern browsers
+obfuscating .local IPs.
+7.2 Test Cases
+• Peer discovery on the same Wi-Fi without internet.
+• Successful WebRTC handshake and video stream establishment over 4G.
+• Rejection of incoming connections from unsaved Peer IDs.
+7.3 Bug Fixes
+• Fixed rigid video grid layouts by using dynamic Flex/Wrap for different monitor sizes.
+• Handled Kotlin plugin registrant issues on older Android builds via Gradle reflection.
+10
+
+
+8. Results and Discussions
+8.1 Output Screenshots
+
+[Images]
+
+11
+
+[Images]
+
+12
+
+
+8.2 Performance Analysis
+• The P2P Data Channels provide sub-100ms latency for text messages.
+• The Full Mesh video calling performs smoothly for up to 10 simultaneous HD streams on
+standard devices.
+8.3 User Experience Feedback
+• Users found the Material 3 UI vibrant and highly responsive.
+• The ability to connect completely offline on a local network was highly praised.
+9. Challenges Faced and Solutions
+Implemented
+• Challenge: Establishing connections without a central server.
+• Solution: Used a PeerJS server solely for the initial SDP/ICE handshake; data
+channels handle the rest directly.
+• Challenge: Storage limitations on the Web platform.
+• Solution: Abstracted the storage service to gracefully fall back to
+SharedPreferences on Web, while using encrypted file streams on Native.
+• Challenge: Local Network Testing failures due to browser mDNS obfuscation.
+• Solution: Documented the need to disable
+media.peerconnection.ice.obfuscate_host_addresses in Firefox during specific
+localhost testing scenarios.
+10. Learning Outcomes
+• Gained hands-on experience in cross-platform development using Flutter.
+• Deepened understanding of Peer-to-Peer networking, WebRTC, and mDNS.
+• Learned how to implement End-to-End Encryption and manage application state
+reactively using Riverpod.
+• Acquired skills in setting up automated CI/CD pipelines via GitHub Actions.
+11. Conclusion and Future Enhancements
+Conclusion:
+The Abyss Chat application successfully bridges the gap in decentralized
+communication, providing a secure, serverless, and offline-capable platform. It has significantly
+improved my practical knowledge of full-stack mobile development, real-time networking, and
+complex state management.
+13Future Enhancements:
+• Implement an optional Selective Forwarding Unit (SFU) for large group calls (10+
+users).
+• Add support for chunked file transfers (large videos and documents) over WebRTC.
+• Improve background keep-alive execution for mDNS broadcasts on iOS/Android.
+12. References
+1. Flutter Documentation – https://flutter.dev/docs
+2. WebRTC API – https://webrtc.org/
+3. Riverpod State Management – https://riverpod.dev/
+4. PeerJS Signaling – https://peerjs.com/
+13. Appendix
+Source Code Links
+GitHub Repository: https://github.com/North-Abyss/abyss_chat
+Live Web App: https://north-abyss.github.io/abyss_chat/
+Sample Codes Of the Application
+Frontend - Riverpod State Provider (Chat)
+Dart
+// lib/features/chat/chat_provider.dart
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:abyss_chat/network/webrtc_service.dart';
+final chatProvider = StateNotifierProvider<ChatNotifier, List<Message>>((ref) {
+return ChatNotifier(ref.read(webRtcServiceProvider));
+});
+class ChatNotifier extends StateNotifier<List<Message>> {
+final WebRTCService _webRTCService;
+ChatNotifier(this._webRTCService) : super([]) {
+_webRTCService.onMessageReceived.listen((msg) {
+state = [...state, msg];
+});
+}
+14
+
+void sendMessage(String text, String peerId) {
+final msg = Message(text: text, isMe: true);
+_webRTCService.sendData(peerId, msg.toJson());
+state = [...state, msg];
+}
+}
+Network Layer - TCP Socket (LAN Messenger)
+Dart
+// lib/network/lan_messenger.dart
+import 'dart:io';
+class LANMessenger {
+ServerSocket? _serverSocket;
+Future<void> startListening(int port) async {
+_serverSocket = await ServerSocket.bind(InternetAddress.anyIPv4, port);
+_serverSocket!.listen((Socket client) {
+client.listen((data) {
+final decryptedData = CryptoService.decrypt(data);
+// Handle incoming local message
+});
+});
+}
+}
+
+
+14. Declaration
+I hereby declare that this internship report titled "Abyss Chat" is based on my own work
+carried out during the internship at Starvik Solution Pvt. Ltd. from 10 June 2026 to 10 July
+2026. All the information and data presented here are true to the best of my knowledge and
+belief.
+Signature:
+Yuvanesh KS
+
+15

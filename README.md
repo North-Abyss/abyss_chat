@@ -90,3 +90,304 @@ Abyss Chat is a 100% decentralized P2P application. This means there are no serv
 
 - **Privacy Policy:** Abyss Chat is heavily focused on privacy. We collect zero data. Read the full [Privacy Policy](PRIVACY.md).
 - **License:** This project is open-source and licensed under the [MIT License](LICENSE).
+
+---
+
+## 📐 Architecture Diagrams
+
+### 5.1 System Architecture (Flutter & WebRTC Overview)
+
+A holistic view of all layers in the Abyss Chat application — from the Flutter UI down to the peer-to-peer network layer.
+
+```mermaid
+graph TD
+    subgraph Client ["📱 Flutter Client (All Platforms)"]
+        direction TB
+        subgraph Presentation ["🎨 Presentation Layer — lib/features/*/presentation/"]
+            UI_Home["HomeScreen\n(Chat List)"]
+            UI_Chat["ChatScreen\n(Messages)"]
+            UI_Call["CallScreen\n(Video / Audio)"]
+            UI_Contacts["ContactsScreen"]
+            UI_Settings["SettingsScreen"]
+            UI_Auth["AuthScreen\n(Profile Setup)"]
+        end
+
+        subgraph Domain ["🧠 Domain Layer — lib/features/*/domain/"]
+            ChatCtrl["ChatController\n(Riverpod Notifier)"]
+            CallCtrl["CallController\n(Riverpod Notifier)"]
+            ContactCtrl["ContactController\n(Riverpod Notifier)"]
+            ThemeCtrl["ThemeController\n(Riverpod Notifier)"]
+        end
+
+        subgraph Data ["🗄️ Data Layer — lib/features/*/data/"]
+            ChatRepo["ChatRepository"]
+            ContactRepo["ContactRepository"]
+            CallRepo["CallLogRepository"]
+        end
+
+        subgraph Network ["🌐 Network Layer — lib/network/"]
+            PeerDart["PeerDartService\n(WebRTC / PeerJS)"]
+            LanMsg["LanMessenger\n(TCP Sockets)"]
+            mDNS["mDNSService\n(Local Discovery)"]
+            Crypto["CryptoService\n(AES-GCM)"]
+            Storage["StorageService\n(SharedPrefs / File)"]
+        end
+
+        subgraph Core ["⚙️ Core — lib/core/"]
+            Constants["AppConstants\n(Ports, IDs, UI tokens)"]
+            Theme["ThemeProvider\n(Material 3 Dynamic Color)"]
+            Widgets["Shared Widgets\n(Avatar, Snackbar, etc.)"]
+        end
+    end
+
+    subgraph External ["☁️ External Services"]
+        PeerServer["PeerJS Signaling Server\n(WebRTC Handshake Only)"]
+        STUN["STUN / TURN Servers\n(ICE Candidate Discovery)"]
+    end
+
+    subgraph Peers ["👥 Remote Peers"]
+        InternetPeer["Internet Peer\n(WebRTC P2P)"]
+        LANPeer["LAN Peer\n(TCP Socket)"]
+    end
+
+    %% Presentation → Domain
+    UI_Home & UI_Chat & UI_Call & UI_Contacts & UI_Settings --> ChatCtrl
+    UI_Call --> CallCtrl
+    UI_Contacts --> ContactCtrl
+    UI_Settings --> ThemeCtrl
+
+    %% Domain → Data
+    ChatCtrl --> ChatRepo
+    CallCtrl --> CallRepo
+    ContactCtrl --> ContactRepo
+
+    %% Data → Network
+    ChatRepo --> Storage
+    ContactRepo --> Storage
+    CallRepo --> Storage
+
+    %% Domain → Network Services
+    ChatCtrl --> Crypto
+    ChatCtrl --> PeerDart
+    ChatCtrl --> LanMsg
+    CallCtrl --> PeerDart
+    ContactCtrl --> mDNS
+
+    %% Network → External
+    PeerDart -->|SDP Offer/Answer + ICE| PeerServer
+    PeerDart -->|ICE Candidate Lookup| STUN
+
+    %% Network → Peers
+    PeerDart <-->|"Encrypted WebRTC\nData Channel / Media Stream"| InternetPeer
+    LanMsg <-->|"Encrypted TCP\nSocket Packets"| LANPeer
+    mDNS -->|"_abysschat._tcp\nmDNS Broadcast"| LANPeer
+
+    %% Core wiring
+    Theme --> UI_Home & UI_Chat & UI_Call
+    Constants --> PeerDart & LanMsg & mDNS
+```
+
+---
+
+### 5.2 Use Case Diagrams
+
+**Primary Actors:** `User` (local device) · `Remote Peer` (another Abyss Chat user) · `Signaling Server` (PeerJS, used only for WebRTC handshake)
+
+```mermaid
+graph LR
+    User(["👤 User"])
+    Peer(["👥 Remote Peer"])
+    Server(["☁️ Signaling Server"])
+
+    subgraph Profile ["👤 Profile & Identity"]
+        UC1["Set Display Name"]
+        UC2["Choose Avatar & Color"]
+        UC3["View My Peer ID / QR"]
+    end
+
+    subgraph Discovery ["🔍 Peer Discovery"]
+        UC4["Auto-Discover via mDNS\n(Same LAN)"]
+        UC5["Connect via Peer ID\n(Internet)"]
+        UC6["Scan QR Code"]
+        UC7["WPS-Style Pairing\n(Physical Proximity)"]
+    end
+
+    subgraph Contacts ["📒 Contacts"]
+        UC8["Accept / Reject\nConnection Request"]
+        UC9["Block a Contact"]
+        UC10["Delete a Contact"]
+        UC11["Sync Profile\nfrom Peer"]
+    end
+
+    subgraph Messaging ["💬 Messaging"]
+        UC12["Send Text Message"]
+        UC13["Send Voice Message"]
+        UC14["Share Image / Video"]
+        UC15["Send Emoji / GIF"]
+        UC16["View Link Preview"]
+        UC17["Create Group Chat"]
+        UC18["Invite Peer to Group\nvia QR"]
+    end
+
+    subgraph Calling ["📞 Calling"]
+        UC19["Start 1-on-1 Voice Call"]
+        UC20["Start 1-on-1 Video Call"]
+        UC21["Start Group Video Call"]
+        UC22["Answer / Decline Call"]
+        UC23["View Floating\nMini-Call Pill"]
+    end
+
+    subgraph Settings ["⚙️ Settings"]
+        UC24["Toggle Dark/Light Theme"]
+        UC25["Pick Custom Color Theme"]
+        UC26["Toggle Notifications"]
+        UC27["View Privacy Policy"]
+    end
+
+    User --> UC1 & UC2 & UC3
+    User --> UC4 & UC5 & UC6 & UC7
+    User --> UC8 & UC9 & UC10 & UC11
+    User --> UC12 & UC13 & UC14 & UC15 & UC16 & UC17 & UC18
+    User --> UC19 & UC20 & UC21 & UC22 & UC23
+    User --> UC24 & UC25 & UC26 & UC27
+
+    UC5 -->|"Exchange SDP\n& ICE via"| Server
+    UC8 & UC11 & UC12 & UC13 & UC14 & UC15 --> Peer
+    UC19 & UC20 & UC21 & UC22 --> Peer
+```
+
+---
+
+### 5.3 Data Flow Diagrams (DFD)
+
+#### Level 0 — Context Diagram
+
+```mermaid
+graph LR
+    User(["👤 User"])
+    App(["🔷 Abyss Chat\nApplication"])
+    Peer(["👥 Remote Peer"])
+    Signal(["☁️ PeerJS\nSignaling Server"])
+
+    User -- "Input / Actions" --> App
+    App -- "UI Updates / Notifications" --> User
+    App <-- "WebRTC Handshake\n(SDP + ICE)" --> Signal
+    App <-- "Encrypted P2P\nMessages & Media" --> Peer
+```
+
+#### Level 1 — Internal Data Flow
+
+```mermaid
+flowchart TD
+    User(["👤 User"])
+
+    subgraph Input ["📥 Input Processing"]
+        P1["1.0\nCapture User Input\n(Text / Media / Call Action)"]
+    end
+
+    subgraph Crypto ["🔐 Encryption"]
+        P2["2.0\nEncrypt Payload\n(AES-GCM via CryptoService)"]
+    end
+
+    subgraph Routing ["🔀 Message Routing"]
+        P3["3.0\nRoute Decision\n(LAN or Internet?)"]
+    end
+
+    subgraph Transport ["🚀 Transport"]
+        P4["4.0\nSend via WebRTC\nData Channel\n(PeerDartService)"]
+        P5["5.0\nSend via TCP\nSocket\n(LanMessenger)"]
+    end
+
+    subgraph Receipt ["📨 Receive & Dispatch"]
+        P6["6.0\nReceive Incoming\nPacket"]
+        P7["7.0\nDecrypt & Validate\nSender ID"]
+        P8["8.0\nDispatch to\nChatController"]
+    end
+
+    subgraph Persist ["💾 Persistence"]
+        P9["9.0\nPersist Message\n(StorageService)"]
+    end
+
+    subgraph Notify ["🔔 Notify"]
+        P10["10.0\nTrigger UI Rebuild\n& Toast Notification"]
+    end
+
+    DS1[("📁 Local Storage\n(SharedPrefs / File)")]
+    DS2(["👥 Remote Peer"])
+
+    User -->|"Raw message\nor call trigger"| P1
+    P1 --> P2
+    P2 -->|"Encrypted blob"| P3
+    P3 -->|"Internet path"| P4
+    P3 -->|"LAN path"| P5
+    P4 & P5 -->|"Packet"| DS2
+
+    DS2 -->|"Incoming encrypted\npacket"| P6
+    P6 --> P7
+    P7 -->|"Validated message"| P8
+    P8 --> P9
+    P9 --> DS1
+    P8 --> P10
+    P10 -->|"State update"| User
+    DS1 -->|"Loaded on startup"| P8
+```
+
+---
+
+### 5.4 Network Topology Diagram
+
+Abyss Chat supports two distinct network topologies that can run simultaneously.
+
+```mermaid
+graph TD
+    subgraph Internet ["🌍 Internet — WebRTC Full Mesh"]
+        direction TB
+        PS["☁️ PeerJS Signaling Server\n(Handshake only — no data stored)"]
+        STUN["🔄 STUN/TURN Server\n(ICE Candidate Resolution)"]
+
+        subgraph Devices_Internet ["Connected Devices (Internet)"]
+            A["📱 Peer A"]
+            B["💻 Peer B"]
+            C["📱 Peer C"]
+            D["🖥️ Peer D"]
+        end
+
+        A & B & C & D -->|"1️⃣ Register &\nExchange SDP"| PS
+        A & B & C & D -->|"2️⃣ Resolve\nPublic IP"| STUN
+
+        A <-->|"3️⃣ Direct P2P\nWebRTC Channel\n(Encrypted)"| B
+        A <-->|"3️⃣ Direct P2P\nWebRTC Channel\n(Encrypted)"| C
+        A <-->|"3️⃣ Direct P2P\nWebRTC Channel\n(Encrypted)"| D
+        B <-->|"3️⃣ Direct P2P\nWebRTC Channel\n(Encrypted)"| C
+        B <-->|"3️⃣ Direct P2P\nWebRTC Channel\n(Encrypted)"| D
+        C <-->|"3️⃣ Direct P2P\nWebRTC Channel\n(Encrypted)"| D
+    end
+
+    subgraph LAN ["🏠 Local Network — mDNS + TCP"]
+        direction TB
+        Router["📡 Wi-Fi Router\n(No Internet Required)"]
+
+        subgraph Devices_LAN ["LAN Devices (Same Wi-Fi)"]
+            L1["📱 Device 1\n(mDNS Host)"]
+            L2["💻 Device 2\n(mDNS Host)"]
+            L3["📱 Device 3\n(mDNS Host)"]
+        end
+
+        L1 & L2 & L3 -->|"_abysschat._tcp\nmDNS Broadcast"| Router
+        Router -->|"Peer Discovery\nResponse"| L1 & L2 & L3
+
+        L1 <-->|"Direct TCP\nSocket\n(AES-GCM Encrypted)"| L2
+        L1 <-->|"Direct TCP\nSocket\n(AES-GCM Encrypted)"| L3
+        L2 <-->|"Direct TCP\nSocket\n(AES-GCM Encrypted)"| L3
+    end
+
+    subgraph Legend ["📖 Legend"]
+        direction LR
+        LG1["☁️ = Cloud / External Service (Transient)"]
+        LG2["📱💻🖥️ = Abyss Chat Client Device"]
+        LG3["↔️ = Persistent Encrypted P2P Link"]
+        LG4["→ = One-time Handshake / Discovery Signal"]
+    end
+```
+
+> **Key insight:** The signaling server and STUN/TURN servers are only used during the initial WebRTC handshake (seconds). Once peers are connected, **all data flows directly between devices** with no server involvement. On a local network, the app works **100% offline** with zero cloud dependency.
