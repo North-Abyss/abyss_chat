@@ -119,11 +119,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(callProvider, (previous, next) {
-      if (next == null && mounted) {
-        Navigator.of(context).pop();
-      }
-    });
+
     
     final callState = ref.watch(callProvider);
     final isConnected = callState?.state == CallState.connected;
