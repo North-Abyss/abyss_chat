@@ -123,6 +123,7 @@ flutter:
 dependency_overrides:
   flutter_webrtc: ^1.1.0
   dart_webrtc: ^1.2.0
+  ffmpeg_kit_flutter_new: ^4.5.1
 
 flutter_launcher_icons:
   android: "ic_launcher"
