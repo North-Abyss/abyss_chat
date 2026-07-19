@@ -440,7 +440,7 @@ class CallNotifier extends Notifier<CallSession?> {
           var lanPeer = mdnsPeers.where((p) => p.id == peer.id).firstOrNull;
           
           if (lanPeer == null || lanPeer.ipAddress == null) {
-            final contacts = ref.read(contactsProvider).value ?? [];
+            final contacts = await ref.read(contactsProvider.future);
             lanPeer = contacts.where((c) => c.id == peer.id).firstOrNull;
           }
           

@@ -452,7 +452,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     var lanPeer = mdnsPeers.where((p) => p.id == peerId).firstOrNull;
     
     if (lanPeer == null || lanPeer.ipAddress == null) {
-      final contacts = ref.read(contactsProvider).value ?? [];
+      final contacts = await ref.read(contactsProvider.future);
       lanPeer = contacts.where((c) => c.id == peerId).firstOrNull;
     }
 
