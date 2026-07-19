@@ -383,7 +383,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 }),
                 _buildAttachIcon(context, Icons.casino, Colors.purple, 'Roll Dice', () {
                   Navigator.pop(context);
-                  showDialog(context: context, builder: (_) => AlertDialog(
+                  showDialog(context: context, builder: (dialogContext) => AlertDialog(
                     title: const Text('Roll how many dice?'),
                     content: Wrap(
                       spacing: 8,
@@ -391,7 +391,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         label: Text('${i+1}'),
                         selected: false,
                         onSelected: (_) {
-                          Navigator.pop(context);
+                          Navigator.pop(dialogContext);
                           final rolls = List.generate(i+1, (_) => Random().nextInt(6) + 1);
                           final payload = jsonEncode({'activity': 'dice', 'rolls': rolls});
                           ref.read(chatThreadsProvider.notifier).sendMessage(widget.threadId, '🎲 Rolled ${i+1} dice', type: MessageType.activity, fileData: payload);
