@@ -13,8 +13,13 @@ import 'package:abyss_chat/core/utils/shared_prefs_helper.dart';
 // --- MAIN ENTRY POINT ---
 void main() {
   runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    await SharedPrefsHelper.instance;
+    final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+    widgetsBinding.deferFirstFrame();
+    try {
+      await SharedPrefsHelper.instance;
+    } catch (e) {
+      debugPrint('Error initializing prefs: $e');
+    }
 
     // Catch unhandled async errors (like WebSockets dropping in peerdart)
     PlatformDispatcher.instance.onError = (error, stack) {
@@ -27,6 +32,7 @@ void main() {
         child: AbyssApp(),
       ),
     );
+    widgetsBinding.allowFirstFrame();
   }, (error, stack) {
     debugPrint('Caught by runZonedGuarded: $error');
   });

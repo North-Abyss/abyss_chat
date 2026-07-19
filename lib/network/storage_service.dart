@@ -89,6 +89,14 @@ class StorageService {
     }
   }
 
+  // --- Preload Cache ---
+  Future<void> preloadCache() async {
+    await loadThreads();
+    await loadContacts();
+    await loadCallLogs();
+    await loadBlockedPeers();
+  }
+
   // --- Threads ---
   Future<List<ChatThread>> loadThreads() async {
     final jsonStr = await _readEncryptedFile(_threadsFile);
@@ -197,7 +205,7 @@ class StorageService {
   }
 
   // --- User Profile (Unencrypted/Prefs) ---
-  Future<void> saveUserProfile(String id, String name, {String? username, int avatarIcon = 0xe491, int avatarColor = 0xFF6750A4, String? profileImagePath}) async {
+  Future<void> saveUserProfile(String id, String name, {String? username, int avatarIcon = 0xe491, int avatarColor = 0xFF6750A4, String? profileImagePath, DateTime? profileUpdatedAt}) async {
     final prefs = await SharedPrefsHelper.instance;
     await prefs.setString('my_id', id);
     await prefs.setString('my_name', name);
@@ -211,6 +219,11 @@ class StorageService {
     } else {
       await prefs.remove('my_profile_image');
     }
+    if (profileUpdatedAt != null) {
+      await prefs.setString('my_profile_updated_at', profileUpdatedAt.toIso8601String());
+    } else {
+      await prefs.remove('my_profile_updated_at');
+    }
   }
 
   Future<Map<String, dynamic>?> loadUserProfile() async {
@@ -221,11 +234,13 @@ class StorageService {
     final icon = prefs.getInt('my_avatar_icon') ?? 0xe491;
     final color = prefs.getInt('my_avatar_color') ?? 0xFF6750A4;
     final imagePath = prefs.getString('my_profile_image');
+    final updatedAtStr = prefs.getString('my_profile_updated_at');
+    final updatedAt = updatedAtStr != null ? DateTime.tryParse(updatedAtStr) : null;
     
     if (id != null && name != null) {
       if (id.startsWith('#')) {
         id = id.substring(1);
-        await saveUserProfile(id, name, username: username, avatarIcon: icon, avatarColor: color, profileImagePath: imagePath);
+        await saveUserProfile(id, name, username: username, avatarIcon: icon, avatarColor: color, profileImagePath: imagePath, profileUpdatedAt: updatedAt);
       }
       return {
         'id': id, 
@@ -234,6 +249,7 @@ class StorageService {
         'avatarIcon': icon,
         'avatarColor': color,
         'profileImagePath': imagePath,
+        'profileUpdatedAt': updatedAt,
       };
     }
     return null;

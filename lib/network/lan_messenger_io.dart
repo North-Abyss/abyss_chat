@@ -8,8 +8,8 @@ import 'package:abyss_chat/core/constants/app_constants.dart';
 // --- SERVICE DEFINITION ---
 
 class LanMessenger {
-  ServerSocket? _serverSocket;
-  final Map<String, Socket> _activeSockets = {};
+  HttpServer? _httpServer;
+  final Map<String, WebSocket> _activeSockets = {};
   
   // Stream controller to broadcast incoming messages to Riverpod
   final StreamController<Message> _incomingMessages = StreamController<Message>.broadcast();
@@ -32,38 +32,45 @@ class LanMessenger {
 
   String? _myId;
   int _port = AppConstants.lanServerPort;
+  int get serverPort => _port;
 
   // --- SERVER LIFECYCLE ---
   Future<int> startServer(String myId) async {
     _myId = myId;
+    if (kIsWeb) return 0;
     try {
-      _serverSocket = await ServerSocket.bind(InternetAddress.anyIPv4, 0);
-      _port = _serverSocket!.port;
-      debugPrint('🟢 LAN Server listening on port $_port');
+      _httpServer = await HttpServer.bind(InternetAddress.anyIPv4, AppConstants.lanServerPort);
+      _port = _httpServer!.port;
+      debugPrint('🟢 LAN WebSocket Server listening on port $_port');
       
-      _serverSocket!.listen((Socket socket) {
-        debugPrint('🤝 Inbound connection from ${socket.remoteAddress.address}');
-        _handleSocket(socket);
+      _httpServer!.listen((HttpRequest request) async {
+        if (WebSocketTransformer.isUpgradeRequest(request)) {
+           final socket = await WebSocketTransformer.upgrade(request);
+           debugPrint('🤝 Inbound WebSocket connection from ${request.connectionInfo?.remoteAddress.address}');
+           _handleSocket(socket);
+        }
       });
       return _port;
     } catch (e) {
-      debugPrint('🔴 Failed to start LAN Server: $e');
+      debugPrint('🔴 Failed to start LAN WebSocket Server: $e');
       return 0;
     }
   }
 
   Future<bool> connectToPeer(String peerId, String ipAddress, int port) async {
+    if (kIsWeb) return false;
     if (_activeSockets.containsKey(peerId)) {
       debugPrint('Already connected to $peerId over LAN');
       return true;
     }
 
     try {
-      debugPrint('🔄 Attempting LAN connection to $ipAddress:$port');
-      final socket = await Socket.connect(ipAddress, port, timeout: AppConstants.webrtcSignalingTimeout);
+      debugPrint('🔄 Attempting LAN WebSocket connection to ws://$ipAddress:$port');
+      final socket = await WebSocket.connect('ws://$ipAddress:$port')
+          .timeout(AppConstants.webrtcSignalingTimeout);
       
       // Handshake: tell the other peer who we are
-      socket.writeln(jsonEncode({'type': 'handshake', 'peerId': _myId}));
+      socket.add(jsonEncode({'type': 'handshake', 'peerId': _myId}));
       
       _activeSockets[peerId] = socket;
       _handleSocket(socket, peerId: peerId);
@@ -77,54 +84,44 @@ class LanMessenger {
     }
   }
 
-  void _handleSocket(Socket socket, {String? peerId}) {
-    String buffer = '';
-    
-    socket.listen((List<int> data) {
-      final String decodedData = utf8.decode(data);
-      buffer += decodedData;
+  void _handleSocket(WebSocket socket, {String? peerId}) {
+    socket.listen((dynamic data) {
+      if (data is! String) return;
       
-      final messages = buffer.split('\n');
-      buffer = messages.removeLast(); 
-      
-      for (final jsonStr in messages) {
-        if (jsonStr.trim().isEmpty) continue;
+      try {
+        final decoded = jsonDecode(data);
+        final type = decoded['type'];
         
-        try {
-          final decoded = jsonDecode(jsonStr);
-          final type = decoded['type'];
+        if (type == 'handshake') {
+          final remoteId = decoded['peerId'];
+          _activeSockets[remoteId] = socket;
+          if (!_connectionStatus.isClosed) _connectionStatus.add('LAN Connected to $remoteId');
+          debugPrint('🤝 Handshake complete with $remoteId');
+        } else if (type == 'p2p_message') {
+          final msg = Message.fromJson(decoded['payload']);
+          msg.networkSenderId = _getPeerId(socket);
+          if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
           
-          if (type == 'handshake') {
-            final remoteId = decoded['peerId'];
-            _activeSockets[remoteId] = socket;
-            if (!_connectionStatus.isClosed) _connectionStatus.add('LAN Connected to $remoteId');
-            debugPrint('🤝 Handshake complete with $remoteId');
-          } else if (type == 'p2p_message') {
-            final msg = Message.fromJson(decoded['payload']);
-            msg.networkSenderId = _getPeerId(socket);
-            if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
-            
-            // Auto-send delivery receipt
-            final remoteId = msg.networkSenderId ?? msg.senderId;
-            _sendPayload(remoteId, {
-              'type': 'delivery_receipt',
-              'messageId': msg.id,
-              'peerId': _myId,
-            });
-            debugPrint('📨 Received LAN message from ${msg.senderId}');
-          } else if (type == 'delivery_receipt') {
-            if (!_deliveryReceipts.isClosed) _deliveryReceipts.add(decoded);
-          } else if (type == 'read_receipt') {
-            if (!_readReceipts.isClosed) _readReceipts.add(decoded);
-          } else if (type == 'typing') {
-            if (!_typingIndicators.isClosed) _typingIndicators.add(decoded['peerId']);
-          } else {
-            // Forward any other custom data (like call signaling) to the data stream
-            if (!_dataMessages.isClosed) _dataMessages.add(decoded as Map<String, dynamic>);
-          }
-        } catch (e) {
-          debugPrint('Error parsing LAN message: $e');
+          // Auto-send delivery receipt
+          final remoteId = msg.networkSenderId ?? msg.senderId;
+          _sendPayload(remoteId, {
+            'type': 'delivery_receipt',
+            'messageId': msg.id,
+            'peerId': _myId,
+          });
+          debugPrint('📨 Received LAN message from ${msg.senderId}');
+        } else if (type == 'delivery_receipt') {
+          if (!_deliveryReceipts.isClosed) _deliveryReceipts.add(decoded);
+        } else if (type == 'read_receipt') {
+          if (!_readReceipts.isClosed) _readReceipts.add(decoded);
+        } else if (type == 'typing') {
+          if (!_typingIndicators.isClosed) _typingIndicators.add(decoded['peerId']);
+        } else {
+          // Forward any other custom data (like call signaling or WebRTC handshake) to the data stream
+          if (!_dataMessages.isClosed) _dataMessages.add(decoded as Map<String, dynamic>);
         }
+      } catch (e) {
+        debugPrint('Error parsing LAN message: $e');
       }
     }, onDone: () {
       debugPrint('🛑 LAN Socket closed for ${_getPeerId(socket)}');
@@ -135,21 +132,20 @@ class LanMessenger {
     });
   }
 
-  String _getPeerId(Socket socket) {
+  String _getPeerId(WebSocket socket) {
     return _activeSockets.entries
         .firstWhere((e) => e.value == socket, orElse: () => MapEntry('unknown', socket))
         .key;
   }
 
-  void _removeSocket(Socket socket) {
+  void _removeSocket(WebSocket socket) {
     _activeSockets.removeWhere((key, value) => value == socket);
   }
 
   bool _sendPayload(String peerId, Map<String, dynamic> payload) {
     final socket = _activeSockets[peerId];
-    if (socket != null) {
-      socket.writeln(jsonEncode(payload));
-      socket.flush();
+    if (socket != null && socket.readyState == WebSocket.open) {
+      socket.add(jsonEncode(payload));
       return true;
     }
     return false;
@@ -187,9 +183,9 @@ class LanMessenger {
   }
 
   void dispose() {
-    _serverSocket?.close();
+    _httpServer?.close(force: true);
     for (final socket in _activeSockets.values) {
-      socket.destroy();
+      socket.close();
     }
     _activeSockets.clear();
     _incomingMessages.close();
@@ -198,6 +194,22 @@ class LanMessenger {
     _readReceipts.close();
     _typingIndicators.close();
     _dataMessages.close();
+  }
+
+  Future<String?> getLocalIp() async {
+    if (kIsWeb) return null;
+    try {
+      for (var interface in await NetworkInterface.list()) {
+        for (var addr in interface.addresses) {
+          if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
+            return addr.address;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting IP: $e');
+    }
+    return null;
   }
 }
 

@@ -10,6 +10,7 @@ import 'package:abyss_chat/features/chat/presentation/screens/chat_screen.dart';
 import 'package:abyss_chat/network/peerdart_service.dart';
 import 'package:abyss_chat/network/lan_messenger.dart';
 import 'package:abyss_chat/network/notification_service.dart';
+import 'package:abyss_chat/network/local_webrtc_service.dart';
 import 'package:abyss_chat/features/calling/domain/call_controller.dart';
 // removed
 import 'dart:io';
@@ -25,6 +26,14 @@ final lanMessengerProvider = Provider<LanMessenger>((ref) {
   final service = LanMessenger();
   ref.onDispose(() => service.dispose());
   return service;
+});
+
+final localWebrtcServiceProvider = Provider<LocalWebrtcService>((ref) {
+  final lanMessenger = ref.read(lanMessengerProvider);
+  return LocalWebrtcService(
+    lanMessenger,
+    () => ref.read(chatThreadsProvider.notifier).myId ?? 'unknown',
+  );
 });
 
 final peerServiceProvider = Provider<PeerDartService>((ref) {
@@ -74,6 +83,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     
     final sub1 = lan.onMessageReceived.listen(_handleIncomingMessage);
     final sub2 = peer.onMessageReceived.listen(_handleIncomingMessage);
+    final subWebrtc = ref.read(localWebrtcServiceProvider).onMessageReceived.listen(_handleIncomingMessage);
     
     final sub3 = lan.onDeliveryReceipt.listen(_handleDeliveryReceipt);
     final sub4 = peer.onDeliveryReceipt.listen(_handleDeliveryReceipt);
@@ -88,10 +98,6 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     void handleTunneledSignal(Map<String, dynamic> data) {
       if (data['type'] == 'activity_sync') {
         _handleActivitySync(data);
-      } else if (data['type'] == 'reverse_connect_request') {
-        final peerId = data['peerId'] as String;
-        debugPrint('📞 Received reverse connect request from $peerId. I will act as the host!');
-        connectToPeer(peerId, isReverseConnect: true);
       }
     }
     
@@ -103,14 +109,29 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       _flushAllPendingQueues();
     });
     
+    // Auto-persist mDNS scanned peers
+    ref.listen<List<User>>(nearbyPeersProvider, (previous, next) {
+      final blockedList = ref.read(blockedContactsProvider).value ?? [];
+      for (final peer in next) {
+        if (!blockedList.contains(peer.id)) {
+          ref.read(contactsProvider.notifier).upsertContact(peer);
+        }
+      }
+    });
+    
     ref.onDispose(() {
-      sub1.cancel(); sub2.cancel(); sub3.cancel(); sub4.cancel();
+      sub1.cancel(); sub2.cancel(); subWebrtc.cancel(); sub3.cancel(); sub4.cancel();
       sub5.cancel(); sub6.cancel(); sub7.cancel(); sub8.cancel();
       sub9.cancel(); sub10.cancel();
       _retryTimer?.cancel();
     });
 
-    return await storage.loadThreads();
+    final loadedThreads = await storage.loadThreads();
+    final cleanThreads = loadedThreads.where((t) => !t.id.startsWith('{')).toList();
+    if (cleanThreads.length != loadedThreads.length) {
+      storage.saveThreads(cleanThreads);
+    }
+    return cleanThreads;
   }
   
   void _flushAllPendingQueues() {
@@ -270,12 +291,14 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         'avatarIcon': myProfile.avatarIcon,
         'avatarColor': myProfile.avatarColor,
         'profileImageBase64': imageBase64,
+        'profileUpdatedAt': myProfile.profileUpdatedAt?.toIso8601String(),
       });
     } else if (_myName != null) {
       ref.read(peerServiceProvider).sendProfileSync(peerId, {
         'name': _myName,
         'avatarIcon': 0xe491,
         'avatarColor': 0xFF6750A4,
+        'profileUpdatedAt': DateTime.now().toIso8601String(),
       });
     }
     _flushAllPendingQueues();
@@ -296,6 +319,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       avatarIcon: profile['avatarIcon'],
       avatarColor: profile['avatarColor'],
       profileImagePath: localImagePath,
+      profileUpdatedAt: profile['profileUpdatedAt'] != null ? DateTime.tryParse(profile['profileUpdatedAt']) : null,
     );
     
     final blockedList = await ref.read(blockedContactsProvider.future);
@@ -308,7 +332,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     
     if (isKnownContact) {
       // Update contact info without triggering the accept loop
-      ref.read(contactsProvider.notifier).addContact(newUser);
+      ref.read(contactsProvider.notifier).upsertContact(newUser);
       return;
     }
     
@@ -354,7 +378,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
 
   void _acceptPeer(User user) {
     _pendingInvites.remove(user.id);
-    ref.read(contactsProvider.notifier).addContact(user);
+    ref.read(contactsProvider.notifier).upsertContact(user);
     
     if (state.hasValue) {
       final threads = List<ChatThread>.from(state.value!);
@@ -413,38 +437,38 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     }
   }
 
-  Future<void> connectToPeer(String peerId, {bool isReverseConnect = false}) async {
+  Future<void> connectToPeer(String peerId) async {
     final now = DateTime.now();
     if (_lastConnectAttempt.containsKey(peerId)) {
       final diff = now.difference(_lastConnectAttempt[peerId]!);
       if (diff.inSeconds < 3) return;
     }
     _lastConnectAttempt[peerId] = now;
-    if (!isReverseConnect) _initiatedConnections.add(peerId);
+    _initiatedConnections.add(peerId);
     
-    // Reverse-Host: Ask the peer to connect to us to punch through mDNS/Firewalls
-    // Only Web needs to ask the other peer to connect because Web obfuscates local IPs with mDNS.
-    String? metadata;
-    if (!isReverseConnect && kIsWeb) {
-      metadata = jsonEncode({
-        'urgent_signal': {
-          'type': 'reverse_connect_request',
-          'peerId': myId ?? 'unknown',
-        }
-      });
-    }
-    
-    ref.read(peerServiceProvider).connectToPeer(peerId, metadata: metadata);
+    ref.read(peerServiceProvider).connectToPeer(peerId);
     
     final mdnsPeers = ref.read(nearbyPeersProvider);
-    final lanPeer = mdnsPeers.where((p) => p.id == peerId).firstOrNull;
+    var lanPeer = mdnsPeers.where((p) => p.id == peerId).firstOrNull;
+    
+    if (lanPeer == null || lanPeer.ipAddress == null) {
+      final contacts = ref.read(contactsProvider).value ?? [];
+      lanPeer = contacts.where((c) => c.id == peerId).firstOrNull;
+    }
+
     if (lanPeer != null && lanPeer.ipAddress != null && lanPeer.port != null) {
-      await ref.read(lanMessengerProvider).connectToPeer(peerId, lanPeer.ipAddress!, lanPeer.port!);
+      final success = await ref.read(lanMessengerProvider).connectToPeer(peerId, lanPeer.ipAddress!, lanPeer.port!);
+      if (success) {
+        ref.read(localWebrtcServiceProvider).connectData(peerId);
+      }
     }
   }
 
   bool _trySend(String targetId, Message message) {
     bool sent = ref.read(lanMessengerProvider).sendMessage(targetId, message);
+    if (!sent) {
+      sent = ref.read(localWebrtcServiceProvider).sendMessage(targetId, message);
+    }
     if (!sent) {
       sent = ref.read(peerServiceProvider).sendMessage(targetId, message);
     }
@@ -459,6 +483,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     final storage = ref.read(storageServiceProvider);
     String? finalImagePath;
     String? username;
+    DateTime updateTime = DateTime.now();
     if (newImagePath != null) {
       finalImagePath = newImagePath;
     } else if (removeImage) {
@@ -468,7 +493,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       finalImagePath = oldProfile?['profileImagePath'];
       username = oldProfile?['username'];
     }
-    await storage.saveUserProfile(myId ?? '', name, username: username, avatarIcon: iconCodePoint, avatarColor: colorValue, profileImagePath: finalImagePath);
+    await storage.saveUserProfile(myId ?? '', name, username: username, avatarIcon: iconCodePoint, avatarColor: colorValue, profileImagePath: finalImagePath, profileUpdatedAt: updateTime);
     _myName = name;
     final mdnsNotifier = ref.read(nearbyPeersProvider.notifier);
     await mdnsNotifier.startBroadcasting(myId ?? 'unknown', name, username: username);
@@ -491,6 +516,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         'avatarIcon': iconCodePoint, 
         'avatarColor': colorValue,
         'profileImageBase64': imageBase64,
+        'profileUpdatedAt': updateTime.toIso8601String(),
       };
       for (final thread in state.value!) {
         if (!thread.isGroup) ref.read(peerServiceProvider).sendProfileSync(thread.id, profileData);

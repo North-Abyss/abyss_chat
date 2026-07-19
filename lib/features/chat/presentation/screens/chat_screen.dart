@@ -676,18 +676,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ],
             ),
-      floatingActionButton: _showScrollToBottom
-          ? FloatingActionButton.small(
-              onPressed: () {
-                _scrollController.animateTo(
-                  0.0,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOut,
-                );
-              },
-              child: const Icon(Icons.arrow_downward),
-            )
-          : null,
       body: Stack(
         children: [
           Column(
@@ -998,12 +986,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       // Input Bar
           if (!_isSelectionMode)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              decoration: BoxDecoration(
-                color: cs.surface,
-                border: Border(top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.2))),
-              ),
-              child: SafeArea(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    border: Border(top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.2))),
+                  ),
+                  child: SafeArea(
                 child: Row(
                   children: [
                     Expanded(
@@ -1094,8 +1082,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ),
             ),
-            ],
-          ),
+      ],
+    ),
+          
+          // Scroll to bottom button
+          if (_showScrollToBottom)
+            Positioned(
+              right: 16,
+              bottom: _isSelectionMode ? 16 : 80, // Above the input bar
+              child: FloatingActionButton.small(
+                onPressed: () {
+                  _scrollController.animateTo(
+                    0.0,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  );
+                },
+                child: const Icon(Icons.arrow_downward),
+              ),
+            ),
           
           // Floating Emoji Picker
           if (_showEmojiPicker)

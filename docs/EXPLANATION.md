@@ -55,8 +55,8 @@ graph TD
 - The data flows directly between the two devices. If the signaling server goes down after the connection is made, the chat/call will continue uninterrupted.
 
 ### Q: How do you handle local network discovery without an internet connection?
-**A:** If users are on the same Wi-Fi network but have no internet access, WebRTC signaling won't work. To solve this, we implemented the `lan_messenger` and `mdns_service`. 
-The app broadcasts an mDNS (Multicast DNS) service on the local network (`_abysschat._tcp`). When another device on the network detects this broadcast, it parses the IP and Port, and connects directly via a raw TCP Socket.
+**A:** If users are on the same Wi-Fi network but have no internet access, cloud WebRTC signaling won't work. To solve this, we implemented the `lan_messenger` which runs a native **TCP/WebSocket Server** on the Android/Desktop host. 
+The app broadcasts an mDNS (Multicast DNS) service on the local network (`_abysschat._tcp`). For Web clients (which cannot read mDNS), the local IP and Port are embedded in the user's QR code. When a Web client scans the QR, it opens a direct WebSocket connection to the Android host, bypassing the cloud to perform an instantaneous, 100% offline WebRTC handshake!
 
 ### Q: How is data privacy and security enforced?
 **A:** Security is handled in two primary ways:

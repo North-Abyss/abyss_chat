@@ -16,6 +16,7 @@ import 'package:abyss_chat/core/widgets/user_search_delegate.dart';
 import 'package:abyss_chat/features/qr/presentation/screens/qr_scan_screen.dart';
 import 'package:abyss_chat/features/qr/presentation/screens/my_qr_screen.dart';
 import 'package:abyss_chat/features/contacts/presentation/screens/contacts_screen.dart';
+import 'package:abyss_chat/features/contacts/domain/models/user.dart';
 
 
 class HomeScreen extends ConsumerWidget {
@@ -261,7 +262,29 @@ class HomeScreen extends ConsumerWidget {
                     ref.read(chatThreadsProvider.notifier).joinGroup(groupId, groupName, null);
                     threadIdToOpen = groupId;
                   } else {
-                    ref.read(chatThreadsProvider.notifier).startNewChat(result, peerName: 'Scanned Peer');
+                    // Manual P2P QR payload
+                    final peerId = decoded['id'] as String;
+                    final ip = decoded['ip'] as String?;
+                    final port = decoded['port'] as int?;
+                    
+                    if (ip != null && port != null) {
+                      // Add to mDNS provider manually to trigger local routing
+                      final manualPeer = User(
+                        id: peerId,
+                        name: 'Scanned Peer',
+                        ipAddress: ip,
+                        port: port,
+                        avatarIcon: 0xe491,
+                        avatarColor: 0xFF6750A4,
+                      );
+                      ref.read(nearbyPeersProvider.notifier).addManualPeer(manualPeer);
+                      
+                      // Pre-connect LAN socket
+                      ref.read(lanMessengerProvider).connectToPeer(peerId, ip, port);
+                    }
+                    
+                    ref.read(chatThreadsProvider.notifier).startNewChat(peerId, peerName: 'Scanned Peer');
+                    threadIdToOpen = peerId;
                   }
                 } catch (e) {
                   // Not JSON, assume direct Peer ID
@@ -329,9 +352,10 @@ class HomeScreen extends ConsumerWidget {
         data: (threads) {
           if (threads.isEmpty) {
             return Center(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(32.0),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
