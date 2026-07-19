@@ -271,6 +271,10 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
 
   void _handleConnectionOpened(String peerId) async {
     final myProfile = await ref.read(myProfileProvider.future);
+    final messenger = ref.read(lanMessengerProvider);
+    final localIp = await messenger.getLocalIp();
+    final localPort = messenger.serverPort;
+
     if (myProfile != null) {
       String? imageBase64;
       if (myProfile.profileImagePath != null) {
@@ -292,6 +296,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         'avatarColor': myProfile.avatarColor,
         'profileImageBase64': imageBase64,
         'profileUpdatedAt': myProfile.profileUpdatedAt?.toIso8601String(),
+        if (localIp != null) 'ipAddress': localIp,
+        if (localPort != null) 'port': localPort,
       });
     } else if (_myName != null) {
       ref.read(peerServiceProvider).sendProfileSync(peerId, {
@@ -299,6 +305,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         'avatarIcon': 0xe491,
         'avatarColor': 0xFF6750A4,
         'profileUpdatedAt': DateTime.now().toIso8601String(),
+        if (localIp != null) 'ipAddress': localIp,
+        if (localPort != null) 'port': localPort,
       });
     }
     _flushAllPendingQueues();
@@ -320,6 +328,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       avatarColor: profile['avatarColor'],
       profileImagePath: localImagePath,
       profileUpdatedAt: profile['profileUpdatedAt'] != null ? DateTime.tryParse(profile['profileUpdatedAt']) : null,
+      ipAddress: profile['ipAddress'],
+      port: profile['port'],
     );
     
     final blockedList = await ref.read(blockedContactsProvider.future);

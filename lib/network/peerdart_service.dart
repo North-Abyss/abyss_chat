@@ -197,6 +197,10 @@ class PeerDartService {
 
   void connectToPeer(String peerId, {dynamic metadata}) {
     if (_peer == null) return;
+    if (peerId == _myId) {
+      debugPrint('⚠️ Refusing to connect to self ($peerId).');
+      return;
+    }
 
     if (_peer!.disconnected || _peer!.destroyed) {
        debugPrint('Peer is disconnected or destroyed. Re-initializing...');
