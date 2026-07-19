@@ -70,6 +70,9 @@ class ContactsNotifier extends AsyncNotifier<List<User>> {
     
     // Also delete chat thread history
     ref.read(chatThreadsProvider.notifier).deleteThread(id);
+    
+    // Add to deleted contacts so mDNS doesn't auto-re-add them
+    ref.read(deletedContactsProvider.notifier).markDeleted(id);
   }
 
   void blockContact(String id) {
@@ -77,6 +80,25 @@ class ContactsNotifier extends AsyncNotifier<List<User>> {
     deleteContact(id); // Blocking also removes from contacts and deletes thread
   }
 }
+
+class DeletedContactsNotifier extends AsyncNotifier<List<String>> {
+  @override
+  Future<List<String>> build() async {
+    return await ref.watch(storageServiceProvider).loadDeletedPeers();
+  }
+
+  void markDeleted(String id) {
+    if (!state.hasValue) return;
+    final deleted = List<String>.from(state.value!);
+    if (!deleted.contains(id)) {
+      deleted.add(id);
+      state = AsyncData(deleted);
+      ref.read(storageServiceProvider).saveDeletedPeers(deleted);
+    }
+  }
+}
+
+final deletedContactsProvider = AsyncNotifierProvider<DeletedContactsNotifier, List<String>>(() => DeletedContactsNotifier());
 
 class BlockedContactsNotifier extends AsyncNotifier<List<String>> {
   @override

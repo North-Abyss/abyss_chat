@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/app/gif_provider.dart';
-
+import 'package:url_launcher/url_launcher.dart';
 class GifPickerSheet extends ConsumerStatefulWidget {
   final Function(String) onGifSelected;
   const GifPickerSheet({super.key, required this.onGifSelected});
@@ -128,9 +128,44 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
 
   Widget _buildGifGrid(List<String> urls, List<String> favorites, {bool isFavoritesTab = false, bool isSearchTab = false}) {
     if (urls.isEmpty) {
+      if (isSearchTab) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'API Search is disabled due to rate limits.',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Copy a GIF link from the web and paste it above!',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.open_in_browser),
+                    label: const Text('Open Giphy'),
+                    onPressed: () => launchUrl(Uri.parse('https://giphy.com')),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.open_in_browser),
+                    label: const Text('Open Tenor'),
+                    onPressed: () => launchUrl(Uri.parse('https://tenor.com')),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }
       return Center(
         child: Text(
-          isSearchTab ? 'Search for GIFs to see results.' : (isFavoritesTab ? 'No favorites yet.' : 'No recent GIFs.'),
+          isFavoritesTab ? 'No favorites yet.' : 'No recent GIFs.',
           style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       );

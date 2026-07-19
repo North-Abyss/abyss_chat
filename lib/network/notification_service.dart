@@ -3,6 +3,7 @@ import 'package:abyss_chat/features/calling/domain/call_controller.dart';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart'; // Add this for kIsWeb
+import 'dart:io' show Platform;
 import 'package:abyss_chat/features/settings/domain/settings_controller.dart';
 import 'package:abyss_chat/core/utils/shared_prefs_helper.dart';
 import 'package:abyss_chat/network/web_notification.dart'; // Add conditional import
@@ -26,13 +27,22 @@ class NotificationService {
     await _plugin.initialize(
       settings: initSettings,
     );
+    
+    if (!kIsWeb) {
+      if (Platform.isAndroid) {
+        await _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+      } else if (Platform.isIOS) {
+        await _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()?.requestPermissions(alert: true, badge: true, sound: true);
+      }
+    }
+    
     _initialized = true;
   }
 
   static void showMessageNotification(String title, String body, {VoidCallback? onTap, bool inAppOnly = false}) async {
     final prefs = await SharedPrefsHelper.instance;
     final systemEnabled = prefs.getBool('systemNotificationsEnabled') ?? true;
-    final inAppEnabled = prefs.getBool('inAppNotificationsEnabled') ?? kIsWeb;
+    final inAppEnabled = prefs.getBool('inAppNotificationsEnabled') ?? true;
     final positionStr = prefs.getString('notificationPosition') ?? 'top';
     final position = positionStr == 'bottom' ? NotificationPosition.bottom : NotificationPosition.top;
 

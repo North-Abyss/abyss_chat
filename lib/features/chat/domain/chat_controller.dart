@@ -9,6 +9,7 @@
 // ==========================================
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/features/chat/domain/models/chat_thread.dart';
@@ -107,6 +108,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     void handleTunneledSignal(Map<String, dynamic> data) {
       if (data['type'] == 'activity_sync') {
         _handleActivitySync(data);
+      } else if (data['type'] == 'history_sync') {
+        _handleHistorySync(data);
       }
     }
     
@@ -121,8 +124,9 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     // Auto-persist mDNS scanned peers
     ref.listen<List<User>>(nearbyPeersProvider, (previous, next) {
       final blockedList = ref.read(blockedContactsProvider).value ?? [];
+      final deletedList = ref.read(deletedContactsProvider).value ?? [];
       for (final peer in next) {
-        if (!blockedList.contains(peer.id)) {
+        if (!blockedList.contains(peer.id) && !deletedList.contains(peer.id)) {
           ref.read(contactsProvider.notifier).upsertContact(peer);
         }
       }
@@ -318,6 +322,26 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         'port': localPort,
       });
     }
+    
+    // Send history sync (last 10 messages)
+    if (state.hasValue) {
+      final thread = state.value!.where((t) => t.id == peerId).firstOrNull;
+      if (thread != null && thread.messages.isNotEmpty) {
+        final messagesToSend = thread.messages.skip(math.max(0, thread.messages.length - 10)).map((m) {
+          final json = m.toJson();
+          json.remove('fileData'); // Strip heavy base64 strings
+          return json;
+        }).toList();
+        
+        final payload = {
+          'type': 'history_sync',
+          'threadId': peerId,
+          'messages': messagesToSend,
+        };
+        ref.read(peerServiceProvider).sendUrgentSignal(peerId, payload);
+      }
+    }
+    
     _flushAllPendingQueues();
   }
 
@@ -652,6 +676,57 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   void _trySendSyncPayload(String targetId, Map<String, dynamic> payload) {
     if (!ref.read(lanMessengerProvider).sendCustomData(targetId, payload)) {
       ref.read(peerServiceProvider).sendCustomData(targetId, payload);
+    }
+  }
+  
+  void _handleHistorySync(Map<String, dynamic> data) {
+    if (!state.hasValue) return;
+    final threadId = data['threadId'] as String;
+    final messagesRaw = data['messages'] as List<dynamic>;
+    if (messagesRaw.isEmpty) return;
+    
+    final incomingMessages = messagesRaw.map((m) => Message.fromJson(m as Map<String, dynamic>)).toList();
+    
+    final threads = List<ChatThread>.from(state.value!);
+    final tIdx = threads.indexWhere((t) => t.id == threadId);
+    
+    if (tIdx != -1) {
+      final thread = threads[tIdx];
+      final combinedMap = { for (var m in thread.messages) m.id: m };
+      
+      bool updated = false;
+      for (final inc in incomingMessages) {
+        if (!combinedMap.containsKey(inc.id)) {
+          combinedMap[inc.id] = inc;
+          updated = true;
+        }
+      }
+      
+      if (updated) {
+        final combinedList = combinedMap.values.toList()
+          ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          
+        threads[tIdx] = thread.copyWith(
+          messages: combinedList,
+        );
+        state = AsyncData(threads);
+        ref.read(storageServiceProvider).saveThreads(threads);
+      }
+    } else {
+      // Create new thread if missing (e.g. they sent messages while we were completely offline and deleted thread)
+      final sorted = incomingMessages..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      final contacts = ref.read(contactsProvider).value ?? [];
+      final peer = contacts.where((c) => c.id == threadId).firstOrNull ?? User(id: threadId, name: 'Unknown', avatarIcon: 0xe491, avatarColor: 0xFF6750A4);
+      final newThread = ChatThread(
+        id: threadId,
+        peer: peer,
+        isGroup: false,
+        members: [],
+        messages: sorted,
+      );
+      threads.insert(0, newThread);
+      state = AsyncData(threads);
+      ref.read(storageServiceProvider).saveThreads(threads);
     }
   }
   

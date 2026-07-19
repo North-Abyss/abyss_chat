@@ -145,8 +145,24 @@ class StorageService {
     }
   }
 
-  Future<void> saveBlockedPeers(List<String> blockedIds) async {
-    await _writeEncryptedFile(_blockedFile, jsonEncode(blockedIds));
+  Future<void> saveBlockedPeers(List<String> blocked) async {
+    await _writeEncryptedFile(_blockedFile, jsonEncode(blocked));
+  }
+  
+  Future<List<String>> loadDeletedPeers() async {
+    final data = await _readEncryptedFile('deleted_peers.json');
+    if (data == null) return [];
+    
+    try {
+      final List<dynamic> jsonList = jsonDecode(data);
+      return jsonList.cast<String>();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<void> saveDeletedPeers(List<String> deleted) async {
+    await _writeEncryptedFile('deleted_peers.json', jsonEncode(deleted));
   }
 
   // --- Call Logs ---

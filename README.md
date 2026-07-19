@@ -18,6 +18,9 @@ A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clo
 ## 📱 Features
 
 - **P2P Communication** - Uses WebRTC for true peer-to-peer data channels and audio/video calling (supports both 1-on-1 and Group Mesh calls).
+- **Offline Sync** - Securely synchronizes missed messages and call logs automatically upon reconnection.
+- **Call Logging** - Full integration of voice and video calls into standard chat threads.
+- **System Notifications** - Cross-platform notification support (Web APIs, Android/iOS Local Notifications) when the app is in the background.
 - **Mutual Contacts Only** - Strict privacy enforcement instantly rejects incoming connections from unknown peers not in your local contacts list.
 - **Local Network Discovery** - Uses mDNS (Multicast DNS) and LAN TCP sockets to find and connect to peers on the same local network, working completely offline.
 - **Material 3 Design** - Fully customized dynamic theming support with beautiful UI following Material 3 guidelines, including desktop/web responsive split-pane layouts.

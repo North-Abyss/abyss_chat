@@ -17,9 +17,9 @@ import 'package:abyss_chat/features/calling/presentation/screens/call_screen.dar
 import 'package:abyss_chat/features/chat/domain/chat_controller.dart';
 import 'package:abyss_chat/features/contacts/domain/contacts_controller.dart';
 import 'package:abyss_chat/network/mdns_service.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:abyss_chat/features/calling/domain/models/call_log.dart';
-
+import 'package:flutter_webrtc/flutter_webrtc.dart' hide MessageType;
+import 'package:abyss_chat/features/chat/domain/models/message.dart';
 // Global navigator key to insert the overlay anywhere
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -630,6 +630,24 @@ class CallNotifier extends Notifier<CallSession?> {
   }
 
   void endCall({bool local = true}) {
+    if (state != null) {
+      final chatController = ref.read(chatThreadsProvider.notifier);
+      final isMissed = state!.state != CallState.connected;
+      String callMessage;
+      if (isMissed) {
+        callMessage = state!.isVideo ? '📞 Missed Video Call' : '📞 Missed Voice Call';
+      } else {
+        final duration = state!.currentDuration ?? Duration.zero;
+        final minutes = duration.inMinutes.toString().padLeft(2, '0');
+        final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
+        callMessage = state!.isVideo ? '📞 Video Call Ended ($minutes:$seconds)' : '📞 Voice Call Ended ($minutes:$seconds)';
+      }
+      
+      for (final peer in state!.peers) {
+        chatController.sendMessage(peer.id, callMessage, type: MessageType.system);
+      }
+    }
+
     if (local && state != null) {
       final peerService = ref.read(peerServiceProvider);
       for (final peer in state!.peers) {
