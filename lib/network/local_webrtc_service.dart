@@ -1,3 +1,12 @@
+// ==========================================
+// Abyss Chat - Local WebRTC Service
+// ==========================================
+// Version: 1.2.0
+// Description: 
+//   Manages robust WebRTC P2P connections over the Local Area Network,
+//   bypassing external signaling servers entirely. Handles ultra high-bandwidth 
+//   video and audio media streams directly between devices.
+// ==========================================
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';

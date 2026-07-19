@@ -1,3 +1,12 @@
+// ==========================================
+// Abyss Chat - PeerDart Service (Global WebRTC)
+// ==========================================
+// Version: 1.2.0
+// Description: 
+//   Manages robust WebRTC P2P connections over the internet using STUN/TURN
+//   servers. This serves as the fallback/global communication layer when 
+//   devices are not on the same local network.
+// ==========================================
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';

@@ -1,3 +1,12 @@
+// ==========================================
+// Abyss Chat - Chat Controller
+// ==========================================
+// Version: 1.2.0
+// Description: 
+//   The core state manager for all chat threads, messages, and contact sync.
+//   Orchestrates message routing between local LAN WebSockets and global 
+//   PeerDart connections for seamless P2P messaging.
+// ==========================================
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -296,8 +305,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         'avatarColor': myProfile.avatarColor,
         'profileImageBase64': imageBase64,
         'profileUpdatedAt': myProfile.profileUpdatedAt?.toIso8601String(),
-        if (localIp != null) 'ipAddress': localIp,
-        if (localPort != null) 'port': localPort,
+        'ipAddress': localIp,
+        'port': localPort,
       });
     } else if (_myName != null) {
       ref.read(peerServiceProvider).sendProfileSync(peerId, {
@@ -305,8 +314,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         'avatarIcon': 0xe491,
         'avatarColor': 0xFF6750A4,
         'profileUpdatedAt': DateTime.now().toIso8601String(),
-        if (localIp != null) 'ipAddress': localIp,
-        if (localPort != null) 'port': localPort,
+        'ipAddress': localIp,
+        'port': localPort,
       });
     }
     _flushAllPendingQueues();
@@ -343,6 +352,15 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     if (isKnownContact) {
       // Update contact info without triggering the accept loop
       ref.read(contactsProvider.notifier).upsertContact(newUser);
+      
+      // Update existing thread to refresh UI instantly
+      final threadIndex = threadsList.indexWhere((t) => t.id == peerId);
+      if (threadIndex != -1) {
+        final updatedThreads = List<ChatThread>.from(threadsList);
+        updatedThreads[threadIndex] = updatedThreads[threadIndex].copyWith(peer: newUser);
+        state = AsyncData(updatedThreads);
+        ref.read(storageServiceProvider).saveThreads(updatedThreads);
+      }
       return;
     }
     

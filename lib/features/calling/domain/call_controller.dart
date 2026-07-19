@@ -1,3 +1,12 @@
+// ==========================================
+// Abyss Chat - Call Controller
+// ==========================================
+// Version: 1.2.0
+// Description: 
+//   Manages Voice and Video Call states, handles WebRTC peer connections,
+//   negotiates media streams, and ensures flawless call synchronization
+//   between devices.
+// ==========================================
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';

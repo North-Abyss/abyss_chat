@@ -1,3 +1,12 @@
+// ==========================================
+// Abyss Chat - Local Area Network Messenger
+// ==========================================
+// Version: 1.2.0
+// Description: 
+//   High-performance WebSocket-based LAN messenger for instant P2P data
+//   exchange on the same Wi-Fi network. Bypasses external servers for 
+//   ultra-low latency and maximum privacy.
+// ==========================================
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
