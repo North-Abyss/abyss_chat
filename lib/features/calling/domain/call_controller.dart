@@ -7,8 +7,8 @@ import 'package:abyss_chat/features/contacts/domain/models/user.dart';
 import 'package:abyss_chat/features/calling/presentation/screens/call_screen.dart';
 import 'package:abyss_chat/features/chat/domain/chat_controller.dart';
 import 'package:abyss_chat/features/contacts/domain/contacts_controller.dart';
+import 'package:abyss_chat/network/mdns_service.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:peerdart/peerdart.dart';
 import 'package:abyss_chat/features/calling/domain/models/call_log.dart';
 
 // Global navigator key to insert the overlay anywhere
@@ -70,7 +70,7 @@ class CallNotifier extends Notifier<CallSession?> {
   final StreamController<Map<String, dynamic>> _reactionStreamController = StreamController.broadcast();
   Stream<Map<String, dynamic>> get reactionStream => _reactionStreamController.stream;
   
-  final Map<String, MediaConnection> _activeConnections = {};
+  final Map<String, dynamic> _activeConnections = {};
   final Map<String, RTCVideoRenderer> remoteRenderers = {};
   final Map<String, Map<String, bool>> remoteMediaStatus = {};
 
@@ -96,8 +96,11 @@ class CallNotifier extends Notifier<CallSession?> {
     Future.microtask(() {
       final peerService = ref.read(peerServiceProvider);
       final lanService = ref.read(lanMessengerProvider);
+      final localWebrtcService = ref.read(localWebrtcServiceProvider);
       
       peerService.onCallReceived.listen(_handleIncomingCall);
+      localWebrtcService.onCallReceived.listen(_handleIncomingCall);
+      
       peerService.onCallRequest.listen(_handleCallRequest);
       peerService.onCallEnded.listen(_handleCallEnded);
       peerService.onMediaStatus.listen(_handleMediaStatus);
@@ -158,10 +161,19 @@ class CallNotifier extends Notifier<CallSession?> {
     _playRingtone();
     
     try {
-      _localStream = await navigator.mediaDevices.getUserMedia({
-        'audio': true,
-        'video': isVideo ? (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) ? {'facingMode': 'user'} : true : false,
-      });
+      try {
+        _localStream = await navigator.mediaDevices.getUserMedia({
+          'audio': true,
+          'video': isVideo ? (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) ? {'facingMode': 'user'} : true : false,
+        });
+      } catch (videoError) {
+        debugPrint('Camera failed or locked. Falling back to Audio-only: $videoError');
+        _localStream = await navigator.mediaDevices.getUserMedia({
+          'audio': true,
+          'video': false,
+        });
+        state = state?.copyWith(isVideo: false); // Update state to audio-only
+      }
       localRenderer.srcObject = _localStream;
       
       final myProfile = ref.read(chatThreadsProvider.notifier).myName ?? 'Someone';
@@ -195,7 +207,7 @@ class CallNotifier extends Notifier<CallSession?> {
     }
   }
 
-  void _setupMediaConnection(String peerId, MediaConnection mediaConnection) {
+  void _setupMediaConnection(String peerId, dynamic mediaConnection) {
     _activeConnections[peerId] = mediaConnection;
     
     mediaConnection.on("stream").listen((remoteStream) async {
@@ -224,7 +236,7 @@ class CallNotifier extends Notifier<CallSession?> {
 
     // Monitor ICE connection state for drops
     final pc = mediaConnection.peerConnection;
-    if (pc != null) {
+    if (pc != null && pc is RTCPeerConnection) {
       pc.onIceConnectionState = (RTCIceConnectionState state) {
         if (state == RTCIceConnectionState.RTCIceConnectionStateFailed || 
             state == RTCIceConnectionState.RTCIceConnectionStateDisconnected ||
@@ -329,7 +341,7 @@ class CallNotifier extends Notifier<CallSession?> {
     _playRingtone();
   }
 
-  void _handleIncomingCall(MediaConnection mediaConnection) {
+  void _handleIncomingCall(dynamic mediaConnection) {
     final peerId = mediaConnection.peer;
     
     if (_activeConnections.containsKey(peerId)) {
@@ -398,20 +410,48 @@ class CallNotifier extends Notifier<CallSession?> {
     if (state == null) return;
     
     try {
-      _localStream = await navigator.mediaDevices.getUserMedia({
-        'audio': true,
-        'video': state!.isVideo ? (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) ? {'facingMode': 'user'} : true : false,
-      });
+      try {
+        _localStream = await navigator.mediaDevices.getUserMedia({
+          'audio': true,
+          'video': state!.isVideo ? (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) ? {'facingMode': 'user'} : true : false,
+        });
+      } catch (videoError) {
+        debugPrint('Camera failed or locked. Falling back to Audio-only: $videoError');
+        _localStream = await navigator.mediaDevices.getUserMedia({
+          'audio': true,
+          'video': false,
+        });
+        state = state?.copyWith(isVideo: false); // Update state to audio-only
+      }
       localRenderer.srcObject = _localStream;
       
       final peerService = ref.read(peerServiceProvider);
+      final localWebrtcService = ref.read(localWebrtcServiceProvider);
+      
       for (final peer in state!.peers) {
         if (_activeConnections.containsKey(peer.id)) {
           // Backward compatibility / simultaneous calls
           _activeConnections[peer.id]!.answer(_localStream!);
         } else {
           // FLIP THE HOST: The Callee initiates the stream!
-          final mediaConnection = peerService.makeCall(peer.id, _localStream!);
+          dynamic mediaConnection;
+          
+          final mdnsPeers = ref.read(nearbyPeersProvider);
+          var lanPeer = mdnsPeers.where((p) => p.id == peer.id).firstOrNull;
+          
+          if (lanPeer == null || lanPeer.ipAddress == null) {
+            final contacts = ref.read(contactsProvider).value ?? [];
+            lanPeer = contacts.where((c) => c.id == peer.id).firstOrNull;
+          }
+          
+          final isLocal = lanPeer != null && lanPeer.ipAddress != null;
+          
+          if (isLocal) {
+            mediaConnection = await localWebrtcService.makeCall(peer.id, _localStream!);
+          } else {
+            mediaConnection = peerService.makeCall(peer.id, _localStream!);
+          }
+          
           if (mediaConnection != null) {
             _setupMediaConnection(peer.id, mediaConnection);
           }

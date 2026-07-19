@@ -192,8 +192,8 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
               label: Text('${i+1}'),
               selected: false,
               onSelected: (_) {
-                Navigator.pop(context); // close dialog
-                Navigator.pop(context); // close sheet
+                Navigator.of(context, rootNavigator: true).pop(); // close dialog
+                Navigator.of(context).pop(); // close sheet
                 final rolls = List.generate(i+1, (_) => Random().nextInt(6) + 1);
                 final payload = jsonEncode({'activity': 'dice', 'rolls': rolls});
                 ref.read(chatThreadsProvider.notifier).sendMessage(threadId, '🎲 Rolled ${i+1} dice', type: MessageType.activity, fileData: payload);

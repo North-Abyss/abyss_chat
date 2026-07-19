@@ -23,16 +23,37 @@ class ContactsNotifier extends AsyncNotifier<List<User>> {
     return contacts;
   }
 
-  void addContact(User user) {
+  void upsertContact(User user) {
     if (!state.hasValue) return;
     final contacts = List<User>.from(state.value!);
-    if (!contacts.any((c) => c.id == user.id)) {
+    final idx = contacts.indexWhere((c) => c.id == user.id);
+    if (idx == -1) {
       contacts.add(user);
       state = AsyncData(contacts);
       ref.read(storageServiceProvider).saveContacts(contacts);
     } else {
-      final idx = contacts.indexWhere((c) => c.id == user.id);
-      if (contacts[idx].name != user.name || contacts[idx].avatarIcon != user.avatarIcon || contacts[idx].avatarColor != user.avatarColor) {
+      final existing = contacts[idx];
+      bool shouldUpdate = false;
+      
+      if (user.profileUpdatedAt != null) {
+        if (existing.profileUpdatedAt == null || user.profileUpdatedAt!.isAfter(existing.profileUpdatedAt!)) {
+          shouldUpdate = true;
+        }
+      } else {
+        if (existing.name != user.name || 
+            existing.avatarIcon != user.avatarIcon || 
+            existing.avatarColor != user.avatarColor || 
+            existing.profileImagePath != user.profileImagePath) {
+          shouldUpdate = true;
+        }
+      }
+
+      // Always update networking info if it changes, regardless of profile timestamp
+      if (existing.ipAddress != user.ipAddress || existing.port != user.port) {
+        shouldUpdate = true;
+      }
+
+      if (shouldUpdate) {
         contacts[idx] = user;
         state = AsyncData(contacts);
         ref.read(storageServiceProvider).saveContacts(contacts);

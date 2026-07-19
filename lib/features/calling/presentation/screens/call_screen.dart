@@ -571,18 +571,28 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       );
     }
 
-    // For multiple peers, use a Wrap
-    return SingleChildScrollView(
+    // For multiple peers, use a dynamic GridView
+    int crossAxisCount = count <= 2 ? 1 : (count <= 4 ? 2 : 3);
+    double aspectRatio = count <= 2 ? 1.5 : 1.0;
+
+    if (count == 2 && MediaQuery.of(context).size.width > 600) {
+      crossAxisCount = 2;
+      aspectRatio = 1.0;
+    }
+
+    return GridView.builder(
       padding: const EdgeInsets.all(8),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: renderers.entries.map((e) => SizedBox(
-          width: count == 2 ? MediaQuery.of(context).size.width / 2 - 12 : MediaQuery.of(context).size.width / 2 - 12,
-          height: 300,
-          child: buildContainer(e.key, e.value),
-        )).toList(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: aspectRatio,
       ),
+      itemCount: count,
+      itemBuilder: (context, index) {
+        final e = renderers.entries.elementAt(index);
+        return buildContainer(e.key, e.value);
+      },
     );
   }
 

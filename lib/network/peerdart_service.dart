@@ -66,16 +66,21 @@ class PeerDartService {
     if (_isDisposed) return;
     _myId = customId ?? const Uuid().v4();
     _isPeerOpen = false;
-    
-    // Inject reliable free TURN server (OpenRelay) to bypass strict NAT/Hairpinning
+    // Inject reliable free TURN/STUN servers to bypass strict NAT/Hairpinning
     // without requiring users to change browser mDNS flags
     final customConfig = {
       'iceServers': [
         {'urls': 'stun:stun.l.google.com:19302'},
         {'urls': 'stun:stun1.l.google.com:19302'},
-        {'urls': 'stun:stun2.l.google.com:19302'},
-        {'urls': 'stun:stun3.l.google.com:19302'},
-        {'urls': 'stun:stun4.l.google.com:19302'},
+        {
+          "urls": [
+            "turn:openrelay.metered.ca:80",
+            "turn:openrelay.metered.ca:443",
+            "turn:openrelay.metered.ca:443?transport=tcp"
+          ],
+          "username": "openrelayproject",
+          "credential": "openrelayproject",
+        },
       ],
       'sdpSemantics': 'unified-plan',
     };
@@ -103,6 +108,9 @@ class PeerDartService {
     _peer!.on("connection").listen((connection) {
       if (_isDisposed) return;
       final DataConnection conn = connection as DataConnection;
+      if (!_pendingConnections.contains(conn.peer) && !_activeConnections.containsKey(conn.peer)) {
+        _pendingConnections.add(conn.peer);
+      }
       _setupConnection(conn);
       
       // Process any urgent signals embedded in the connection metadata
@@ -157,9 +165,24 @@ class PeerDartService {
           if (_isDisposed) return;
           if (!_connectionStatus.isClosed) {
             _peer?.dispose();
+            if (kIsWeb) {
+              // Bypass zombie on Web by randomizing the ID so we can still connect out
+              _myId = '${_myId}_${DateTime.now().millisecondsSinceEpoch % 1000}';
+            }
             initialize(_myId); // Retry initialization
           }
         });
+      }
+      
+      // Handle peer unavailable errors clearing pending state
+      final errStr = err.toString();
+      if (errStr.contains('Could not connect to peer')) {
+        final parts = errStr.split('peer');
+        if (parts.length > 1) {
+          final failedPeerId = parts.last.trim();
+          _pendingConnections.remove(failedPeerId);
+          debugPrint('Cleared $failedPeerId from pending connections due to peer offline.');
+        }
       }
       
       Future.microtask(() {
@@ -200,11 +223,11 @@ class PeerDartService {
     }
 
     if (_activeConnections.containsKey(peerId)) {
-      if (_activeConnections[peerId]!.open) return;
-      // Gently remove stale connection without forcefully calling close()
-      // which prevents the "Bad State" StreamController crash in dart-webrtc.
-      _activeConnections.remove(peerId);
-      _cancelSubscriptions(peerId);
+      // If we already have a connection object (even if it's currently negotiating ICE),
+      // DO NOT overwrite it! This prevents Glare collisions where we instantly kill 
+      // an incoming connection just because we also want to send a message to them.
+      debugPrint('⏳ Connection with $peerId is already negotiating or open. Yielding.');
+      return;
     }
     
     if (_pendingConnections.contains(peerId)) {

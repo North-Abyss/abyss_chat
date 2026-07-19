@@ -523,12 +523,16 @@ class _DiceRollBubbleState extends State<DiceRollBubble> {
                   ],
                 ),
                 child: Center(
-                  child: Text(
-                    roll.toString(),
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: FittedBox(
+                      child: Text(
+                        roll.toString(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ),
                   ),
                 ),

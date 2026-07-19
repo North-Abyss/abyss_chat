@@ -127,6 +127,18 @@ class NearbyPeersNotifier extends Notifier<List<User>> {
       _discovery = null;
     }
   }
+  
+  void addManualPeer(User peer) {
+    if (!state.any((p) => p.id == peer.id)) {
+      state = [...state, peer];
+    } else {
+      // Update existing peer's IP and port if they changed
+      state = [
+        for (final p in state)
+          if (p.id == peer.id) peer else p
+      ];
+    }
+  }
 }
 
 final nearbyPeersProvider = NotifierProvider<NearbyPeersNotifier, List<User>>(() {

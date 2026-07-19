@@ -9,6 +9,7 @@ class User {
   final String? ipAddress;
   final int? port;
   final String? profileImagePath;
+  final DateTime? profileUpdatedAt;
 
   User({
     required this.id,
@@ -21,6 +22,7 @@ class User {
     this.ipAddress,
     this.port,
     this.profileImagePath,
+    this.profileUpdatedAt,
   });
 
   User copyWith({
@@ -34,6 +36,7 @@ class User {
     String? ipAddress,
     int? port,
     String? profileImagePath,
+    DateTime? profileUpdatedAt,
   }) {
     return User(
       id: id ?? this.id,
@@ -46,6 +49,7 @@ class User {
       ipAddress: ipAddress ?? this.ipAddress,
       port: port ?? this.port,
       profileImagePath: profileImagePath ?? this.profileImagePath,
+      profileUpdatedAt: profileUpdatedAt ?? this.profileUpdatedAt,
     );
   }
 
@@ -61,6 +65,7 @@ class User {
       ipAddress: json['ipAddress'],
       port: json['port'],
       profileImagePath: json['profileImagePath'],
+      profileUpdatedAt: json['profileUpdatedAt'] != null ? DateTime.parse(json['profileUpdatedAt']) : null,
     );
   }
 
@@ -76,6 +81,7 @@ class User {
       'ipAddress': ipAddress,
       'port': port,
       'profileImagePath': profileImagePath,
+      'profileUpdatedAt': profileUpdatedAt?.toIso8601String(),
     };
   }
 }

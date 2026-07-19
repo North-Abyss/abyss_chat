@@ -10,7 +10,7 @@
 
 # Abyss Chat - Agent Memory & Workspace Overview
 
-**Version:** 1.0.0
+**Version:** 1.4.0
 **Project Goal:** A cross-platform, decentralized P2P messaging and video calling application (WhatsApp-style) running on Flutter and Riverpod.
 
 | Field               | Value                                             |
@@ -18,7 +18,7 @@
 | **App Name**        | Abyss Chat                                        |
 | **Type**            | Cross-platform Flutter App (Teams/WhatsApp clone) |
 | **Hosting/Deploy**  | All Platforms (Android, iOS, Web, Desktop)        |
-| **Core Tech**       | Flutter, Dart, Riverpod, P2P Mesh, Local JSON     |
+| **Core Tech**       | Flutter, Dart, Riverpod, P2P Mesh, Local WebSockets |
 | **Repo Path**       | `/mnt/sda5/Projects/Flutter Projects/Com/abyss_chat`|
 | **Live Web App**    | [north-abyss.github.io/abyss_chat/](https://north-abyss.github.io/abyss_chat/) |
 | **GitHub Repo**     | [North-Abyss/abyss_chat](https://github.com/North-Abyss/abyss_chat) |
@@ -37,13 +37,15 @@ abyss_chat/
 │   ├── core/                 ← App-wide constants, themes, & shared widgets
 │   ├── features/             ← Feature modules (auth, calling, chat, contacts, groups, qr, settings)
 │   └── network/              ← Infrastructure services (WebRTC, LAN, Storage, Crypto)
+├── docs/                     ← Documentation and architecture deep dives
+│   ├── CHANGELOG.md              ← Log of releases and development sessions
+│   ├── EXPLANATION.md            ← Detailed technical explanation of the codebase
+│   ├── local_signaling_architecture.md ← Details on the v1.4.0 local offline handshakes
+│   ├── PRIVACY.md                ← Privacy policy and data handling details
+│   ├── RELEASE_NOTES.md          ← Notes for specific releases
+│   └── Ref.md                    ← Miscellaneous references
 ├── agent-memory.md           ← Persistent AI context tracking
-├── CHANGELOG.md              ← Log of releases and development sessions
-├── EXPLANATION.md            ← Detailed technical explanation of the codebase
-├── PRIVACY.md                ← Privacy policy and data handling details
-├── README.md                 ← Project setup and overview
-├── RELEASE_NOTES.md          ← Notes for specific releases
-└── Ref.md                    ← Miscellaneous references
+└── README.md                 ← Project setup and overview
 ```
 
 ### 1. `features/` (Feature Modules)

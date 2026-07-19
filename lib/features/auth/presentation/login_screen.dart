@@ -76,6 +76,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await storage.saveUserProfile(_myHash, name, username: username);
       
       await CryptoService.init(_myHash);
+      await storage.preloadCache();
       
       await ref.read(chatThreadsProvider.notifier).initializePeer(_myHash, name, username: username);
       

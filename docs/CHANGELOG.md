@@ -1,6 +1,11 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
+## [1.4.0] - 2026-07-19
+### Added
+- **100% Offline Local WebRTC**: Built a completely native Android TCP/WebSocket signaling server that bypasses PeerJS entirely. Flutter Web clients now connect directly to the Android device's local IP address via WebSockets, instantly bootstrapping a local WebRTC Data Channel without requiring internet, cloud servers, or strict router NAT hairpinning!
+
 ## [1.2.0] - 2026-07-10
 ### Changed
 - **Feature-First Architecture**: Completely restructured the codebase from a "Type-First" (`models/`, `screens/`, `providers/`) layout to an industry-standard "Feature-First" architecture. All code is now modularized under `lib/features/` (e.g., `chat`, `calling`, `contacts`), `lib/core/`, and `lib/network/`, drastically improving scalability and maintainability.
