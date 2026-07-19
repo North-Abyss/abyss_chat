@@ -17,7 +17,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:abyss_chat/features/calling/domain/call_controller.dart';
 import 'package:abyss_chat/app/gif_provider.dart';
 import 'package:flutter/services.dart';
-import 'package:abyss_chat/core/constants/app_constants.dart';
+
 
 // --- MAIN CHAT SCREEN WIDGET ---
 import 'package:flutter/foundation.dart';
@@ -32,7 +32,8 @@ import 'dart:math';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:just_audio/just_audio.dart';
-
+import 'package:abyss_chat/features/chat/presentation/widgets/audio_message_bubble.dart';
+import 'package:abyss_chat/features/chat/presentation/widgets/gif_player.dart';
 class ChatScreen extends ConsumerStatefulWidget {
   final String threadId;
   final bool isDesktop;
@@ -893,7 +894,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                         child: SizedBox.expand(
                                           child: msg.fileData != null && msg.fileData!.startsWith('http')
                                               ? (msg.fileData!.toLowerCase().endsWith('.gif') 
-                                                  ? _GifPlayer(url: msg.fileData!, fit: BoxFit.contain)
+                                                  ? GifPlayer(url: msg.fileData!, fit: BoxFit.contain)
                                                   : CachedNetworkImage(imageUrl: msg.fileData!, fit: BoxFit.contain))
                                               : msg.fileData != null && msg.fileData!.isNotEmpty
                                                   ? Image.memory(base64Decode(msg.fileData!), fit: BoxFit.contain)
@@ -916,7 +917,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                         children: [
                                           msg.fileData != null && msg.fileData!.startsWith('http')
                                               ? (msg.fileData!.toLowerCase().endsWith('.gif')
-                                                  ? _GifPlayer(url: msg.fileData!, fit: BoxFit.cover)
+                                                  ? GifPlayer(url: msg.fileData!, fit: BoxFit.cover)
                                                   : CachedNetworkImage(imageUrl: msg.fileData!, fit: BoxFit.cover))
                                               : msg.fileData != null && msg.fileData!.isNotEmpty
                                                   ? Image.memory(base64Decode(msg.fileData!), fit: BoxFit.cover)
@@ -1263,7 +1264,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     textEditingController: _textController,
                     config: Config(
                       height: 300,
-                      emojiViewConfig: EmojiViewConfig(backgroundColor: cs.surface),
+                      emojiTextStyle: const TextStyle(
+                        fontFamilyFallback: ['Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji'],
+                      ),
+                      emojiViewConfig: EmojiViewConfig(
+                        backgroundColor: cs.surface,
+                      ),
                       bottomActionBarConfig: BottomActionBarConfig(
                         showBackspaceButton: true,
                         showSearchViewButton: true,
@@ -1401,189 +1407,5 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     ref.read(callProvider.notifier).startCall(callPeers, isVideo, isGroup: thread.isGroup);
-  }
-}
-
-// --- AUDIO BUBBLE WIDGET ---
-class AudioMessageBubble extends StatefulWidget {
-  final Message msg;
-  final bool isMe;
-
-  const AudioMessageBubble({super.key, required this.msg, required this.isMe});
-
-  @override
-  State<AudioMessageBubble> createState() => _AudioMessageBubbleState();
-}
-
-class _AudioMessageBubbleState extends State<AudioMessageBubble> {
-  final _audioPlayer = AudioPlayer();
-  bool _isPlaying = false;
-  Duration _duration = Duration.zero;
-  Duration _position = Duration.zero;
-
-  @override
-  void initState() {
-    super.initState();
-    _initAudio();
-  }
-
-  Future<void> _initAudio() async {
-    try {
-      if (widget.msg.localFilePath != null && !kIsWeb) {
-        await _audioPlayer.setFilePath(widget.msg.localFilePath!);
-      } else if (widget.msg.fileData != null) {
-        if (kIsWeb) {
-          final dataUri = 'data:audio/mp4;base64,${widget.msg.fileData}';
-          await _audioPlayer.setUrl(dataUri);
-        } else {
-          final bytes = base64Decode(widget.msg.fileData!);
-          final dir = await getTemporaryDirectory();
-          final file = File('${dir.path}/${widget.msg.id}.m4a');
-          await file.writeAsBytes(bytes);
-          await _audioPlayer.setFilePath(file.path);
-        }
-      }
-      
-      _audioPlayer.durationStream.listen((d) {
-        if (mounted) setState(() => _duration = d ?? Duration.zero);
-      });
-      _audioPlayer.positionStream.listen((p) {
-        if (mounted) setState(() => _position = p);
-      });
-      _audioPlayer.playerStateStream.listen((state) {
-        if (mounted) setState(() => _isPlaying = state.playing);
-        if (state.processingState == ProcessingState.completed) {
-          _audioPlayer.seek(Duration.zero);
-          _audioPlayer.pause();
-        }
-      });
-    } catch (e) {
-      debugPrint('Error loading audio: $e');
-    }
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: widget.isMe ? cs.onPrimaryContainer : cs.onSurface),
-          onPressed: () {
-            if (_isPlaying) {
-              _audioPlayer.pause();
-            } else {
-              _audioPlayer.play();
-            }
-          },
-        ),
-        SizedBox(
-          width: 150,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: _position.inMilliseconds.toDouble()),
-            duration: const Duration(milliseconds: 200),
-            builder: (context, val, _) {
-              final maxVal = _duration.inMilliseconds.toDouble() > 0 ? _duration.inMilliseconds.toDouble() : 1.0;
-              return Slider(
-                value: val.clamp(0.0, maxVal),
-                max: maxVal,
-                onChanged: (newVal) {
-                  _audioPlayer.seek(Duration(milliseconds: newVal.toInt()));
-                },
-                activeColor: widget.isMe ? cs.onPrimaryContainer : cs.primary,
-                inactiveColor: widget.isMe ? cs.onPrimaryContainer.withValues(alpha: 0.3) : cs.primary.withValues(alpha: 0.3),
-              );
-            },
-          ),
-        ),
-        Text(
-          '${_position.inMinutes}:${(_position.inSeconds % 60).toString().padLeft(2, '0')}',
-          style: TextStyle(
-            fontSize: 10,
-            color: widget.isMe ? cs.onPrimaryContainer : cs.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// --- NATIVE GIF PLAYER WIDGET ---
-class _GifPlayer extends StatefulWidget {
-  final String url;
-  final BoxFit fit;
-
-  const _GifPlayer({required this.url, required this.fit});
-
-  @override
-  State<_GifPlayer> createState() => _GifPlayerState();
-}
-
-class _GifPlayerState extends State<_GifPlayer> {
-  bool _isPlaying = true;
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _startTimer();
-  }
-
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer(AppConstants.gifPauseDelay, () {
-      if (mounted) {
-        setState(() {
-          _isPlaying = false;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _isPlaying = !_isPlaying;
-          if (_isPlaying) {
-            _startTimer();
-          } else {
-            _timer?.cancel();
-          }
-        });
-      },
-      child: Stack(
-        fit: StackFit.passthrough,
-        alignment: Alignment.center,
-        children: [
-          _isPlaying
-              ? Image.network(widget.url, fit: widget.fit)
-              : CachedNetworkImage(imageUrl: widget.url, fit: widget.fit),
-          if (!_isPlaying)
-            Container(
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.black54,
-              ),
-              padding: const EdgeInsets.all(8),
-              child: const Icon(Icons.gif_box, color: Colors.white, size: 32),
-            ),
-        ],
-      ),
-    );
   }
 }

@@ -66,6 +66,7 @@ dependencies:
   http: ^1.6.0
   web_socket_channel: ^3.0.3
   animated_chat_record_button: ^0.0.4
+  package_info_plus: ^9.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

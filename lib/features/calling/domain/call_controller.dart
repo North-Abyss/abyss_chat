@@ -629,7 +629,12 @@ class CallNotifier extends Notifier<CallSession?> {
     }
   }
 
+  bool _isEndingCall = false;
+
   void endCall({bool local = true}) {
+    if (_isEndingCall) return;
+    _isEndingCall = true;
+    
     if (state != null) {
       final chatController = ref.read(chatThreadsProvider.notifier);
       final isMissed = state!.state != CallState.connected;
@@ -678,7 +683,8 @@ class CallNotifier extends Notifier<CallSession?> {
     _localStream?.getTracks().forEach((track) => track.stop());
     _localStream?.dispose();
     _localStream = null;
-    
+    state = null;
+    _isEndingCall = false;
     localRenderer.srcObject = null;
     
     for (final renderer in remoteRenderers.values) {

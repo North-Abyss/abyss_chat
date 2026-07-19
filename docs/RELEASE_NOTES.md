@@ -1,40 +1,17 @@
-# Abyss Chat - v1.1.1 🚀
+# Abyss Chat - v1.1.2 🚀
 
-Welcome to **Abyss Chat v1.1.1**! This release introduces an indestructible Cloud Relay fallback and fixes critical native build bugs.
+Welcome to **Abyss Chat v1.1.2**! This release brings a massive Voice Recorder overhaul, a sleek About Dialog, and major chat screen performance optimizations.
 
 ## 🎁 What's New
 
-*   **Cloud Relay Fallback**: Built a foolproof, zero-config text messaging fallback using `ntfy.sh`. If WebRTC local routing is blocked by a strict router, text messages instantly and silently route through an encrypted cloud relay!
-*   **TURN Server Enhancements**: Injected reliable public TURN servers directly into the signaling layer to maximize WebRTC connection success rates across restrictive enterprise firewalls.
-
-*   **GIF Auto-Pause & Picker**: A brand new floating GIF picker with Giphy integration. Native GIFs now elegantly auto-pause after 10 seconds with a sleek WhatsApp-style play overlay to save battery and computing power!
-*   **Zoom Like A Pro**: The interactive media viewer has been rebuilt. Images and GIFs now span to fill your screen's maximum bounds with flawless 5x pinch-to-zoom capabilities.
-*   **In-App Notification Toggles**: You now have granular control in Settings to independently disable floating in-app toasts if you prefer only OS-level push notifications.
-*   **Opus Voice Encoder on Web**: Voice messages now dynamically encode in Opus format on Web browsers for maximum cross-platform compatibility!
-*   **Web QR Scanner Target**: Added a sleek animated targeting box overlay to the Web QR scanner fallback to guide your camera.
-*   **Cloud Web Deploy Automation**: Web releases are now seamlessly pushed to GitHub Pages via manual Cloud Actions triggers, saving you local compile time!
-*   **Codebase Organization**: A massive structural refactor with a new central `AppConstants` hub for developers.
+*   **Voice Recorder Overhaul**: The voice messaging experience has been completely rewritten. Enjoy a modern WhatsApp-style tap-to-record interface, smooth sliding playback animations, and a shiny new preview mode before you send!
+*   **System Emoji Fonts**: Reconfigured the Emoji Picker to natively use zero-latency system fonts, completely eliminating the sluggish web-font loading delay.
+*   **About Abyss Dialog**: Added a beautiful new App Info mini-window in Settings. It dynamically reads the version and includes a direct link to check for new GitHub releases.
+*   **Massive Code Optimization**: Extracted heavy widgets like `AudioMessageBubble` and `GifPlayer` out of the main chat screen file, drastically reducing code bloat and improving app maintainability.
 
 ## 🛠️ Critical Bug Fixes
 
-*   **Android Plugin Compilation Resilience**: Built a dynamic Java Reflection patch to bypass a notorious Kotlin plugin compatibility crash that was freezing Android builds (`file_picker` vs `GeneratedPluginRegistrant.java`).
-*   **Android Network Discovery**: Added missing `INTERNET` and `MULTICAST` permissions to unblock `nsd` mDNS discovery and WebRTC on physical Android hardware.
-*   **NTFS Asset Compression Bug**: Implemented a `noCompress` workaround in `build.gradle.kts` to prevent Android Gradle `CompressAssetsWorkAction` failures on NTFS drives.
+*   **Call Ending Spam**: Fixed an annoying bug where rapidly tapping the "End Call" button would spam the chat log with multiple duplicate "Call Ended" messages.
+*   **About Dialog Layout Constraint**: Prevented the new About Dialog from stretching awkwardly across the entire screen on Web/Desktop by enforcing a clean, phone-like aspect ratio constraint.
 
-*   **Zombie Connection Loop Annihilated**: Fixed a severe hot-restart loop where PeerJS failed to drop stale WebRTC connections, completely eliminating the endless "ID is taken" errors and stream memory leaks.
-*   **Unexpected Null Crash Fixed**: Built a robust internal queueing system that guarantees the PeerJS signaling WebSocket achieves full 'open' state before dispatching connection requests, banishing the `Unexpected null value` crash forever.
-*   **GIF Animation Freezes**: Fixed a bug where `CachedNetworkImage` froze GIFs into static pictures.
-*   **Call UI Synchronization**: Banished the perpetual "Calling..." screen for call initiators using instant WebRTC data channel payloads.
-*   **Widget Recycling Animations**: Fixed Dice and Coin Toss activity bubbles getting stuck on old values.
-*   **Startup Crash Resiliency**: Fixed a Zone mismatch crash during app hot-restarts.
 
----
-
-## 📥 Download Instructions
-
-Choose the installer for your platform below:
-*   **Windows**: Download `AbyssChat-Windows-Setup.exe`
-*   **Linux**: Download `abyss-chat-linux-x64.deb`
-*   **Android (Universal)**: Download `abyss-chat-universal.apk`
-
-*Tip: For older or specialized Android devices, use the specific architecture APKs (e.g., `armeabi-v7a` or `arm64-v8a`).*

@@ -84,7 +84,7 @@ jobs:
           $issContent = @"
           [Setup]
           AppName=Abyss Chat
-          AppVersion=0.0.0
+          AppVersion=1.1.2
           DefaultDirName={autopf}\Abyss Chat
           OutputDir=.\Output
           OutputBaseFilename=AbyssChat-Windows-Setup
@@ -159,7 +159,7 @@ jobs:
           # 4. Create DEBIAN Control File
           cat <<EOF > deb-package/DEBIAN/control
           Package: abyss-chat
-          Version: 0.0.0
+          Version: 1.1.2
           Section: base
           Priority: optional
           Architecture: amd64
@@ -178,7 +178,7 @@ jobs:
           # 6. Create Desktop Entry (Dynamic Paths!)
           cat <<EOF > deb-package/usr/share/applications/abyss_chat.desktop
           [Desktop Entry]
-          Version=0.0.0
+          Version=1.1.2
           Name=Abyss Chat
           GenericName=Chat Client
           Icon=abyss_chat

@@ -14,6 +14,7 @@ import 'package:abyss_chat/network/notification_service.dart';
 import 'package:abyss_chat/network/crypto_service.dart';
 import 'package:abyss_chat/features/settings/domain/settings_controller.dart';
 import 'package:abyss_chat/core/widgets/abyss_snackbar.dart';
+import 'package:abyss_chat/features/settings/presentation/widgets/about_abyss_dialog.dart';
 import 'package:abyss_chat/features/chat/data/chat_repository.dart';
 import 'package:abyss_chat/features/calling/domain/call_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -546,34 +547,15 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Consumer(
-                builder: (context, ref, child) {
-                  final updateInfoAsync = ref.watch(updateCheckProvider);
-                  
-                  return updateInfoAsync.when(
-                    data: (info) {
-                      return ListTile(
-                        leading: const Icon(Icons.info_outline),
-                        title: const Text('About Abyss Chat'),
-                        subtitle: Text(info.hasUpdate ? 'Update Available: ${info.latestVersion}' : 'v1.1.2 (Latest)'),
-                        trailing: info.hasUpdate ? const Icon(Icons.system_update, color: Colors.green) : null,
-                        onTap: () {
-                          if (info.hasUpdate) {
-                            launchUrl(Uri.parse(info.downloadUrl), mode: LaunchMode.externalApplication);
-                          }
-                        },
-                      );
-                    },
-                    loading: () => const ListTile(
-                      leading: Icon(Icons.info_outline),
-                      title: Text('About Abyss Chat'),
-                      subtitle: Text('Checking for updates...'),
-                    ),
-                    error: (err, stack) => const ListTile(
-                      leading: Icon(Icons.info_outline),
-                      title: Text('About Abyss Chat'),
-                      subtitle: Text('v1.1.2'),
-                    ),
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('About Abyss Chat'),
+                subtitle: const Text('Version info and updates'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => const AboutAbyssDialog(),
                   );
                 },
               ),
