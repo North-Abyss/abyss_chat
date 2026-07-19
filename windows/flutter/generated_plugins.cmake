@@ -3,11 +3,13 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  audioplayers_windows
   dynamic_color
   emoji_picker_flutter
   file_selector_windows
   flutter_webrtc
   nsd_windows
+  permission_handler_windows
   record_windows
   screen_retriever_windows
   share_plus

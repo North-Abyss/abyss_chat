@@ -43,19 +43,34 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
+enum VoiceRecordState {
+  idle,
+  recording,
+  preview,
+}
+
 class _ChatScreenState extends ConsumerState<ChatScreen> {
-  final _textController = TextEditingController();
+  final TextEditingController _textController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
-  bool _hasText = false;
+  
   bool _showEmojiPicker = false;
   final Set<String> _selectedMessageIds = {};
   
-  bool _isRecording = false;
+  bool _hasText = false;
+  VoiceRecordState _voiceState = VoiceRecordState.idle;
+  Timer? _recordTimer;
+  int _recordDuration = 0;
+  String? _recordedFilePath;
+  
   late final AudioRecorder _audioRecorder;
+  final AudioPlayer _previewPlayer = AudioPlayer();
+  bool _isPreviewPlaying = false;
+  Duration _previewDuration = Duration.zero;
+  Duration _previewPosition = Duration.zero;
   
   bool _isSearchMode = false;
-  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   DateTime? _searchDate;
   bool _showScrollToBottom = false;
@@ -65,6 +80,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     _audioRecorder = AudioRecorder();
+    _previewPlayer.playerStateStream.listen((state) {
+      if (mounted) setState(() => _isPreviewPlaying = state.playing);
+      if (state.processingState == ProcessingState.completed) {
+        _previewPlayer.seek(Duration.zero);
+        _previewPlayer.pause();
+      }
+    });
+    _previewPlayer.durationStream.listen((d) {
+      if (mounted) setState(() => _previewDuration = d ?? Duration.zero);
+    });
+    _previewPlayer.positionStream.listen((p) {
+      if (mounted) setState(() => _previewPosition = p);
+    });
     _textController.addListener(() {
       final textNotEmpty = _textController.text.trim().isNotEmpty;
       if (textNotEmpty != _hasText) {
@@ -102,11 +130,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
+    _recordTimer?.cancel();
     _textController.dispose();
     _searchController.dispose();
     _focusNode.dispose();
     _scrollController.dispose();
     _audioRecorder.dispose();
+    _previewPlayer.dispose();
     super.dispose();
   }
 
@@ -152,7 +182,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           RecordConfig(encoder: kIsWeb ? AudioEncoder.opus : AudioEncoder.aacLc), 
           path: path
         );
-        setState(() => _isRecording = true);
+        setState(() {
+          _voiceState = VoiceRecordState.recording;
+          _recordDuration = 0;
+          _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+            setState(() => _recordDuration++);
+          });
+        });
       } else {
         if (mounted) AbyssSnackBar.show(context, 'Microphone permission denied', type: SnackBarType.error);
       }
@@ -161,44 +197,67 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  Future<void> _stopRecording() async {
-    if (!_isRecording) return;
+  Future<void> _stopRecording({bool cancel = false}) async {
+    if (_voiceState != VoiceRecordState.recording) return;
     try {
+      _recordTimer?.cancel();
       final path = await _audioRecorder.stop();
-      setState(() => _isRecording = false);
       
-      if (path != null) {
-        Uint8List bytes;
+      setState(() {
+        _voiceState = cancel ? VoiceRecordState.idle : VoiceRecordState.preview;
+        _recordedFilePath = cancel ? null : path;
+      });
+
+      if (!cancel && path != null) {
         if (kIsWeb) {
-          final response = await http.get(Uri.parse(path));
-          bytes = response.bodyBytes;
+          await _previewPlayer.setUrl(path);
         } else {
-          final file = File(path);
-          bytes = await file.readAsBytes();
+          await _previewPlayer.setFilePath(path);
         }
-        final base64Data = base64Encode(bytes);
-        
-        ref.read(chatThreadsProvider.notifier).sendMessage(
-          widget.threadId, 
-          '🎤 Voice Message', 
-          type: MessageType.audio,
-          localFilePath: path,
-          fileName: 'voice_message.m4a',
-          fileData: base64Data,
-        );
-        
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients) {
-            _scrollController.animateTo(
-              _scrollController.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-            );
-          }
-        });
       }
     } catch (e) {
       debugPrint('Error stopping record: $e');
+    }
+  }
+
+  Future<void> _sendVoiceMessage() async {
+    if (_recordedFilePath == null) return;
+    try {
+      Uint8List bytes;
+      if (kIsWeb) {
+        final response = await http.get(Uri.parse(_recordedFilePath!));
+        bytes = response.bodyBytes;
+      } else {
+        final file = File(_recordedFilePath!);
+        bytes = await file.readAsBytes();
+      }
+      final base64Data = base64Encode(bytes);
+      
+      ref.read(chatThreadsProvider.notifier).sendMessage(
+        widget.threadId, 
+        '🎤 Voice Message', 
+        type: MessageType.audio,
+        localFilePath: _recordedFilePath,
+        fileName: 'voice_message.m4a',
+        fileData: base64Data,
+      );
+      
+      setState(() {
+        _voiceState = VoiceRecordState.idle;
+        _recordedFilePath = null;
+      });
+      
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('Error sending voice msg: $e');
     }
   }
 
@@ -992,95 +1051,180 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     border: Border(top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.2))),
                   ),
                   child: SafeArea(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: cs.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(_showEmojiPicker ? Icons.keyboard : Icons.emoji_emotions_outlined),
-                              color: cs.onSurfaceVariant,
-                              onPressed: _toggleEmojiPicker,
-                            ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (_voiceState == VoiceRecordState.idle)
                           Expanded(
-                            child: TextField(
-                              controller: _textController,
-                              focusNode: _focusNode,
-                              keyboardType: TextInputType.multiline,
-                              textInputAction: TextInputAction.newline,
-                              contentInsertionConfiguration: ContentInsertionConfiguration(
-                                onContentInserted: (KeyboardInsertedContent content) {
-                                  if (content.data != null) {
-                                    final isImage = content.mimeType.startsWith('image/');
-                                    if (isImage) {
-                                      final base64Data = base64Encode(content.data!);
-                                      ref.read(chatThreadsProvider.notifier).sendMessage(
-                                        widget.threadId, 
-                                        'Sent an image', 
-                                        type: MessageType.image,
-                                        fileName: content.uri.isEmpty ? 'pasted_image' : content.uri,
-                                        fileData: base64Data,
-                                      );
-                                    }
-                                  }
-                                },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: cs.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(24),
                               ),
-                              decoration: const InputDecoration(
-                                hintText: 'Message',
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: Icon(_showEmojiPicker ? Icons.keyboard : Icons.emoji_emotions_outlined),
+                                    color: cs.onSurfaceVariant,
+                                    onPressed: _toggleEmojiPicker,
+                                  ),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _textController,
+                                      focusNode: _focusNode,
+                                      keyboardType: TextInputType.multiline,
+                                      textInputAction: TextInputAction.newline,
+                                      contentInsertionConfiguration: ContentInsertionConfiguration(
+                                        onContentInserted: (KeyboardInsertedContent content) {
+                                          if (content.data != null) {
+                                            final isImage = content.mimeType.startsWith('image/');
+                                            if (isImage) {
+                                              final base64Data = base64Encode(content.data!);
+                                              ref.read(chatThreadsProvider.notifier).sendMessage(
+                                                widget.threadId, 
+                                                'Sent an image', 
+                                                type: MessageType.image,
+                                                fileName: content.uri.isEmpty ? 'pasted_image' : content.uri,
+                                                fileData: base64Data,
+                                              );
+                                            }
+                                          }
+                                        },
+                                      ),
+                                      decoration: const InputDecoration(
+                                        hintText: 'Message',
+                                        border: InputBorder.none,
+                                        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                                      ),
+                                      minLines: 1,
+                                      maxLines: 5,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.add_circle),
+                                    color: cs.primary,
+                                    iconSize: 28,
+                                    onPressed: () => _showAttachmentMenu(context),
+                                  ),
+                                ],
                               ),
-                              minLines: 1,
-                              maxLines: 5,
+                            ),
+                          )
+                        else if (_voiceState == VoiceRecordState.recording)
+                          Expanded(
+                            child: Container(
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: cs.errorContainer.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.mic, color: Colors.red).animate(onPlay: (c) => c.repeat(reverse: true)).fade(duration: 500.ms),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${(_recordDuration ~/ 60).toString().padLeft(2, '0')}:${(_recordDuration % 60).toString().padLeft(2, '0')}',
+                                    style: TextStyle(color: cs.onErrorContainer, fontWeight: FontWeight.bold),
+                                  ),
+                                  const Spacer(),
+                                  TextButton(
+                                    onPressed: () => _stopRecording(cancel: true),
+                                    child: Text('Cancel', style: TextStyle(color: cs.error)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else if (_voiceState == VoiceRecordState.preview)
+                          Expanded(
+                            child: Container(
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: cs.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () {
+                                      _previewPlayer.stop();
+                                      setState(() {
+                                        _voiceState = VoiceRecordState.idle;
+                                        _recordedFilePath = null;
+                                      });
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: Icon(_isPreviewPlaying ? Icons.pause : Icons.play_arrow, color: cs.primary),
+                                    onPressed: () {
+                                      if (_isPreviewPlaying) {
+                                        _previewPlayer.pause();
+                                      } else {
+                                        _previewPlayer.play();
+                                      }
+                                    },
+                                  ),
+                                  Expanded(
+                                    child: TweenAnimationBuilder<double>(
+                                      tween: Tween(begin: 0, end: _previewPosition.inMilliseconds.toDouble()),
+                                      duration: const Duration(milliseconds: 200),
+                                      builder: (context, val, _) {
+                                        final maxVal = _previewDuration.inMilliseconds.toDouble() > 0 ? _previewDuration.inMilliseconds.toDouble() : 1.0;
+                                        return Slider(
+                                          value: val.clamp(0.0, maxVal),
+                                          max: maxVal,
+                                          onChanged: (newVal) {
+                                            _previewPlayer.seek(Duration(milliseconds: newVal.toInt()));
+                                          },
+                                          activeColor: cs.primary,
+                                          inactiveColor: cs.primary.withValues(alpha: 0.3),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle),
-                            color: cs.primary,
-                            iconSize: 28,
-                            onPressed: () => _showAttachmentMenu(context),
+                        
+                        const SizedBox(width: 8),
+                        CircleAvatar(
+                          backgroundColor: _hasText || _voiceState == VoiceRecordState.preview ? cs.primary : (_voiceState == VoiceRecordState.recording ? Colors.red : cs.surfaceContainerHighest),
+                          radius: 24,
+                          child: GestureDetector(
+                            onTap: () {
+                              if (_voiceState == VoiceRecordState.idle) {
+                                if (_hasText) {
+                                  _sendMessage();
+                                } else {
+                                  _startRecording();
+                                }
+                              } else if (_voiceState == VoiceRecordState.recording) {
+                                _stopRecording();
+                              } else if (_voiceState == VoiceRecordState.preview) {
+                                _previewPlayer.stop();
+                                _sendVoiceMessage();
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              color: Colors.transparent,
+                              child: Icon(
+                                _voiceState == VoiceRecordState.idle
+                                    ? (_hasText ? Icons.send : Icons.mic_none)
+                                    : (_voiceState == VoiceRecordState.recording ? Icons.stop : Icons.send),
+                                color: _hasText || _voiceState != VoiceRecordState.idle ? cs.onPrimary : cs.onSurfaceVariant,
+                              ),
+                            ),
                           ),
-                        ],
-                      ),
+                        ).animate(target: _hasText || _voiceState != VoiceRecordState.idle ? 1 : 0)
+                         .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), curve: Curves.easeOutBack, duration: 200.ms),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  CircleAvatar(
-                    backgroundColor: _hasText ? cs.primary : (_isRecording ? Colors.red : cs.surfaceContainerHighest),
-                    radius: 24,
-                    child: GestureDetector(
-                      onLongPress: () {
-                        if (!_hasText) _startRecording();
-                      },
-                      onLongPressUp: () {
-                        if (!_hasText) _stopRecording();
-                      },
-                      onTap: () {
-                        if (_hasText) {
-                          _sendMessage();
-                        } else {
-                          AbyssSnackBar.show(context, 'Hold to record voice message', type: SnackBarType.info);
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        color: Colors.transparent,
-                        child: Icon(
-                          _hasText ? Icons.send : (_isRecording ? Icons.mic : Icons.mic_none),
-                          color: _hasText || _isRecording ? cs.onPrimary : cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                    ).animate(target: _hasText || _isRecording ? 1 : 0)
-                     .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), curve: Curves.easeOutBack, duration: 200.ms),
-                  ],
-                ),
-              ),
             ),
       ],
     ),
@@ -1342,14 +1486,21 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
         ),
         SizedBox(
           width: 150,
-          child: Slider(
-            value: _position.inMilliseconds.toDouble(),
-            max: _duration.inMilliseconds.toDouble() > 0 ? _duration.inMilliseconds.toDouble() : 1.0,
-            onChanged: (val) {
-              _audioPlayer.seek(Duration(milliseconds: val.toInt()));
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: _position.inMilliseconds.toDouble()),
+            duration: const Duration(milliseconds: 200),
+            builder: (context, val, _) {
+              final maxVal = _duration.inMilliseconds.toDouble() > 0 ? _duration.inMilliseconds.toDouble() : 1.0;
+              return Slider(
+                value: val.clamp(0.0, maxVal),
+                max: maxVal,
+                onChanged: (newVal) {
+                  _audioPlayer.seek(Duration(milliseconds: newVal.toInt()));
+                },
+                activeColor: widget.isMe ? cs.onPrimaryContainer : cs.primary,
+                inactiveColor: widget.isMe ? cs.onPrimaryContainer.withValues(alpha: 0.3) : cs.primary.withValues(alpha: 0.3),
+              );
             },
-            activeColor: widget.isMe ? cs.onPrimaryContainer : cs.primary,
-            inactiveColor: widget.isMe ? cs.onPrimaryContainer.withValues(alpha: 0.3) : cs.primary.withValues(alpha: 0.3),
           ),
         ),
         Text(
