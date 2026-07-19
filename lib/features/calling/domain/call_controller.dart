@@ -539,7 +539,8 @@ class CallNotifier extends Notifier<CallSession?> {
             for (final conn in _activeConnections.values) {
               final senders = await conn.peerConnection?.getSenders();
               if (senders != null) {
-                final videoSender = senders.where((s) => s.track?.kind == 'video').firstOrNull;
+                final videoSenders = senders.where((s) => (s as RTCRtpSender).track?.kind == 'video');
+                final videoSender = videoSenders.isEmpty ? null : videoSenders.first;
                 if (videoSender != null) {
                   await videoSender.replaceTrack(newTrack);
                 }
@@ -597,7 +598,8 @@ class CallNotifier extends Notifier<CallSession?> {
             for (final conn in _activeConnections.values) {
               final senders = await conn.peerConnection?.getSenders();
               if (senders != null) {
-                final audioSender = senders.where((s) => s.track?.kind == 'audio').firstOrNull;
+                final audioSenders = senders.where((s) => (s as RTCRtpSender).track?.kind == 'audio');
+                final audioSender = audioSenders.isEmpty ? null : audioSenders.first;
                 if (audioSender != null) {
                   await audioSender.replaceTrack(newTrack);
                 }
