@@ -21,8 +21,8 @@ import 'package:abyss_chat/network/peerdart_service.dart';
 import 'package:abyss_chat/network/lan_messenger.dart';
 import 'package:abyss_chat/network/notification_service.dart';
 import 'package:abyss_chat/network/local_webrtc_service.dart';
+import 'package:abyss_chat/network/file_transfer_service.dart';
 import 'package:abyss_chat/features/calling/domain/call_controller.dart';
-// removed
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -48,6 +48,17 @@ final localWebrtcServiceProvider = Provider<LocalWebrtcService>((ref) {
 
 final peerServiceProvider = Provider<PeerDartService>((ref) {
   final service = PeerDartService();
+  ref.onDispose(() => service.dispose());
+  return service;
+});
+
+final fileTransferProvider = Provider<FileTransferService>((ref) {
+  final service = FileTransferService((peerId, payload) {
+    if (!ref.read(lanMessengerProvider).sendCustomData(peerId, payload)) {
+      return ref.read(peerServiceProvider).sendCustomData(peerId, payload);
+    }
+    return true;
+  });
   ref.onDispose(() => service.dispose());
   return service;
 });
@@ -110,11 +121,40 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         _handleActivitySync(data);
       } else if (data['type'] == 'history_sync') {
         _handleHistorySync(data);
+      } else if (data['type'] == 'file_meta' || data['type'] == 'file_chunk') {
+        ref.read(fileTransferProvider).handleIncomingPayload(data);
       }
     }
     
     final sub9 = lan.onDataMessage.listen(handleTunneledSignal);
     final sub10 = peer.onDataMessage.listen(handleTunneledSignal);
+
+    // Initialize FileTransferService listeners
+    ref.read(fileTransferProvider).onFileReceived = (fileId, fileName, data) async {
+      final path = await storage.saveMediaFile(fileId, data, fileName);
+      if (path != null && state.hasValue) {
+        final threads = List<ChatThread>.from(state.value!);
+        bool updated = false;
+        for (int i = 0; i < threads.length; i++) {
+          final msgs = List<Message>.from(threads[i].messages);
+          final mIdx = msgs.indexWhere((m) => m.id == fileId);
+          if (mIdx != -1) {
+            msgs[mIdx] = msgs[mIdx].copyWith(
+              localFilePath: kIsWeb ? null : path,
+              fileData: kIsWeb ? path : null, // on Web, path is the base64 URI
+              status: MessageStatus.delivered
+            );
+            threads[i] = threads[i].copyWith(messages: msgs);
+            updated = true;
+            break;
+          }
+        }
+        if (updated) {
+          state = AsyncData(threads);
+          storage.saveThreads(threads);
+        }
+      }
+    };
 
     // Periodically process queue for offline peers
     _retryTimer = Timer.periodic(const Duration(seconds: 10), (_) {
@@ -192,6 +232,21 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     final currentSelectedId = ref.read(selectedThreadIdProvider);
     
     int threadIndex = threads.indexWhere((t) => t.id == targetThreadId);
+    
+    if (threadIndex == -1 && !isGroup && message.senderName != null) {
+      final sameNameIndex = threads.indexWhere((t) => !t.isGroup && t.peer.name == message.senderName);
+      if (sameNameIndex != -1) {
+        final oldThread = threads[sameNameIndex];
+        threads[sameNameIndex] = oldThread.copyWith(
+          id: targetThreadId,
+          peer: oldThread.peer.copyWith(id: targetThreadId),
+        );
+        threadIndex = sameNameIndex;
+        if (currentSelectedId == oldThread.id) {
+          Future.microtask(() => ref.read(selectedThreadIdProvider.notifier).select(targetThreadId));
+        }
+      }
+    }
     
     if (threadIndex != -1) {
       final existingIndex = threads[threadIndex].messages.indexWhere((m) => m.id == message.id);
@@ -644,6 +699,94 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         sent = _trySend(threadId, msg);
       }
       _updateMessageStatus(msg.id, sent ? MessageStatus.sent : MessageStatus.pending);
+    }
+  }
+
+  Future<void> sendMediaMessage(String threadId, String text, MessageType type, Uint8List fileBytes, String extension) async {
+    if (!state.hasValue) return;
+    final threads = List<ChatThread>.from(state.value!);
+    final threadIndex = threads.indexWhere((t) => t.id == threadId);
+    if (threadIndex == -1) return;
+    
+    final thread = threads[threadIndex];
+    final messageId = const Uuid().v4();
+    final fileName = 'media_$messageId.$extension';
+    
+    // We store fileData temporarily so UI knows it's incoming/outgoing
+    final msg = Message(
+      id: messageId,
+      senderId: myId ?? 'me',
+      senderName: _myName ?? 'Me',
+      text: text,
+      timestamp: DateTime.now(),
+      status: MessageStatus.sending,
+      type: type,
+      localFilePath: null, // Will update when sent if native
+      fileName: fileName,
+      fileData: '[MEDIA_TRANSFERRING]', // Placeholder to prevent base64 blowup in JSON
+      groupId: thread.isGroup ? thread.id : null,
+      groupName: thread.isGroup ? thread.groupName : null,
+    );
+    
+    final updatedMessages = List<Message>.from(thread.messages)..add(msg);
+    threads[threadIndex] = thread.copyWith(messages: updatedMessages);
+    state = AsyncData(threads);
+    // Don't save to storage until transfer completes or we just save the placeholder.
+    ref.read(storageServiceProvider).saveThreads(threads);
+    
+    // Send message metadata via normal channel
+    bool sentMsg = false;
+    if (thread.isGroup) {
+      for (final member in thread.members) {
+        if (member.id != myId && _trySend(member.id, msg)) sentMsg = true;
+      }
+    } else {
+      sentMsg = _trySend(threadId, msg);
+    }
+    
+    if (sentMsg) {
+      // Start chunked transfer
+      if (thread.isGroup) {
+        for (final member in thread.members) {
+          if (member.id != myId) {
+            await ref.read(fileTransferProvider).sendFileFromBytes(member.id, fileBytes, fileName, fileId: messageId);
+          }
+        }
+      } else {
+        await ref.read(fileTransferProvider).sendFileFromBytes(threadId, fileBytes, fileName, fileId: messageId);
+      }
+      
+      // Save it locally for ourselves!
+      final path = await ref.read(storageServiceProvider).saveMediaFile(messageId, fileBytes, fileName);
+      if (path != null) {
+        _updateMediaMessagePath(messageId, path);
+      }
+    } else {
+      _updateMessageStatus(msg.id, MessageStatus.failed);
+    }
+  }
+
+  void _updateMediaMessagePath(String messageId, String path) {
+    if (!state.hasValue) return;
+    final threads = List<ChatThread>.from(state.value!);
+    bool updated = false;
+    for (int i = 0; i < threads.length; i++) {
+      final msgs = List<Message>.from(threads[i].messages);
+      final mIdx = msgs.indexWhere((m) => m.id == messageId);
+      if (mIdx != -1) {
+        msgs[mIdx] = msgs[mIdx].copyWith(
+          localFilePath: kIsWeb ? null : path,
+          fileData: kIsWeb ? path : null,
+          status: MessageStatus.sent
+        );
+        threads[i] = threads[i].copyWith(messages: msgs);
+        updated = true;
+        break;
+      }
+    }
+    if (updated) {
+      state = AsyncData(threads);
+      ref.read(storageServiceProvider).saveThreads(threads);
     }
   }
 

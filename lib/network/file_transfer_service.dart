@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:abyss_chat/network/file_reader.dart';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:abyss_chat/network/peerdart_service.dart';
 
 class FileTransferProgress {
   final String fileId;
@@ -26,43 +25,42 @@ class FileTransferProgress {
 }
 
 class FileTransferService {
-  final PeerDartService _peerService;
-  
+  final bool Function(String peerId, Map<String, dynamic> payload) sendData;
+
   // Streams for progress updates
   final _progressController = StreamController<FileTransferProgress>.broadcast();
   Stream<FileTransferProgress> get onProgress => _progressController.stream;
 
   // State for receiving files
   final Map<String, _ReceivingFile> _receivingFiles = {};
-  
+
   // Callback when a file finishes receiving
   Function(String fileId, String fileName, Uint8List data)? onFileReceived;
 
-  FileTransferService(this._peerService) {
-    // Listen to incoming raw data messages from peerService
-    _peerService.onDataMessage.listen((payload) {
-      if (payload['type'] == 'file_meta') {
-        _handleFileMeta(payload);
-      } else if (payload['type'] == 'file_chunk') {
-        _handleFileChunk(payload);
-      }
-    });
+  FileTransferService(this.sendData);
+
+  void handleIncomingPayload(Map<String, dynamic> payload) {
+    if (payload['type'] == 'file_meta') {
+      _handleFileMeta(payload);
+    } else if (payload['type'] == 'file_chunk') {
+      _handleFileChunk(payload);
+    }
   }
 
   static const int chunkSize = 64 * 1024; // 64KB per chunk
 
-  Future<void> sendFile(String peerId, String filePath, String fileName) async {
+  Future<void> sendFile(String peerId, String filePath, String fileName, {String? fileId}) async {
     if (kIsWeb) return; // For Web, use sendFileFromBytes
     
     if (!await fileExists(filePath)) return;
     
     final totalSize = await getFileSize(filePath);
-    final fileId = DateTime.now().millisecondsSinceEpoch.toString();
+    final id = fileId ?? DateTime.now().millisecondsSinceEpoch.toString();
     
     // 1. Send Metadata
-    _peerService.sendCustomData(peerId, {
+    sendData(peerId, {
       'type': 'file_meta',
-      'fileId': fileId,
+      'fileId': id,
       'fileName': fileName,
       'totalSize': totalSize,
     });
@@ -75,9 +73,9 @@ class FileTransferService {
     await for (final chunk in stream) {
       final base64Chunk = base64Encode(chunk);
       
-      _peerService.sendCustomData(peerId, {
+      sendData(peerId, {
         'type': 'file_chunk',
-        'fileId': fileId,
+        'fileId': id,
         'data': base64Chunk,
       });
       
@@ -85,7 +83,7 @@ class FileTransferService {
       
       // Update progress
       _progressController.add(FileTransferProgress(
-        fileId: fileId,
+        fileId: id,
         fileName: fileName,
         totalSize: totalSize,
         bytesTransferred: bytesSent,
@@ -98,14 +96,14 @@ class FileTransferService {
     }
   }
 
-  Future<void> sendFileFromBytes(String peerId, Uint8List fileBytes, String fileName) async {
+  Future<void> sendFileFromBytes(String peerId, Uint8List fileBytes, String fileName, {String? fileId}) async {
     final totalSize = fileBytes.length;
-    final fileId = DateTime.now().millisecondsSinceEpoch.toString();
+    final id = fileId ?? DateTime.now().millisecondsSinceEpoch.toString();
     
     // 1. Send Metadata
-    _peerService.sendCustomData(peerId, {
+    sendData(peerId, {
       'type': 'file_meta',
-      'fileId': fileId,
+      'fileId': id,
       'fileName': fileName,
       'totalSize': totalSize,
     });
@@ -117,16 +115,16 @@ class FileTransferService {
       final chunk = fileBytes.sublist(i, end);
       final base64Chunk = base64Encode(chunk);
       
-      _peerService.sendCustomData(peerId, {
+      sendData(peerId, {
         'type': 'file_chunk',
-        'fileId': fileId,
+        'fileId': id,
         'data': base64Chunk,
       });
       
       bytesSent += chunk.length;
       
       _progressController.add(FileTransferProgress(
-        fileId: fileId,
+        fileId: id,
         fileName: fileName,
         totalSize: totalSize,
         bytesTransferred: bytesSent,

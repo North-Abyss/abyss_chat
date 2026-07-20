@@ -133,6 +133,8 @@ Houses reusable utilities, UI elements, and constants that are shared across mul
 - [x] Cross-Platform Voice Messages (Opus encoder on Web, aacLc on Mobile/Desktop)
 - [x] Floating Emoji Keyboard & GIF Dialog Picker
 - [x] Profile Sync Broadcasting across active WebRTC connections
+- [x] WhatsApp-Style Storage Management (Granular chat deletion & visual breakdowns)
+- [x] Web Persistent Storage via IndexedDB (idb_shim) for memory-efficient media caching
 
 ---
 

@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
+import 'package:share_plus/share_plus.dart';
 import 'package:abyss_chat/features/chat/presentation/widgets/gif_picker_sheet.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -11,6 +12,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:abyss_chat/features/groups/presentation/screens/group_info_screen.dart';
 import 'package:abyss_chat/features/chat/presentation/screens/chat_media_screen.dart';
+import 'package:abyss_chat/features/chat/presentation/widgets/web_media_image.dart';
+import 'package:abyss_chat/features/chat/presentation/screens/media_viewer_screen.dart';
 import 'package:abyss_chat/features/contacts/presentation/screens/contact_profile_screen.dart';
 import 'package:abyss_chat/core/widgets/user_avatar.dart';
 import 'package:image_picker/image_picker.dart';
@@ -22,6 +25,7 @@ import 'package:flutter/services.dart';
 // --- MAIN CHAT SCREEN WIDGET ---
 import 'package:flutter/foundation.dart';
 import 'package:abyss_chat/core/widgets/abyss_snackbar.dart';
+
 import 'package:abyss_chat/features/chat/domain/models/message.dart';
 import 'package:abyss_chat/features/chat/domain/models/chat_thread.dart';
 import 'package:file_picker/file_picker.dart';
@@ -33,7 +37,7 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:abyss_chat/features/chat/presentation/widgets/audio_message_bubble.dart';
-import 'package:abyss_chat/features/chat/presentation/widgets/gif_player.dart';
+
 class ChatScreen extends ConsumerStatefulWidget {
   final String threadId;
   final bool isDesktop;
@@ -232,15 +236,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         final file = File(_recordedFilePath!);
         bytes = await file.readAsBytes();
       }
-      final base64Data = base64Encode(bytes);
-      
-      ref.read(chatThreadsProvider.notifier).sendMessage(
-        widget.threadId, 
-        '🎤 Voice Message', 
-        type: MessageType.audio,
-        localFilePath: _recordedFilePath,
-        fileName: 'voice_message.m4a',
-        fileData: base64Data,
+
+      ref.read(chatThreadsProvider.notifier).sendMediaMessage(
+        widget.threadId,
+        '🎤 Voice Message',
+        MessageType.audio,
+        bytes,
+        'm4a'
       );
       
       setState(() {
@@ -367,19 +369,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       bytes = await File(path).readAsBytes();
                     }
                     if (bytes == null) return;
-                    if (bytes.length > 10 * 1024 * 1024) {
-                      if (context.mounted) AbyssSnackBar.show(context, 'File is larger than 10MB', type: SnackBarType.error);
+                    if (bytes.length > 50 * 1024 * 1024) {
+                      if (context.mounted) AbyssSnackBar.show(context, 'File is larger than 50MB', type: SnackBarType.error);
                       return;
                     }
-                    final base64Data = base64Encode(bytes);
                     final isImage = name.toLowerCase().endsWith('.png') || name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.jpeg') || name.toLowerCase().endsWith('.gif');
-                    ref.read(chatThreadsProvider.notifier).sendMessage(
-                      widget.threadId, 
-                      isImage ? 'Sent an image' : 'Sent a file', 
-                      type: isImage ? MessageType.image : MessageType.file,
-                      localFilePath: path,
-                      fileName: name,
-                      fileData: base64Data,
+                    final ext = name.split('.').last.toLowerCase();
+                    ref.read(chatThreadsProvider.notifier).sendMediaMessage(
+                      widget.threadId,
+                      isImage ? 'Sent an image' : 'Sent a file',
+                      isImage ? MessageType.image : MessageType.file,
+                      bytes,
+                      ext.isNotEmpty ? ext : 'bin'
                     );
                   }
                 }),
@@ -394,14 +395,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     final image = await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
                     if (image != null) {
                       final bytes = await image.readAsBytes();
-                      final base64Data = base64Encode(bytes);
-                      ref.read(chatThreadsProvider.notifier).sendMessage(
-                        widget.threadId, 
-                        'Sent an image', 
-                        type: MessageType.image,
-                        localFilePath: image.path,
-                        fileName: 'camera_image.jpg',
-                        fileData: base64Data,
+                      ref.read(chatThreadsProvider.notifier).sendMediaMessage(
+                        widget.threadId,
+                        'Sent an image',
+                        MessageType.image,
+                        bytes,
+                        'jpg'
                       );
                     }
                   } catch (e) {
@@ -882,27 +881,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               if (msg.type == MessageType.image)
                                 GestureDetector(
                                   onTap: () {
-                                    Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
-                                      backgroundColor: Colors.black,
-                                      appBar: AppBar(
-                                        backgroundColor: Colors.black,
-                                        iconTheme: const IconThemeData(color: Colors.white),
-                                      ),
-                                      body: InteractiveViewer(
-                                        minScale: 1.0,
-                                        maxScale: 5.0,
-                                        child: SizedBox.expand(
-                                          child: msg.fileData != null && msg.fileData!.startsWith('http')
-                                              ? (msg.fileData!.toLowerCase().endsWith('.gif') 
-                                                  ? GifPlayer(url: msg.fileData!, fit: BoxFit.contain)
-                                                  : CachedNetworkImage(imageUrl: msg.fileData!, fit: BoxFit.contain))
-                                              : msg.fileData != null && msg.fileData!.isNotEmpty
-                                                  ? Image.memory(base64Decode(msg.fileData!), fit: BoxFit.contain)
-                                                  : (msg.localFilePath != null && !kIsWeb
-                                                      ? Image.file(File(msg.localFilePath!), fit: BoxFit.contain)
-                                                      : const Center(child: Icon(Icons.broken_image, color: Colors.white, size: 50))),
-                                        ),
-                                      ),
+                                    final mediaMessages = thread.messages.where((m) => m.type == MessageType.image || m.fileData != null || m.localFilePath != null).toList();
+                                    final index = mediaMessages.indexOf(msg);
+                                    Navigator.push(context, MaterialPageRoute(builder: (_) => MediaViewerScreen(
+                                      mediaMessages: mediaMessages,
+                                      initialIndex: index == -1 ? 0 : index,
                                     )));
                                   },
                                   child: Container(
@@ -915,15 +898,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       borderRadius: BorderRadius.circular(8),
                                       child: Stack(
                                         children: [
-                                          msg.fileData != null && msg.fileData!.startsWith('http')
-                                              ? (msg.fileData!.toLowerCase().endsWith('.gif')
-                                                  ? GifPlayer(url: msg.fileData!, fit: BoxFit.cover)
-                                                  : CachedNetworkImage(imageUrl: msg.fileData!, fit: BoxFit.cover))
-                                              : msg.fileData != null && msg.fileData!.isNotEmpty
-                                                  ? Image.memory(base64Decode(msg.fileData!), fit: BoxFit.cover)
-                                                  : (msg.localFilePath != null && !kIsWeb
-                                                      ? Image.file(File(msg.localFilePath!), fit: BoxFit.cover) 
-                                                      : const Icon(Icons.broken_image)),
+                                          WebMediaImage(msg: msg, fit: BoxFit.cover),
                                           if (msg.fileData != null && msg.fileData!.startsWith('http') && msg.fileData!.toLowerCase().endsWith('.gif'))
                                             Positioned(
                                               top: 4,
@@ -949,6 +924,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                                     ),
                                                   );
                                                 },
+                                              ),
+                                            ),
+                                          if (msg.localFilePath != null && !kIsWeb)
+                                            Positioned(
+                                              bottom: 4,
+                                              right: 4,
+                                              child: GestureDetector(
+                                                onTap: () {
+                                                  // ignore: deprecated_member_use
+                                                  Share.shareXFiles([XFile(msg.localFilePath!)]);
+                                                },
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(4),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black.withValues(alpha: 0.5),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.share,
+                                                    color: Colors.white,
+                                                    size: 16,
+                                                  ),
+                                                ),
                                               ),
                                             ),
                                         ],
@@ -1080,13 +1078,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                           if (content.data != null) {
                                             final isImage = content.mimeType.startsWith('image/');
                                             if (isImage) {
-                                              final base64Data = base64Encode(content.data!);
-                                              ref.read(chatThreadsProvider.notifier).sendMessage(
-                                                widget.threadId, 
-                                                'Sent an image', 
-                                                type: MessageType.image,
-                                                fileName: content.uri.isEmpty ? 'pasted_image' : content.uri,
-                                                fileData: base64Data,
+                                              final ext = content.mimeType.split('/').last;
+                                              ref.read(chatThreadsProvider.notifier).sendMediaMessage(
+                                                widget.threadId,
+                                                'Sent an image',
+                                                MessageType.image,
+                                                content.data!,
+                                                ext.isEmpty ? 'png' : ext
                                               );
                                             }
                                           }

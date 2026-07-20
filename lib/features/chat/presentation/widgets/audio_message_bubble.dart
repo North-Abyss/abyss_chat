@@ -5,8 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:abyss_chat/features/chat/domain/models/message.dart';
+import 'package:abyss_chat/network/web_storage.dart';
 
 class AudioMessageBubble extends StatefulWidget {
   final Message msg;
@@ -23,6 +25,7 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
   bool _isPlaying = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
+  String? _playableFilePath;
 
   @override
   void initState() {
@@ -33,16 +36,28 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
   Future<void> _initAudio() async {
     try {
       if (widget.msg.localFilePath != null && !kIsWeb) {
+        _playableFilePath = widget.msg.localFilePath;
         await _audioPlayer.setFilePath(widget.msg.localFilePath!);
       } else if (widget.msg.fileData != null) {
         if (kIsWeb) {
-          final dataUri = 'data:audio/mp4;base64,${widget.msg.fileData}';
-          await _audioPlayer.setUrl(dataUri);
+          if (widget.msg.fileData!.startsWith('web_idb:')) {
+            final id = widget.msg.fileData!.split(':')[1];
+            final url = await WebStorage.getMediaUrl(id);
+            if (url != null) {
+              await _audioPlayer.setUrl(url);
+            }
+          } else {
+            final dataUri = widget.msg.fileData!.startsWith('data:') 
+                ? widget.msg.fileData! 
+                : 'data:audio/mp4;base64,${widget.msg.fileData}';
+            await _audioPlayer.setUrl(dataUri);
+          }
         } else {
           final bytes = base64Decode(widget.msg.fileData!);
           final dir = await getTemporaryDirectory();
           final file = File('${dir.path}/${widget.msg.id}.m4a');
           await file.writeAsBytes(bytes);
+          _playableFilePath = file.path;
           await _audioPlayer.setFilePath(file.path);
         }
       }
@@ -113,6 +128,14 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
             color: widget.isMe ? cs.onPrimaryContainer : cs.onSurfaceVariant,
           ),
         ),
+        if (_playableFilePath != null && !kIsWeb)
+          IconButton(
+            icon: Icon(Icons.share, size: 16, color: widget.isMe ? cs.onPrimaryContainer : cs.onSurfaceVariant),
+            onPressed: () {
+              // ignore: deprecated_member_use
+              Share.shareXFiles([XFile(_playableFilePath!)]);
+            },
+          ),
       ],
     );
   }

@@ -48,7 +48,7 @@ jobs:
       - name: Upload APKs to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          body_path: RELEASE_NOTES.md
+          body_path: docs/RELEASE_NOTES.md
           files: |
             build/app/outputs/flutter-apk/abyss-chat-universal.apk
             build/app/outputs/flutter-apk/abyss-chat-armeabi-v7a.apk
@@ -108,7 +108,7 @@ jobs:
       - name: Upload Windows Assets to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          body_path: RELEASE_NOTES.md
+          body_path: docs/RELEASE_NOTES.md
           files: |
             Output/AbyssChat-Windows-Setup.exe
             abyss-chat-windows-portable.zip
@@ -206,7 +206,7 @@ jobs:
       - name: Upload Linux Assets to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          body_path: RELEASE_NOTES.md
+          body_path: docs/RELEASE_NOTES.md
           files: |
             abyss-chat-linux-x64.deb
             abyss-chat-linux-portable.zip

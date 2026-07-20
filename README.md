@@ -25,6 +25,8 @@ A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clo
 - **Local Network Discovery** - Uses mDNS (Multicast DNS) and LAN TCP sockets to find and connect to peers on the same local network, working completely offline.
 - **Material 3 Design** - Fully customized dynamic theming support with beautiful UI following Material 3 guidelines, including desktop/web responsive split-pane layouts.
 - **Persistent Storage** - Saves chats, settings, profiles, and call logs securely (using `path_provider` on native and `shared_preferences` gracefully falling back on Web).
+- **Storage Management** - Granular control over your device storage. View visual breakdowns of media vs chat usage, and clear specific chat caches just like WhatsApp.
+- **Web Persistent Storage** - Web users get true persistent offline media caching via IndexedDB (`idb_shim`), allowing endless sharing without crashing the browser.
 - **Group Chats & Calls** - Create and manage local group chats, and initiate P2P Group Video Calls with dynamic grid layouts.
 - **Profile Customization** - Users can customize their names, avatar icons, and colors (including pure black/white).
 - **Theming Engine** - Includes 12 curated themes plus the ability to pick any custom hex color.

@@ -7,6 +7,7 @@ import 'package:abyss_chat/features/chat/domain/models/chat_thread.dart';
 import 'package:abyss_chat/features/contacts/domain/models/user.dart';
 import 'package:abyss_chat/features/calling/domain/models/call_log.dart';
 import 'package:abyss_chat/network/crypto_service.dart';
+import 'package:abyss_chat/network/web_storage.dart';
 
 class StorageService {
   static const String _threadsFile = 'conversations.abyss';
@@ -217,6 +218,132 @@ class StorageService {
     } catch (e) {
       debugPrint('Error saving synced profile image: $e');
       return null;
+    }
+  }
+
+  // --- Media Files ---
+  Future<String?> saveMediaFile(String messageId, Uint8List data, String fileName) async {
+    final extension = fileName.split('.').last.toLowerCase();
+    String mimeType = 'application/octet-stream';
+    if (extension == 'jpg' || extension == 'jpeg') {
+      mimeType = 'image/jpeg';
+    } else if (extension == 'png') {
+      mimeType = 'image/png';
+    } else if (extension == 'gif') {
+      mimeType = 'image/gif';
+    } else if (extension == 'm4a') {
+      mimeType = 'audio/mp4';
+    } else if (extension == 'mp3') {
+      mimeType = 'audio/mpeg';
+    }
+
+    if (kIsWeb) {
+      await WebStorage.saveMedia(messageId, data, mimeType);
+      return 'web_idb:$messageId';
+    }
+    
+    try {
+      final path = await _getAppDirPath();
+      final mediaDir = Directory('$path/media');
+      if (!await mediaDir.exists()) await mediaDir.create(recursive: true);
+      
+      final targetPath = '${mediaDir.path}/$messageId-$fileName';
+      final file = File(targetPath);
+      await file.writeAsBytes(data);
+      return targetPath;
+    } catch (e) {
+      debugPrint('Error saving media file: $e');
+      return null;
+    }
+  }
+
+  Future<int> getMediaStorageUsage() async {
+    if (kIsWeb) {
+      return await WebStorage.getMediaStorageSize();
+    }
+    int total = 0;
+    try {
+      final path = await _getAppDirPath();
+      final mediaDir = Directory('$path/media');
+      if (await mediaDir.exists()) {
+        await for (final entity in mediaDir.list(recursive: true)) {
+          if (entity is File) {
+            total += await entity.length();
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error calculating media storage: $e');
+    }
+    return total;
+  }
+
+  Future<int> getChatStorageUsage() async {
+    final prefs = await SharedPrefsHelper.instance;
+    final jsonStr = prefs.getString(_threadsFile) ?? '[]';
+    return utf8.encode(jsonStr).length;
+  }
+
+  Future<Map<String, int>> getStorageUsageByChat(List<ChatThread> threads) async {
+    final Map<String, int> usage = {};
+    for (final thread in threads) {
+      int threadSize = 0;
+      if (kIsWeb) {
+        for (final msg in thread.messages) {
+          if (msg.fileData != null && msg.fileData!.startsWith('web_idb:')) {
+            final id = msg.fileData!.split(':')[1];
+            threadSize += await WebStorage.getMediaSize(id);
+          }
+        }
+      } else {
+        for (final msg in thread.messages) {
+          if (msg.localFilePath != null) {
+            final file = File(msg.localFilePath!);
+            if (await file.exists()) {
+              threadSize += await file.length();
+            }
+          }
+        }
+      }
+      usage[thread.id] = threadSize;
+    }
+    return usage;
+  }
+
+  Future<void> clearAllMedia() async {
+    if (kIsWeb) {
+      await WebStorage.clearAllMedia();
+      return;
+    }
+    try {
+      final path = await _getAppDirPath();
+      final mediaDir = Directory('$path/media');
+      if (await mediaDir.exists()) {
+        await mediaDir.delete(recursive: true);
+      }
+    } catch (e) {
+      debugPrint('Error clearing media storage: $e');
+    }
+  }
+
+  Future<void> clearMediaForChat(ChatThread thread) async {
+    if (kIsWeb) {
+      for (final msg in thread.messages) {
+        if (msg.fileData != null && msg.fileData!.startsWith('web_idb:')) {
+          final id = msg.fileData!.split(':')[1];
+          await WebStorage.deleteMedia(id);
+        }
+      }
+      return;
+    }
+    
+    for (final msg in thread.messages) {
+      if (msg.localFilePath != null) {
+        final file = File(msg.localFilePath!);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
     }
   }
 

@@ -13,11 +13,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:abyss_chat/network/notification_service.dart';
 import 'package:abyss_chat/network/crypto_service.dart';
 import 'package:abyss_chat/features/settings/domain/settings_controller.dart';
-import 'package:abyss_chat/core/widgets/abyss_snackbar.dart';
 import 'package:abyss_chat/features/settings/presentation/widgets/about_abyss_dialog.dart';
 import 'package:abyss_chat/features/chat/data/chat_repository.dart';
 import 'package:abyss_chat/features/calling/domain/call_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:abyss_chat/features/settings/presentation/screens/storage_management_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -533,7 +533,7 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text('Storage and Data'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const StorageAndDataScreen()));
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const StorageManagementScreen()));
                 },
               ),
               const Divider(height: 32),
@@ -717,73 +717,4 @@ class NotificationsScreen extends ConsumerWidget {
   }
 }
 
-class StorageAndDataScreen extends ConsumerWidget {
-  const StorageAndDataScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final settingsAsync = ref.watch(appSettingsProvider);
-    final cs = Theme.of(context).colorScheme;
-    
-    return Scaffold(
-      appBar: AppBar(title: const Text('Storage and Data')),
-      body: settingsAsync.when(
-        data: (settings) {
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text('Media Auto-Download', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: cs.primary)),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                title: const Text('When using Wi-Fi'),
-                value: settings.mediaAutoDownloadWifi,
-                onChanged: (val) {
-                  ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(mediaAutoDownloadWifi: val));
-                },
-              ),
-              SwitchListTile(
-                title: const Text('When using Cellular'),
-                value: settings.mediaAutoDownloadCellular,
-                onChanged: (val) {
-                  ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(mediaAutoDownloadCellular: val));
-                },
-              ),
-              const Divider(height: 32),
-              Text('Storage Usage', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: cs.primary)),
-              const SizedBox(height: 16),
-              LinearProgressIndicator(
-                value: 0.15,
-                backgroundColor: cs.surfaceContainerHighest,
-                color: cs.primary,
-                minHeight: 8,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('150 MB used', style: TextStyle(color: cs.onSurfaceVariant)),
-                  Text('1.0 GB total space', style: TextStyle(color: cs.onSurfaceVariant)),
-                ],
-              ),
-              const SizedBox(height: 24),
-              FilledButton.tonalIcon(
-                icon: const Icon(Icons.cleaning_services),
-                label: const Text('Clear Cache'),
-                onPressed: () {
-                  AbyssSnackBar.show(
-                    context, 
-                    'Cache cleared! Saved 24 MB.',
-                    type: SnackBarType.success,
-                  );
-                },
-              ),
-            ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
-      ),
-    );
-  }
-}
+// StorageManagementScreen was moved to its own file
