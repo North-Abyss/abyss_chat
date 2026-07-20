@@ -24,7 +24,7 @@ jobs:
         run: flutter pub get
         
       - name: Build Web
-        run: flutter build web --release --wasm --base-href "/abyss_chat/"
+        run: flutter build web --release --wasm --no-tree-shake-icons --base-href "/abyss_chat/"
         
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
