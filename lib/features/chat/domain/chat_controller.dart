@@ -181,10 +181,95 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
 
     final loadedThreads = await storage.loadThreads();
     final cleanThreads = loadedThreads.where((t) => !t.id.startsWith('{')).toList();
-    if (cleanThreads.length != loadedThreads.length) {
-      storage.saveThreads(cleanThreads);
+    
+    // Get actual myId directly from storage in case peerService isn't initialized yet
+    final myProfile = await storage.loadUserProfile();
+    final actualMyId = myProfile?['id'] as String?;
+    debugPrint('ChatThreadsNotifier build() - actualMyId from storage: $actualMyId');
+    
+    // Cleanup duplicate ghost threads created by the old networkSenderId bug
+    final Map<String, ChatThread> deduplicated = {};
+    bool needsSave = false;
+    for (final thread in cleanThreads) {
+      if (!thread.isGroup && thread.id == actualMyId) {
+        // The user doesn't want to see a chat with themselves (Saved Messages), so drop it.
+        debugPrint('Dropping self-chat thread with ID: ${thread.id}');
+        needsSave = true;
+        continue;
+      }
+      
+      if (!thread.isGroup && thread.id != thread.peer.id) {
+        // This is a bugged thread!
+        needsSave = true;
+        final correctId = thread.peer.id;
+        
+        // If the correct ID is our own ID, it means this ghost thread was just us
+        // mistakenly sending a message to ourselves due to the bug. We can just drop it.
+        if (correctId == actualMyId) {
+          debugPrint('Dropping ghost thread with correctId matching our ID: $correctId');
+          continue;
+        }
+
+        // Merge its messages into the correct thread.
+        if (!deduplicated.containsKey(correctId)) {
+          deduplicated[correctId] = ChatThread(
+            id: correctId,
+            peer: thread.peer,
+            messages: [],
+          );
+        }
+        final existing = deduplicated[correctId]!;
+        final mergedMap = { for (var m in existing.messages) m.id: m };
+        for (final m in thread.messages) {
+          mergedMap[m.id] = m;
+        }
+        final mergedList = mergedMap.values.toList()..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        deduplicated[correctId] = existing.copyWith(messages: mergedList);
+      } else {
+        // Valid thread, merge it if we already created a base from ghost threads
+        if (deduplicated.containsKey(thread.id)) {
+          needsSave = true;
+          final existing = deduplicated[thread.id]!;
+          final mergedMap = { for (var m in existing.messages) m.id: m };
+          for (final m in thread.messages) {
+            mergedMap[m.id] = m;
+          }
+          final mergedList = mergedMap.values.toList()..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          deduplicated[thread.id] = thread.copyWith(messages: mergedList);
+        } else {
+          // Check if we already have a thread with the same peer name (duplicate contact due to shared local storage across tabs)
+          final sameNameKey = deduplicated.keys.firstWhere(
+            (k) => !deduplicated[k]!.isGroup && deduplicated[k]!.peer.name == thread.peer.name && thread.peer.name != 'Unknown', 
+            orElse: () => ''
+          );
+          
+          if (sameNameKey.isNotEmpty) {
+            needsSave = true;
+            final existing = deduplicated[sameNameKey]!;
+            final mergedMap = { for (var m in existing.messages) m.id: m };
+            for (final m in thread.messages) {
+              mergedMap[m.id] = m;
+            }
+            final mergedList = mergedMap.values.toList()..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+            // Keep the most recent thread ID (this helps if peer changed ID on reconnect)
+            final latestThread = thread.messages.isEmpty || existing.messages.isEmpty 
+                ? thread 
+                : (thread.messages.last.timestamp.isAfter(existing.messages.last.timestamp) ? thread : existing);
+            
+            deduplicated.remove(sameNameKey);
+            deduplicated[latestThread.id] = latestThread.copyWith(messages: mergedList);
+          } else {
+            deduplicated[thread.id] = thread;
+          }
+        }
+      }
     }
-    return cleanThreads;
+
+    final finalThreads = deduplicated.values.toList();
+    if (needsSave || finalThreads.length != loadedThreads.length) {
+      storage.saveThreads(finalThreads);
+    }
+    return finalThreads;
   }
   
   void _flushAllPendingQueues() {
@@ -206,6 +291,9 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   void _handleIncomingMessage(Message message) {
     if (!state.hasValue) return;
     
+    // Ignore messages from ourselves (e.g. if we have multiple tabs open with the same ID)
+    if (message.senderId == myId) return;
+    
     final blockedList = ref.read(blockedContactsProvider).value ?? [];
     if (blockedList.contains(message.senderId)) {
       return; 
@@ -213,7 +301,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     
     final contactsList = ref.read(contactsProvider).value ?? [];
     final isMe = message.senderId == myId;
-    final isKnownContact = isMe || contactsList.any((c) => c.id == message.senderId) || state.value!.any((t) => t.id == message.senderId || t.id == message.networkSenderId);
+    final isKnownContact = isMe || contactsList.any((c) => c.id == message.senderId) || state.value!.any((t) => t.id == message.senderId);
 
     if (!isKnownContact) {
       final newUser = User(
@@ -228,7 +316,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     
     final threads = List<ChatThread>.from(state.value!);
     final isGroup = message.groupId != null;
-    final targetThreadId = isGroup ? message.groupId! : (message.networkSenderId ?? message.senderId);
+    final targetThreadId = isGroup ? message.groupId! : message.senderId;
     final currentSelectedId = ref.read(selectedThreadIdProvider);
     
     int threadIndex = threads.indexWhere((t) => t.id == targetThreadId);
@@ -702,7 +790,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     }
   }
 
-  Future<void> sendMediaMessage(String threadId, String text, MessageType type, Uint8List fileBytes, String extension) async {
+  Future<void> sendMediaMessage(String threadId, String text, MessageType type, Uint8List fileBytes, String originalName) async {
     if (!state.hasValue) return;
     final threads = List<ChatThread>.from(state.value!);
     final threadIndex = threads.indexWhere((t) => t.id == threadId);
@@ -710,7 +798,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     
     final thread = threads[threadIndex];
     final messageId = const Uuid().v4();
-    final fileName = 'media_$messageId.$extension';
+    final sanitizedName = originalName.replaceAll(' ', '-');
+    final fileName = '${messageId}_$sanitizedName';
     
     // We store fileData temporarily so UI knows it's incoming/outgoing
     final msg = Message(

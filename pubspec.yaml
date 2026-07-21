@@ -67,6 +67,9 @@ dependencies:
   web_socket_channel: ^3.0.3
   package_info_plus: ^9.0.1
   idb_shim: ^2.9.6+2
+  super_clipboard: ^0.9.1
+  archive: ^4.0.9
+  desktop_drop: ^0.7.1
   
 dev_dependencies:
   flutter_test:

@@ -1,0 +1,11 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.abyss.chat",
+      "sha256_cert_fingerprints":
+        ["B7:89:FD:B1:F4:9F:EB:19:7E:71:BD:A4:1B:B5:89:93:E6:96:67:9A:CD:C7:47:FA:FB:C5:F6:37:60:C7:38:C0"]
+    }
+  }
+]

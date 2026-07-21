@@ -49,6 +49,13 @@ class _WebMediaImageState extends State<WebMediaImage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.msg.fileData == '[MEDIA_TRANSFERRING]') {
+      return Container(
+        color: Colors.black26,
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    
     if (widget.msg.fileData != null && widget.msg.fileData!.startsWith('web_idb:')) {
       if (_blobUrl == null) {
         return const Center(child: CircularProgressIndicator());

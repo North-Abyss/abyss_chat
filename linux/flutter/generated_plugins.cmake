@@ -3,12 +3,15 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  desktop_drop
   dynamic_color
   emoji_picker_flutter
   file_selector_linux
   flutter_webrtc
+  irondash_engine_context
   record_linux
   screen_retriever_linux
+  super_native_extensions
   url_launcher_linux
   window_manager
 )

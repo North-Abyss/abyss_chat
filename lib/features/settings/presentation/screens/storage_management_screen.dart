@@ -4,6 +4,7 @@ import 'package:abyss_chat/features/settings/domain/settings_controller.dart';
 import 'package:abyss_chat/core/widgets/abyss_snackbar.dart';
 import 'package:abyss_chat/features/chat/data/chat_repository.dart';
 import 'package:abyss_chat/features/chat/domain/chat_controller.dart';
+import 'package:abyss_chat/core/widgets/user_avatar.dart';
 
 class StorageManagementScreen extends ConsumerStatefulWidget {
   const StorageManagementScreen({super.key});
@@ -186,11 +187,7 @@ class _StorageManagementScreenState extends ConsumerState<StorageManagementScree
                         final usage = _chatStorageUsage[thread.id] ?? 0;
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor: Color(thread.peer.avatarColor),
-                            // ignore: non_const_argument_for_const_parameter
-                            child: Icon(IconData(thread.peer.avatarIcon, fontFamily: 'MaterialIcons'), color: Colors.white, size: 20),
-                          ),
+                          leading: UserAvatar(user: thread.peer, radius: 20),
                           title: Text(thread.peer.name),
                           subtitle: Text('${thread.messages.length} messages'),
                           trailing: Row(

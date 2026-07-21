@@ -44,7 +44,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettings> {
     final prefs = await SharedPrefsHelper.instance;
     return AppSettings(
       notificationPosition: prefs.getString('notificationPosition') == 'bottom' ? NotificationPosition.bottom : NotificationPosition.top,
-      systemNotificationsEnabled: prefs.getBool('systemNotificationsEnabled') ?? true,
+      systemNotificationsEnabled: prefs.getBool('systemNotificationsEnabled') ?? !kIsWeb,
       inAppNotificationsEnabled: prefs.getBool('inAppNotificationsEnabled') ?? kIsWeb,
       mediaAutoDownloadWifi: prefs.getBool('mediaAutoDownloadWifi') ?? true,
       mediaAutoDownloadCellular: prefs.getBool('mediaAutoDownloadCellular') ?? false,
