@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="512"
+   height="512"
+   viewBox="0 0 512 512"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
+   sodipodi:docname="abyss-chat.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     inkscape:export-bgcolor="#00000000"
+     inkscape:zoom="1.6171875"
+     inkscape:cx="256"
+     inkscape:cy="256"
+     inkscape:window-width="1920"
+     inkscape:window-height="1011"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g2"
+       inkscape:export-filename="abyss-chat.png"
+       inkscape:export-xdpi="192"
+       inkscape:export-ydpi="192">
+      <rect
+         style="fill:#131313;fill-opacity:1;stroke:#ffffff;stroke-width:12;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:fill markers stroke"
+         id="rect2"
+         width="499.38135"
+         height="499.38135"
+         x="6.3093204"
+         y="6.3093204"
+         ry="35.690914" />
+      <path
+         style="fill:none;stroke:#ffffff;stroke-width:12;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:fill markers stroke"
+         id="path2"
+         sodipodi:type="arc"
+         sodipodi:cx="255.99966"
+         sodipodi:cy="256.00031"
+         sodipodi:rx="160.73631"
+         sodipodi:ry="160.73631"
+         sodipodi:start="0"
+         sodipodi:end="4.712389"
+         sodipodi:arc-type="arc"
+         d="M 416.73598,256.00031 A 160.73631,160.73631 0 0 1 317.51079,404.5013 160.73631,160.73631 0 0 1 142.34193,369.65804 160.73631,160.73631 0 0 1 107.49868,194.48918 160.73631,160.73631 0 0 1 255.99966,95.263992"
+         sodipodi:open="true" />
+      <path
+         style="fill:none;stroke:#ffffff;stroke-width:12;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:fill markers stroke"
+         id="path2-4"
+         sodipodi:type="arc"
+         sodipodi:cx="255.99985"
+         sodipodi:cy="256.00015"
+         sodipodi:rx="73.439125"
+         sodipodi:ry="73.439125"
+         sodipodi:start="0"
+         sodipodi:end="4.712389"
+         sodipodi:arc-type="arc"
+         d="m 329.43897,256.00015 a 73.439125,73.439125 0 0 1 -45.33519,67.84891 73.439125,73.439125 0 0 1 -80.03324,-15.9196 73.439125,73.439125 0 0 1 -15.9196,-80.03324 73.439125,73.439125 0 0 1 67.84891,-45.33519"
+         sodipodi:open="true" />
+      <path
+         style="fill:none;stroke:#ffffff;stroke-width:12;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:fill markers stroke"
+         id="path2-8"
+         sodipodi:type="arc"
+         sodipodi:cx="255.98759"
+         sodipodi:cy="253.96059"
+         sodipodi:rx="118.59289"
+         sodipodi:ry="118.59289"
+         sodipodi:start="3.1415927"
+         sodipodi:end="1.5707963"
+         sodipodi:arc-type="arc"
+         d="M 137.39471,253.96059 A 118.59289,118.59289 0 0 1 255.98759,135.3677 118.59289,118.59289 0 0 1 374.58048,253.96059 118.59289,118.59289 0 0 1 255.98759,372.55347"
+         sodipodi:open="true" />
+    </g>
+  </g>
+</svg>
