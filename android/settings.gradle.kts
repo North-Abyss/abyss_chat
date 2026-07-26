@@ -5,9 +5,13 @@ val pubCacheDir = File(System.getProperty("user.home"), ".pub-cache/hosted/pub.d
 if (pubCacheDir.exists()) {
     pubCacheDir.walkTopDown().filter { it.name == "plugin.gradle" && it.absolutePath.contains("cargokit") }.forEach { file ->
         val content = file.readText()
-        // Use Regex to ensure it matches regardless of spacing, and prevent double-patching
-        if (content.contains(Regex("\\bexec\\s*\\{")) && !content.contains("execOperations.exec")) {
-            file.writeText(content.replace(Regex("\\bexec\\s*\\{"), "execOperations.exec {"))
+        if (content.contains(Regex("\\bexec\\s*\\{")) || content.contains("execOperations.exec {")) {
+            val newContent = content
+                .replace(Regex("\\bexec\\s*\\{"), "getExecOperations().exec {")
+                .replace("execOperations.exec {", "getExecOperations().exec {")
+            if (content != newContent) {
+                file.writeText(newContent)
+            }
         }
     }
 }
