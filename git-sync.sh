@@ -2,6 +2,7 @@
 
 # Git Commit & Sync Script - /git-sync.sh
 # Syncs local repository with remote and optionally triggers Cloud CI/CD
+# Usage: ./git-sync.sh [commit_message] [release_tag] [deploy_web_y_n]
 
 set -e
 
@@ -20,7 +21,10 @@ git add .
 
 # Commit changes
 echo -e "${BLUE}Committing changes...${NC}"
-read -p "Enter commit message (leave blank for auto-timestamp): " commit_message
+commit_message="$1"
+if [[ -z "$commit_message" ]]; then
+    read -p "Enter commit message (leave blank for auto-timestamp): " commit_message
+fi
 
 if [[ -z "$commit_message" ]]; then
     commit_message="$(date '+%d-%b-%Y-T-%H:%M')"
@@ -48,10 +52,18 @@ echo ""
 # 🚀 CLOUD PIPELINE TRIGGER
 # ==========================================
 echo -e "${YELLOW}--- Release Manager ---${NC}"
-read -p "Do you want to trigger a Cloud Release for these changes? (y/n): " trigger_release
+version_tag="$2"
+
+if [[ -n "$version_tag" ]]; then
+    trigger_release="y"
+else
+    read -p "Do you want to trigger a Cloud Release for these changes? (y/n): " trigger_release
+fi
 
 if [[ "$trigger_release" == "y" || "$trigger_release" == "Y" ]]; then
-    read -p "Enter version tag (e.g., v1.0.0 or v0.0.0 for testing): " version_tag
+    if [[ -z "$version_tag" ]]; then
+        read -p "Enter version tag (e.g., v1.0.0 or v0.0.0 for testing): " version_tag
+    fi
     
     echo -e "${BLUE}Preparing tag $version_tag...${NC}"
     
@@ -87,7 +99,11 @@ fi
 # 🌐 GITHUB PAGES WEB DEPLOY
 # ==========================================
 echo -e "${YELLOW}--- Web Deploy (GitHub Pages) ---${NC}"
-read -p "Do you want to trigger a Cloud Deploy for the Web PWA? (y/n): " deploy_web
+deploy_web="$3"
+
+if [[ -z "$deploy_web" ]]; then
+    read -p "Do you want to trigger a Cloud Deploy for the Web PWA? (y/n): " deploy_web
+fi
 
 if [[ "$deploy_web" == "y" || "$deploy_web" == "Y" ]]; then
     # Generate a unique tag based on current timestamp
