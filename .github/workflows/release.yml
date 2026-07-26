@@ -236,7 +236,7 @@ jobs:
           cd apt-repo/apt/debian
           
           # Generate Packages
-          dpkg-scanpackages --arch amd64 pool/ > Packages
+          apt-ftparchive packages pool/ > Packages
           gzip -k -f Packages
           
           # Generate Release

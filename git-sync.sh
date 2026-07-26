@@ -18,10 +18,15 @@ echo -e "${BLUE}Starting Abyss Chat git sync...${NC}"
 echo -e "${BLUE}Staging changes...${NC}"
 git add .
 
-commit_message="Auto-update : Fixes "
 # Commit changes
 echo -e "${BLUE}Committing changes...${NC}"
-read -p "Enter commit message: " commit_message
+read -p "Enter commit message (leave blank for auto-timestamp): " commit_message
+
+if [[ -z "$commit_message" ]]; then
+    commit_message="$(date '+%d-%b-%Y-T-%H:%M')"
+    echo -e "${YELLOW}Using auto commit message: $commit_message${NC}"
+fi
+
 git commit -m "$commit_message" || echo "No changes to commit"
 
 # Fetch latest changes from remote (this also fetches the latest tags)
