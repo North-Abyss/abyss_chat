@@ -443,13 +443,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _showAttachmentMenu(BuildContext context) {
-    showDialog(
+    showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          width: 320, // Compact dock width
+      barrierLabel: 'Dismiss',
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, animation, secondaryAnimation) => Align(
+        alignment: Alignment.bottomRight,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: 320, // Compact dock width
+            margin: const EdgeInsets.only(right: 16, bottom: 90),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Theme.of(
@@ -663,6 +668,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
         ),
+      ),
     );
   }
 
@@ -702,54 +708,61 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-              ListTile(
-                leading: const Icon(Icons.grid_3x3, color: Colors.red),
-                title: const Text('Tic-Tac-Toe'),
-                subtitle: const Text('Play a quick game of Tic-Tac-Toe'),
-                onTap: () {
-                  Navigator.pop(context);
-                  final participants =
-                      ref
-                          .read(singleThreadProvider(widget.threadId))
-                          ?.members
-                          .map((e) => e.id)
-                          .toList() ??
-                      [widget.threadId];
-                  // If it's a 1on1, members might just be empty, so we ensure both IDs are in the list
-                  final myId = ref.read(chatThreadsProvider.notifier).myId;
-                  final allParticipants = <String>{
-                    ...participants,
-                    widget.threadId,
-                  };
-                  if (myId != null) allParticipants.add(myId);
-                  final participantList = allParticipants.toList();
+          child: Container(
+            width: 320,
+            padding: const EdgeInsets.all(24),
+            child: AspectRatio(
+              aspectRatio: 5 / 4,
+              child: Wrap(
+                spacing: 32,
+                runSpacing: 32,
+                alignment: WrapAlignment.center,
+                runAlignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _buildAttachIcon(
+                    context,
+                    Icons.grid_3x3,
+                    Colors.red,
+                    'Tic-Tac-Toe',
+                    () {
+                      Navigator.pop(context);
+                      final participants =
+                          ref
+                              .read(singleThreadProvider(widget.threadId))
+                              ?.members
+                              .map((e) => e.id)
+                              .toList() ??
+                          [widget.threadId];
+                      final myId = ref.read(chatThreadsProvider.notifier).myId;
+                      final allParticipants = <String>{
+                        ...participants,
+                        widget.threadId,
+                      };
+                      if (myId != null) allParticipants.add(myId);
+                      final participantList = allParticipants.toList();
 
-                  ref
-                      .read(gameControllerProvider.notifier)
-                      .startGame(
-                        GameType.ticTacToe,
-                        participants: participantList,
-                        threadId: widget.threadId,
-                      );
-                },
+                      ref
+                          .read(gameControllerProvider.notifier)
+                          .startGame(
+                            GameType.ticTacToe,
+                            participants: participantList,
+                            threadId: widget.threadId,
+                          );
+                    },
+                  ),
+                  _buildAttachIcon(
+                    context,
+                    Icons.psychology,
+                    Colors.purple,
+                    'Guess Word',
+                    () {
+                      Navigator.pop(context);
+                      _showGuessingGameSetupDialog(context);
+                    },
+                  ),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.psychology, color: Colors.purple),
-                title: const Text('Guessing Game'),
-                subtitle: const Text(
-                  'Think of a word and let others guess it!',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showGuessingGameSetupDialog(context);
-                },
-              ),
-              ],
             ),
           ),
         );
