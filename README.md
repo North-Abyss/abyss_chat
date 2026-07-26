@@ -83,6 +83,36 @@ To run this project locally, ensure you have Flutter installed.
 3. Use `flutter run` to launch on your connected device or emulator.
 4. For Linux specifically, ensure the necessary dependencies for `flutter_webrtc` are present on your system.
 
+## 📦 Installation
+
+You can download the pre-compiled packages for your platform from the [GitHub Releases](https://github.com/North-Abyss/abyss_chat/releases/latest) page.
+
+### Linux (Debian / Ubuntu / Mint)
+We provide an official, auto-updating APT repository so you can easily install and upgrade the app.
+
+Run the following command in your terminal to set it up:
+```bash
+curl -sSL https://raw.githubusercontent.com/North-Abyss/abyss_chat/main/install-apt.sh | sudo bash
+```
+
+Alternatively, download the `.deb` file from the latest release and install it manually:
+```bash
+sudo apt install ./abyss-chat-linux-x64.deb
+```
+
+### Linux (Fedora / Red Hat)
+Download the `.rpm` file and install it via the terminal:
+```bash
+sudo dnf install ./abyss-chat-linux-x64.rpm
+```
+*(Or use `yum install ./abyss-chat-linux-x64.rpm` on older systems)*
+
+### Windows
+Download the `.exe` installer (e.g., `AbyssChat-Windows-Setup.exe`) and double-click to install. Alternatively, download the portable `.zip` version and extract it anywhere.
+
+### Android
+Download the Universal `.apk` file (or the split APK specific to your architecture) to your device. Tap on the downloaded file and select "Install". Ensure that "Install from Unknown Sources" is enabled in your Android security settings.
+
 ## 📖 Usage Guide
 
 Abyss Chat is a 100% decentralized P2P application. This means there are no servers storing your messages or routing your data!

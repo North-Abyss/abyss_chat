@@ -30,6 +30,8 @@ class PeerDartService {
   final Map<String, Timer> _pingTimers = {};
   final Map<String, int> _pingMisses = {};
   
+  final Set<String> _knownPeers = {};
+  
   // Stream controllers for different events
   final StreamController<Message> _incomingMessages = StreamController<Message>.broadcast();
   Stream<Message> get onMessageReceived => _incomingMessages.stream;
@@ -79,16 +81,20 @@ class PeerDartService {
     // without requiring users to change browser mDNS flags
     final customConfig = {
       'iceServers': [
-        {'urls': 'stun:stun.l.google.com:19302'},
-        {'urls': 'stun:stun1.l.google.com:19302'},
+        // Tier 1: Google STUN (fastest, most reliable, direct P2P)
+        {'urls': ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302']},
+        // Tier 2: Cloudflare STUN (fast CDN-backed fallback)
+        {'urls': ['stun:stun.cloudflare.com:3478']},
+        // Tier 3: Metered Open Relay TURN (free relay for NAT traversal)
         {
-          "urls": [
-            "turn:openrelay.metered.ca:80",
-            "turn:openrelay.metered.ca:443",
-            "turn:openrelay.metered.ca:443?transport=tcp"
+          'urls': [
+            'turn:standard.relay.metered.ca:80',
+            'turn:standard.relay.metered.ca:80?transport=tcp',
+            'turn:standard.relay.metered.ca:443',
+            'turns:standard.relay.metered.ca:443?transport=tcp',
           ],
-          "username": "openrelayproject",
-          "credential": "openrelayproject",
+          'username': 'e8dd65b92f60390b0f8fa187',
+          'credential': '6bFMhgkl7sWIz1Nw',
         },
       ],
       'sdpSemantics': 'unified-plan',
@@ -112,6 +118,13 @@ class PeerDartService {
          connectToPeer(peerId);
       }
       _connectionQueue.clear();
+      
+      for (final peerId in _knownPeers) {
+        if (!_activeConnections.containsKey(peerId) && !_pendingConnections.contains(peerId)) {
+          debugPrint('🔄 Auto-reconnecting to known peer: $peerId');
+          connectToPeer(peerId);
+        }
+      }
     });
 
     _peer!.on("connection").listen((connection) {
@@ -169,16 +182,15 @@ class PeerDartService {
       
       // Handle hot-reload zombie connections
       if (err.toString().toLowerCase().contains('taken')) {
-        debugPrint('ID is taken. Server still holds the zombie connection. Retrying in ${AppConstants.webrtcReconnectDelay.inSeconds} seconds...');
-        Future.delayed(AppConstants.webrtcReconnectDelay, () {
+        debugPrint('ID is taken. Server still holds the zombie connection. Retrying in 5 seconds...');
+        if (kIsWeb) {
+          debugPrint('⏳ Waiting for signaling server to release zombie connection...');
+        }
+        Future.delayed(const Duration(seconds: 5), () {
           if (_isDisposed) return;
           if (!_connectionStatus.isClosed) {
             _peer?.dispose();
-            if (kIsWeb) {
-              // Bypass zombie on Web by randomizing the ID so we can still connect out
-              _myId = '${_myId}_${DateTime.now().millisecondsSinceEpoch % 1000}';
-            }
-            initialize(_myId); // Retry initialization
+            initialize(_myId); // Retry with SAME ID
           }
         });
       }
@@ -294,6 +306,7 @@ class PeerDartService {
       debugPrint('🤝 Data connection established with ${conn.peer}');
       _activeConnections[conn.peer] = conn;
       _pendingConnections.remove(conn.peer);
+      _knownPeers.add(conn.peer);
       
       // Start ping/pong health check
       _pingMisses[conn.peer] = 0;
@@ -306,10 +319,16 @@ class PeerDartService {
         
         _pingMisses[conn.peer] = (_pingMisses[conn.peer] ?? 0) + 1;
         if ((_pingMisses[conn.peer] ?? 0) > 3) {
-          debugPrint('⏱️ Ping timeout for ${conn.peer}, gently closing');
+          debugPrint('⏱️ Ping timeout for ${conn.peer}, attempting reconnect');
           _activeConnections.remove(conn.peer);
           _cancelSubscriptions(conn.peer);
           timer.cancel();
+          // Queue reconnection attempt after brief cooldown
+          Future.delayed(const Duration(seconds: 2), () {
+            if (!_isDisposed && _isPeerOpen && !_activeConnections.containsKey(conn.peer)) {
+              connectToPeer(conn.peer);
+            }
+          });
           return;
         }
         

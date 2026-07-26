@@ -1,0 +1,14 @@
+display_name: Abyss Chat
+package_name: abysschat
+maintainer:
+  name: North-Abyss
+  email: contact@northabyss.com
+summary: A decentralized P2P messaging and video calling application
+description: A decentralized P2P messaging and video calling application
+keywords:
+  - chat
+  - p2p
+  - messenger
+categories:
+  - Utility
+icon: assets/abyss-chat.png

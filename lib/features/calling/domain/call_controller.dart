@@ -177,11 +177,21 @@ class CallNotifier extends Notifier<CallSession?> {
         });
       } catch (videoError) {
         debugPrint('Camera failed or locked. Falling back to Audio-only: $videoError');
-        _localStream = await navigator.mediaDevices.getUserMedia({
-          'audio': true,
-          'video': false,
-        });
-        state = state?.copyWith(isVideo: false); // Update state to audio-only
+        try {
+          _localStream = await navigator.mediaDevices.getUserMedia({
+            'audio': true,
+            'video': false,
+          });
+          state = state?.copyWith(isVideo: false); // Update state to audio-only
+        } catch (audioError) {
+          debugPrint('Microphone failed or permission denied: $audioError');
+          final ctx = globalNavigatorKey.currentContext;
+          if (ctx != null && ctx.mounted) {
+            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Microphone permission is required for calls.')));
+          }
+          endCall();
+          return;
+        }
       }
       localRenderer.srcObject = _localStream;
       
@@ -280,7 +290,11 @@ class CallNotifier extends Notifier<CallSession?> {
 
   void _handleCallEnded(String peerId) {
     if (state != null && state!.peers.any((p) => p.id == peerId)) {
-      _handlePeerDisconnected(peerId);
+      if (state!.isGroup) {
+        _handlePeerDisconnected(peerId);
+      } else {
+        endCall(local: false);
+      }
     }
   }
   void _handleCallAccepted(String peerId) {
@@ -325,11 +339,29 @@ class CallNotifier extends Notifier<CallSession?> {
   }
 
   void _handleCallRequest(Map<String, dynamic> request) {
-    if (state != null) return;
-    
     final peerId = request['peerId'] as String;
     final callerName = request['callerName'] as String;
     final isVideo = request['isVideo'] as bool;
+    
+    if (state != null) {
+      // GLARE: We're already in a call. Check if it's with this same peer.
+      if (state!.state == CallState.ringing && state!.peers.any((p) => p.id == peerId)) {
+        // Both tried to call each other simultaneously.
+        // Deterministic tie-break: lower ID is the caller, higher ID becomes callee.
+        final myPeerId = ref.read(chatThreadsProvider.notifier).myId ?? '';
+        if (myPeerId.compareTo(peerId) < 0) {
+          // I win (caller). Ignore their request — they should answer mine.
+          debugPrint('🔀 Glare resolved: I am the caller (lower ID). Ignoring remote call_request.');
+          return;
+        } else {
+          // They win (caller). I become the callee — auto-answer.
+          debugPrint('🔀 Glare resolved: They are the caller (lower ID). Auto-answering.');
+          answerCall();
+          return;
+        }
+      }
+      return; // Busy with another call entirely
+    }
     
     // Check contacts for real avatar/color
     User? knownUser;
@@ -426,11 +458,21 @@ class CallNotifier extends Notifier<CallSession?> {
         });
       } catch (videoError) {
         debugPrint('Camera failed or locked. Falling back to Audio-only: $videoError');
-        _localStream = await navigator.mediaDevices.getUserMedia({
-          'audio': true,
-          'video': false,
-        });
-        state = state?.copyWith(isVideo: false); // Update state to audio-only
+        try {
+          _localStream = await navigator.mediaDevices.getUserMedia({
+            'audio': true,
+            'video': false,
+          });
+          state = state?.copyWith(isVideo: false); // Update state to audio-only
+        } catch (audioError) {
+          debugPrint('Microphone failed or permission denied: $audioError');
+          final ctx = globalNavigatorKey.currentContext;
+          if (ctx != null && ctx.mounted) {
+            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Microphone permission is required for calls.')));
+          }
+          endCall();
+          return;
+        }
       }
       localRenderer.srcObject = _localStream;
       
@@ -655,10 +697,12 @@ class CallNotifier extends Notifier<CallSession?> {
 
     if (local && state != null) {
       final peerService = ref.read(peerServiceProvider);
+      final lanService = ref.read(lanMessengerProvider);
       for (final peer in state!.peers) {
         peerService.sendCallEnded(peer.id);
         final payload = {'type': 'call_ended', 'peerId': peerService.myId ?? 'local'};
         peerService.sendUrgentSignal(peer.id, payload);
+        lanService.sendCustomData(peer.id, payload);
       }
       
       // Brief delay to ensure data channel message transmits before tearing down
@@ -675,25 +719,32 @@ class CallNotifier extends Notifier<CallSession?> {
     _timeoutTimer = null;
     _stopRingtone();
     
-    for (final conn in _activeConnections.values) {
-      conn.close();
-    }
-    _activeConnections.clear();
-    
-    _localStream?.getTracks().forEach((track) => track.stop());
-    _localStream?.dispose();
-    _localStream = null;
-    state = null;
-    _isEndingCall = false;
+    // 1. Detach renderers FIRST (prevents dangling refs)
     localRenderer.srcObject = null;
-    
     for (final renderer in remoteRenderers.values) {
       renderer.srcObject = null;
       renderer.dispose();
     }
     remoteRenderers.clear();
     
+    // 2. Close WebRTC media connections
+    for (final conn in _activeConnections.values) {
+      conn.close();
+    }
+    _activeConnections.clear();
+    
+    // 3. Stop EVERY track explicitly, then dispose the stream
+    if (_localStream != null) {
+      for (final track in _localStream!.getTracks()) {
+        track.stop();
+      }
+      _localStream!.dispose();
+      _localStream = null;
+    }
+    
+    // 4. Reset state
     state = null;
+    _isEndingCall = false;
     if (_overlayEntry != null) {
       _overlayEntry!.remove();
       _overlayEntry = null;

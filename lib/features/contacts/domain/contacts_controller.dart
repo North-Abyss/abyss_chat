@@ -10,17 +10,39 @@ class ContactsNotifier extends AsyncNotifier<List<User>> {
     final storage = ref.watch(storageServiceProvider);
     final contacts = await storage.loadContacts();
     
-    // Automatically clean up any accidental "self" contacts (duplicate bug)
-    final profile = await storage.loadUserProfile();
-    if (profile != null && profile['id'] != null) {
-      final myId = profile['id'] as String;
-      final filtered = contacts.where((c) => c.id != myId).toList();
-      if (filtered.length != contacts.length) {
-        storage.saveContacts(filtered);
-        return filtered;
+    // Deduplicate by ID, keeping the one with a real name or newest timestamp
+    final Map<String, User> deduped = {};
+    for (final c in contacts) {
+      if (!deduped.containsKey(c.id)) {
+        deduped[c.id] = c;
+      } else {
+        final existing = deduped[c.id]!;
+        final existingPlaceholder = _isPlaceholderName(existing.name);
+        final newPlaceholder = _isPlaceholderName(c.name);
+        if (existingPlaceholder && !newPlaceholder) {
+          deduped[c.id] = c;
+        } else if (c.profileUpdatedAt != null && 
+                   (existing.profileUpdatedAt == null || c.profileUpdatedAt!.isAfter(existing.profileUpdatedAt!))) {
+          deduped[c.id] = c;
+        }
       }
     }
-    return contacts;
+    
+    // Remove self-contacts
+    final profile = await storage.loadUserProfile();
+    if (profile != null && profile['id'] != null) {
+      deduped.remove(profile['id'] as String);
+    }
+    
+    final result = deduped.values.toList();
+    if (result.length != contacts.length) {
+      storage.saveContacts(result);
+    }
+    return result;
+  }
+
+  static bool _isPlaceholderName(String name) {
+    return name == 'Unknown' || name.startsWith('Peer ') || name == 'Scanned Peer';
   }
 
   void upsertContact(User user) {

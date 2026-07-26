@@ -1,22 +1,19 @@
-# Abyss Chat - v1.1.3 🚀
+# Abyss Chat - v1.1.4 🚀
 
-Welcome to **Abyss Chat v1.1.3**! This release introduces a beautiful new WhatsApp-style Media Viewer, a Storage Manager, and a massive Web-Persistent Storage overhaul under the hood to ensure buttery smooth performance when handling large media across the web!
+Welcome to **Abyss Chat v1.1.4**! This release introduces a massive underlying infrastructure upgrade for connections, robust network recovery, and resolves several critical bugs that were causing duplicate contacts and call collisions.
 
 ## 🎁 What's New
 
-*   **Media Viewer Screen**: Replaced the basic inline image viewer with a full WhatsApp-style Media Viewer. Features include a bottom thumbnail carousel, swiping navigation, and a slick top app bar.
-*   **Multi-Selection & Bulk Actions**: Long-press any thumbnail in the Media Viewer to enter selection mode, allowing you to bulk share or download multiple media items at once!
-*   **Auto-Organized Downloading**: Downloading media automatically provisions an `Abyss Chat` folder and smartly routes files into `Images`, `Videos`, `Audio`, or `Documents` subfolders.
-*   **Storage Management Screen**: Head over to Settings to find the new Storage Manager! It provides a visual stacked bar chart breakdown of your app's footprint and allows you to view which chats are hoarding all your space.
-*   **Granular Media Deletion**: Free up space without losing your precious texts. You can now tap the trash can next to any specific chat in the Storage Manager to delete only its downloaded media, or use the "Clear All Media Cache" button to wipe the slate clean.
-*   **Web Persistent Storage (IndexedDB)**: We've completely rewritten how the Web app handles media storage. Instead of keeping heavy files suspended in RAM (which caused browser crashes), it now seamlessly chunks and saves your media natively into your browser's persistent IndexedDB cache using `idb_shim`.
-*   **Dynamic Media Resolution**: The chat screen dynamically resolves Web media into Object URLs on-the-fly, keeping the UI lightning fast and drastically lowering memory consumption.
+*   **Multi-Tier TURN/STUN Infrastructure**: Implemented a robust, free fallback connection system utilizing Google STUN, Cloudflare STUN, and Metered Open Relay TURN. This provides ultra-fast direct P2P connections and a reliable fallback for restrictive corporate NATs without requiring self-hosting.
+*   **Smart Peer Reconnection**: Implemented automatic network recovery. The app now tracks known active peers and intelligently re-establishes dropped data channels and signaling connections if the network goes down.
+*   **Abyss Chat**: The Android app name has finally been fixed to read "Abyss Chat" on your home screen instead of the internal `abyss_chat` identifier.
 
 ## 🛠️ Critical Bug Fixes
 
-*   **Peer Reload Deduplication**: Fixed an issue in WebRTC connections where a peer hot-restarting or reloading would create cloned duplicate chat threads due to ephemeral ID changes. The system now intelligently merges reconnected threads based on peer names.
-*   **Web Image Flashing & Memory Leaks**: Implemented an advanced in-memory Object URL cache for the Web storage engine. This completely prevents images from flashing upon scrolling and fixes a major memory leak by explicitly revoking URLs when media is cleared.
-*   **Material UI Padding**: Fixed layout constraints on the Media Viewer's top app bar using `SafeArea` to perfectly respect device notches.
-*   **IDE Cleanups**: Addressed all Dart analyzer warnings including `dart:html` and `share_plus` deprecations, making the codebase squeaky clean!
+*   **Contact Duplication Fixes**: Resolved a major issue causing duplicate contacts (e.g., "Peer ID..." or "Scanned Peer") during hot-reloads and "Connect via ID" flows. The system now perfectly merges placeholders with real names and stops aggressively mutating Web IDs.
+*   **Call Glare Collision**: Fixed the bug where two people calling each other simultaneously would get stuck ringing forever. Added deterministic tie-breaking logic.
+*   **Hardware Permission Leaks**: Reordered call teardown logic to guarantee the camera and mic hardware are immediately released when a call ends, turning off the green OS indicator dot. Fixed a similar memory leak in the QR scanner.
+*   **QR Contact Naming**: The QR scanner now correctly parses the contact's real display name from the JSON payload instead of hardcoding "Scanned Peer".
+*   **Notification Toggle Desync**: Fixed mismatched default values between UI toggles and the notification service, ensuring system and in-app notifications obey user preferences perfectly.
 
 ---

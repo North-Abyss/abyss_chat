@@ -1,0 +1,22 @@
+env:
+  APP_ENV: prod
+
+output: dist/
+
+releases:
+  - name: production
+    jobs:
+      - name: release-deb
+        package:
+          platform: linux
+          target: deb
+          build_args:
+            target: lib/main.dart
+      - name: release-rpm
+        package:
+          platform: linux
+          target: rpm
+          build_args:
+            target: lib/main.dart
+
+

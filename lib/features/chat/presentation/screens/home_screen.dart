@@ -264,6 +264,7 @@ class HomeScreen extends ConsumerWidget {
                   } else {
                     // Manual P2P QR payload
                     final peerId = decoded['id'] as String;
+                    final peerName = decoded['name'] as String? ?? 'Scanned Peer';
                     final ip = decoded['ip'] as String?;
                     final port = decoded['port'] as int?;
                     
@@ -271,7 +272,7 @@ class HomeScreen extends ConsumerWidget {
                       // Add to mDNS provider manually to trigger local routing
                       final manualPeer = User(
                         id: peerId,
-                        name: 'Scanned Peer',
+                        name: peerName,
                         ipAddress: ip,
                         port: port,
                         avatarIcon: 0xe491,
@@ -283,7 +284,7 @@ class HomeScreen extends ConsumerWidget {
                       ref.read(lanMessengerProvider).connectToPeer(peerId, ip, port);
                     }
                     
-                    ref.read(chatThreadsProvider.notifier).startNewChat(peerId, peerName: 'Scanned Peer');
+                    ref.read(chatThreadsProvider.notifier).startNewChat(peerId, peerName: peerName);
                     threadIdToOpen = peerId;
                   }
                 } catch (e) {

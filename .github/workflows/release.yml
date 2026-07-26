@@ -63,6 +63,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Extract Version
+        shell: bash
+        run: echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+      
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -86,7 +90,7 @@ jobs:
           $issContent = @"
           [Setup]
           AppName=Abyss Chat
-          AppVersion=1.1.2
+          AppVersion=${{ env.APP_VERSION }}
           DefaultDirName={autopf}\Abyss Chat
           OutputDir=.\Output
           OutputBaseFilename=AbyssChat-Windows-Setup
@@ -120,6 +124,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Extract Version
+        run: echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
       
       - name: Install Linux Build Dependencies
         run: |
@@ -161,7 +168,7 @@ jobs:
           # 4. Create DEBIAN Control File
           cat <<EOF > deb-package/DEBIAN/control
           Package: abyss-chat
-          Version: 1.1.2
+          Version: ${{ env.APP_VERSION }}
           Section: base
           Priority: optional
           Architecture: amd64
@@ -180,7 +187,7 @@ jobs:
           # 6. Create Desktop Entry (Dynamic Paths!)
           cat <<EOF > deb-package/usr/share/applications/abyss_chat.desktop
           [Desktop Entry]
-          Version=1.1.2
+          Version=${{ env.APP_VERSION }}
           Name=Abyss Chat
           GenericName=Chat Client
           Icon=abyss_chat
@@ -203,10 +210,41 @@ jobs:
           # 8. Build the package
           dpkg-deb --build deb-package abyss-chat-linux-x64.deb
 
+      - name: Build .rpm file
+        run: |
+          sudo apt-get install -y alien
+          sudo alien -r -c abyss-chat-linux-x64.deb
+
       - name: Upload Linux Assets to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           body_path: docs/RELEASE_NOTES.md
           files: |
             abyss-chat-linux-x64.deb
+            *.rpm
             abyss-chat-linux-portable.zip
+
+      - name: Generate APT Repository
+        run: |
+          # Install apt-utils for apt-ftparchive
+          sudo apt-get install -y apt-utils
+          
+          # Setup directory structure
+          mkdir -p apt-repo/apt/debian/pool/main
+          cp abyss-chat-linux-x64.deb apt-repo/apt/debian/pool/main/
+          
+          cd apt-repo/apt/debian
+          
+          # Generate Packages
+          dpkg-scanpackages --arch amd64 pool/ > Packages
+          gzip -k -f Packages
+          
+          # Generate Release
+          apt-ftparchive release . > Release
+          
+      - name: Deploy APT Repo to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./apt-repo
+          keep_files: true

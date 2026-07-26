@@ -159,6 +159,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     // Periodically process queue for offline peers
     _retryTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _flushAllPendingQueues();
+      _reconnectDisconnectedPeers();
     });
     
     // Auto-persist mDNS scanned peers
@@ -239,7 +240,9 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         } else {
           // Check if we already have a thread with the same peer name (duplicate contact due to shared local storage across tabs)
           final sameNameKey = deduplicated.keys.firstWhere(
-            (k) => !deduplicated[k]!.isGroup && deduplicated[k]!.peer.name == thread.peer.name && thread.peer.name != 'Unknown', 
+            (k) => !deduplicated[k]!.isGroup && 
+                   deduplicated[k]!.peer.name == thread.peer.name && 
+                   !_isPlaceholderName(thread.peer.name), 
             orElse: () => ''
           );
           
@@ -284,6 +287,23 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         } else {
           _trySend(thread.id, thread.messages.lastWhere((m) => m.status == MessageStatus.pending));
         }
+      }
+    }
+  }
+
+  void _reconnectDisconnectedPeers() {
+    if (!state.hasValue) return;
+    final peerService = ref.read(peerServiceProvider);
+    final threads = state.value!;
+    
+    for (final thread in threads) {
+      if (thread.isGroup) continue;
+      final peerId = thread.id;
+      // Only reconnect to threads that have recent activity (last 24 hours)
+      if (thread.messages.isNotEmpty && 
+          DateTime.now().difference(thread.messages.last.timestamp).inHours < 24 &&
+          !peerService.isConnected(peerId)) {
+        connectToPeer(peerId);
       }
     }
   }
@@ -723,7 +743,19 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     if (!state.hasValue) return;
     final threads = List<ChatThread>.from(state.value!);
     if (!threads.any((t) => t.id == peerId)) {
-      threads.insert(0, ChatThread(id: peerId, peer: User(id: peerId, name: peerName ?? 'Peer $peerId', avatarIcon: 0xe491, avatarColor: 0xFF6750A4), messages: []));
+      // Try to get real name from contacts first
+      String resolvedName = peerName ?? 'Peer $peerId';
+      final contacts = ref.read(contactsProvider).value ?? [];
+      final knownContact = contacts.where((c) => c.id == peerId).firstOrNull;
+      if (knownContact != null && !_isPlaceholderName(knownContact.name)) {
+        resolvedName = knownContact.name;
+      }
+      
+      threads.insert(0, ChatThread(
+        id: peerId, 
+        peer: User(id: peerId, name: resolvedName, avatarIcon: knownContact?.avatarIcon ?? 0xe491, avatarColor: knownContact?.avatarColor ?? 0xFF6750A4), 
+        messages: [],
+      ));
       state = AsyncData(threads);
       ref.read(storageServiceProvider).saveThreads(threads);
     }
@@ -1157,6 +1189,12 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       state = AsyncData(threads);
       ref.read(storageServiceProvider).saveThreads(threads);
     }
+  }
+
+  static bool _isPlaceholderName(String name) {
+    return name == 'Unknown' || 
+           name.startsWith('Peer ') || 
+           name == 'Scanned Peer';
   }
 }
 

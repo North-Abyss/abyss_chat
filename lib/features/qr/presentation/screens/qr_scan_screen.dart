@@ -180,6 +180,7 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
   @override
   void dispose() {
     _animationController.dispose();
+    cameraController?.stop();
     cameraController?.dispose();
     super.dispose();
   }

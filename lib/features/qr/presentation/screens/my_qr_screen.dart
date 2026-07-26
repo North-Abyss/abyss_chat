@@ -36,10 +36,12 @@ class _MyQRScreenState extends ConsumerState<MyQRScreen> {
   @override
   Widget build(BuildContext context) {
     final myId = ref.watch(chatThreadsProvider.notifier).myId ?? 'Unknown ID';
+    final myName = ref.watch(chatThreadsProvider.notifier).myName ?? 'Unknown';
     
     // Construct robust JSON payload for QR code
     final payloadMap = {
       'id': myId,
+      'name': myName,
       if (_localIp != null) 'ip': _localIp,
       if (_localIp != null) 'port': ref.read(lanMessengerProvider).serverPort,
     };
