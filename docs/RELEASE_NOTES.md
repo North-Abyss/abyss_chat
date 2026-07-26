@@ -1,6 +1,6 @@
-# Abyss Chat - v1.1.4 🚀
+# Abyss Chat - v1.1.4+ 🚀
 
-Welcome to **Abyss Chat v1.1.4**! This release introduces a massive underlying infrastructure upgrade for connections, robust network recovery, and resolves several critical bugs that were causing duplicate contacts and call collisions.
+Welcome to **Abyss Chat v1.1.4+**! This release introduces a massive underlying infrastructure upgrade for connections, robust network recovery, and resolves several critical bugs that were causing duplicate contacts and call collisions.
 
 ## 🎁 What's New
 

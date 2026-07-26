@@ -1,7 +1,7 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
-## [1.1.4] - 2026-07-26
+## [1.1.4+] - 2026-07-26
 ### Added
 - **Multi-Tier TURN/STUN Infrastructure**: Implemented a robust, free fallback connection system utilizing Google STUN, Cloudflare STUN, and Metered Open Relay TURN. This provides ultra-fast direct P2P connections and a reliable fallback for restrictive corporate NATs without requiring self-hosting.
 - **Smart Peer Reconnection**: Implemented automatic network recovery. The app now tracks known active peers and intelligently re-establishes dropped data channels and signaling connections if the network goes down.

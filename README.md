@@ -107,6 +107,7 @@ sudo apt remove abyss-chat
 sudo rm -f /etc/apt/sources.list.d/abyss-chat.list
 sudo rm -f /etc/apt/sources.list.d/abysschat.list
 sudo rm -f /etc/apt/sources.list.d/abysschat.sources
+sudo rm -f /etc/apt/sources.list.d/abyss-chat.sources
 sudo rm -f /usr/share/keyrings/abyss-chat-archive-keyring.gpg
 sudo apt update
 ```
