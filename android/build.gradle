@@ -1,14 +1,15 @@
-abstract class MyTask extends DefaultTask {
-    @javax.inject.Inject
-    abstract org.gradle.process.ExecOperations getExecOperations()
-
-    @TaskAction
-    def run() {
-        println "Task running"
-        // Try getting it via this.getExecOperations()
-        this.getExecOperations().exec {
-            commandLine 'echo', 'Hello from this.getExecOperations()'
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                if (namespace == null) {
+                    namespace project.group
+                }
+                compileSdkVersion 35
+                defaultConfig {
+                    targetSdkVersion 35
+                }
+            }
         }
     }
 }
-task myTask(type: MyTask)
