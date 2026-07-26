@@ -166,8 +166,10 @@ class CallNotifier extends Notifier<CallSession?> {
     final peerService = ref.read(peerServiceProvider);
     
     state = CallSession(peers: peers, isVideo: isVideo, state: CallState.ringing, isGroup: isGroup);
-    _showFullCall();
-    _playRingtone();
+    if (!isGroup) {
+      _showFullCall();
+      _playRingtone();
+    }
     
     try {
       try {
@@ -208,6 +210,7 @@ class CallNotifier extends Notifier<CallSession?> {
           'peerId': ref.read(chatThreadsProvider.notifier).myId,
           'callerName': myProfile,
           'isVideo': isVideo,
+          'isGroup': isGroup,
         };
         ref.read(lanMessengerProvider).sendCustomData(peer.id, payload);
         peerService.sendUrgentSignal(peer.id, payload);
@@ -342,6 +345,7 @@ class CallNotifier extends Notifier<CallSession?> {
     final peerId = request['peerId'] as String;
     final callerName = request['callerName'] as String;
     final isVideo = request['isVideo'] as bool;
+    final isGroup = request['isGroup'] == true;
     
     if (state != null) {
       // GLARE: We're already in a call. Check if it's with this same peer.
@@ -376,10 +380,13 @@ class CallNotifier extends Notifier<CallSession?> {
       peers: [peer],
       isVideo: isVideo,
       state: CallState.ringing,
+      isGroup: isGroup,
     );
     
-    _showFullCall(isIncoming: true);
-    _playRingtone();
+    if (!isGroup) {
+      _showFullCall(isIncoming: true);
+      _playRingtone();
+    }
   }
 
   void _handleIncomingCall(dynamic mediaConnection) {

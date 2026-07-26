@@ -25,6 +25,10 @@ import 'package:abyss_chat/features/calling/domain/call_controller.dart';
 import 'package:abyss_chat/features/chat/presentation/widgets/media_composer_overlay.dart';
 import 'package:abyss_chat/app/gif_provider.dart';
 import 'package:abyss_chat/network/web_storage.dart';
+
+import 'package:abyss_chat/features/games/domain/game_controller.dart';
+import 'package:abyss_chat/features/games/domain/models/game_state.dart';
+import 'package:abyss_chat/features/chat/presentation/widgets/active_status_banner.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 
@@ -521,10 +525,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     ),
                   ));
                 }),
-                _buildAttachIcon(context, Icons.grid_3x3, Colors.red, 'Tic-Tac-Toe', () {
+                _buildAttachIcon(context, Icons.sports_esports, Colors.deepOrange, 'Games', () {
                   Navigator.pop(context);
-                  final payload = jsonEncode({'activity': 'tictactoe', 'board': List.filled(9, ''), 'turn': 'X', 'state': 'playing', 'initiator': ref.read(chatThreadsProvider.notifier).myId});
-                  ref.read(chatThreadsProvider.notifier).sendMessage(widget.threadId, '❌ Started Tic-Tac-Toe', type: MessageType.activity, fileData: payload);
+                  _showGamesMenu(context);
                 }),
               ],
             ),
@@ -553,6 +556,111 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Text(label, style: const TextStyle(fontSize: 12)),
         ],
       ),
+    );
+  }
+
+  void _showGamesMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.grid_3x3, color: Colors.red),
+                title: const Text('Tic-Tac-Toe'),
+                subtitle: const Text('Play a quick game of Tic-Tac-Toe'),
+                onTap: () {
+                  Navigator.pop(context);
+                  final participants = ref.read(singleThreadProvider(widget.threadId))?.members.map((e) => e.id).toList() ?? [widget.threadId];
+                  // If it's a 1on1, members might just be empty, so we ensure both IDs are in the list
+                  final myId = ref.read(chatThreadsProvider.notifier).myId;
+                  final allParticipants = <String>{...participants, widget.threadId};
+                  if (myId != null) allParticipants.add(myId);
+                  final participantList = allParticipants.toList();
+                  
+                  ref.read(gameControllerProvider.notifier).startGame(
+                    GameType.ticTacToe,
+                    participants: participantList,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.psychology, color: Colors.purple),
+                title: const Text('Guessing Game'),
+                subtitle: const Text('Think of a word and let others guess it!'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showGuessingGameSetupDialog(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showGuessingGameSetupDialog(BuildContext context) {
+    String category = 'Fruit';
+    final answerController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Start Guessing Game'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: category,
+                    decoration: const InputDecoration(labelText: 'Category'),
+                    items: ['Fruit', 'Color', 'Living Thing', 'Country', 'Movie', 'Custom']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (v) => setState(() => category = v!),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: answerController,
+                    decoration: const InputDecoration(
+                      labelText: 'Secret Answer',
+                      hintText: 'Type the exact word to guess',
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                FilledButton(
+                  onPressed: () {
+                    if (answerController.text.trim().isEmpty) return;
+                    Navigator.pop(context);
+                    
+                    final participants = ref.read(singleThreadProvider(widget.threadId))?.members.map((e) => e.id).toList() ?? [widget.threadId];
+                    final myId = ref.read(chatThreadsProvider.notifier).myId;
+                    final allParticipants = <String>{...participants, widget.threadId};
+                    if (myId != null) allParticipants.add(myId);
+                    final participantList = allParticipants.toList();
+                    
+                    ref.read(gameControllerProvider.notifier).startGame(
+                      GameType.guessing,
+                      category: category,
+                      answer: answerController.text.trim(),
+                      participants: participantList,
+                    );
+                  },
+                  child: const Text('Start Game'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -814,6 +922,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ],
             ),
+
       body: Stack(
         children: [
           Column(
@@ -1170,7 +1279,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       // Input Bar
           if (!_isSelectionMode)
-            Container(
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ActiveStatusBanner(threadId: widget.threadId),
+                Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   decoration: BoxDecoration(
                     color: cs.surface,
@@ -1351,6 +1464,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ],
                     ),
                   ),
+                ),
+              ],
             ),
       ],
     ),

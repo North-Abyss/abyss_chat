@@ -10,8 +10,14 @@ fi
 
 echo "Setting up Abyss Chat APT Repository..."
 
+# Remove old configurations to prevent duplicate source warnings
+rm -f /etc/apt/sources.list.d/abysschat.list
+rm -f /etc/apt/sources.list.d/abysschat.sources
+rm -f /etc/apt/sources.list.d/abyss-chat.list
+rm -f /etc/apt/sources.list.d/abyss-chat.sources
+
 # Create the sources.list entry
-cat <<EOF > /etc/apt/sources.list.d/abysschat.list
+cat <<EOF > /etc/apt/sources.list.d/abyss-chat.list
 deb [trusted=yes] https://north-abyss.github.io/abyss_chat/apt/debian /
 EOF
 

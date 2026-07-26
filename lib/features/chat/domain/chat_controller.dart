@@ -20,6 +20,8 @@ import 'package:abyss_chat/features/chat/presentation/screens/chat_screen.dart';
 import 'package:abyss_chat/network/peerdart_service.dart';
 import 'package:abyss_chat/network/lan_messenger.dart';
 import 'package:abyss_chat/network/notification_service.dart';
+
+import 'package:abyss_chat/features/games/domain/game_controller.dart';
 import 'package:abyss_chat/network/local_webrtc_service.dart';
 import 'package:abyss_chat/network/file_transfer_service.dart';
 import 'package:abyss_chat/features/calling/domain/call_controller.dart';
@@ -123,6 +125,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         _handleHistorySync(data);
       } else if (data['type'] == 'file_meta' || data['type'] == 'file_chunk') {
         ref.read(fileTransferProvider).handleIncomingPayload(data);
+      } else if (data['type'] == 'game_sync') {
+        ref.read(gameControllerProvider.notifier).handleIncomingGameSync(data['data']);
       }
     }
     
@@ -332,6 +336,10 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       );
       _requestAirDropInvite(newUser, message: message);
       return;
+    }
+    
+    if (message.type == MessageType.text) {
+      ref.read(gameControllerProvider.notifier).checkGuess(message.text, message.senderId);
     }
     
     final threads = List<ChatThread>.from(state.value!);
@@ -806,6 +814,11 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         groupName: thread.isGroup ? thread.groupName : null,
       );
       final updatedMessages = List<Message>.from(thread.messages)..add(msg);
+      
+      if (type == MessageType.text) {
+        ref.read(gameControllerProvider.notifier).checkGuess(text, myId ?? 'me');
+      }
+
       threads[threadIndex] = thread.copyWith(messages: updatedMessages);
       state = AsyncData(threads);
       ref.read(storageServiceProvider).saveThreads(threads);

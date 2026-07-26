@@ -1,3 +1,17 @@
+import java.io.File
+
+// --- PATcH FOR CARGOKIT GRADLE 9.0 COMPATIBILITY ---
+val pubCacheDir = File(System.getProperty("user.home"), ".pub-cache/hosted/pub.dev")
+if (pubCacheDir.exists()) {
+    pubCacheDir.walkTopDown().filter { it.name == "plugin.gradle" && it.absolutePath.contains("cargokit") }.forEach { file ->
+        val content = file.readText()
+        if (content.contains(" exec {")) {
+            file.writeText(content.replace(" exec {", " execOperations.exec {"))
+        }
+    }
+}
+// ---------------------------------------------------
+
 pluginManagement {
     val flutterSdkPath =
         run {

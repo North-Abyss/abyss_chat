@@ -4,7 +4,7 @@ A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clo
 
 **Live Web App:** [https://north-abyss.github.io/abyss_chat/](https://north-abyss.github.io/abyss_chat/)  
 **GitHub Repository:** [North-Abyss/abyss_chat](https://github.com/North-Abyss/abyss_chat)  
-**Download Latest Release (Native Apps):** [Download v1.1.2](https://github.com/North-Abyss/abyss_chat/releases/latest)
+**Download Latest Release (Native Apps):** [Download Latest](https://github.com/North-Abyss/abyss_chat/releases/latest)
 <div align="center">
     <img src="assets/abyss-chat.png" alt="Logo" width="128" style="border-radius: 18px; margin-bottom: 24px;">
     
@@ -98,6 +98,17 @@ curl -sSL https://raw.githubusercontent.com/North-Abyss/abyss_chat/main/install-
 Alternatively, download the `.deb` file from the latest release and install it manually:
 ```bash
 sudo apt install ./abyss-chat-linux-x64.deb
+```
+
+#### Uninstalling (Linux APT)
+If you installed via the APT repository and wish to completely remove the app and the repository, run:
+```bash
+sudo apt remove abyss-chat
+sudo rm -f /etc/apt/sources.list.d/abyss-chat.list
+sudo rm -f /etc/apt/sources.list.d/abysschat.list
+sudo rm -f /etc/apt/sources.list.d/abysschat.sources
+sudo rm -f /usr/share/keyrings/abyss-chat-archive-keyring.gpg
+sudo apt update
 ```
 
 ### Linux (Fedora / Red Hat)
