@@ -166,10 +166,6 @@ class CallNotifier extends Notifier<CallSession?> {
     final peerService = ref.read(peerServiceProvider);
     
     state = CallSession(peers: peers, isVideo: isVideo, state: CallState.ringing, isGroup: isGroup);
-    if (!isGroup) {
-      _showFullCall();
-      _playRingtone();
-    }
     
     try {
       try {
@@ -196,6 +192,12 @@ class CallNotifier extends Notifier<CallSession?> {
         }
       }
       localRenderer.srcObject = _localStream;
+      
+      // Delay showing the UI until after permissions are granted
+      if (!isGroup) {
+        _showFullCall();
+        _playRingtone();
+      }
       
       final myProfile = ref.read(chatThreadsProvider.notifier).myName ?? 'Someone';
       

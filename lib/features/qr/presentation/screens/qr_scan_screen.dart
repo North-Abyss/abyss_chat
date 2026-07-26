@@ -16,6 +16,7 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
   MobileScannerController? cameraController;
   bool _isScanning = true;
   late AnimationController _animationController;
+  bool _isCameraReady = kIsWeb; // On Web, initialize immediately to preserve user-gesture
 
   @override
   void initState() {
@@ -25,7 +26,20 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
         defaultTargetPlatform == TargetPlatform.windows);
     
     if (!_isUnsupportedPlatform) {
-      cameraController = MobileScannerController();
+      if (kIsWeb) {
+        cameraController = MobileScannerController();
+      } else {
+        // Delay native initialization by 400ms to prevent the route transition 
+        // from stealing window focus and cancelling the system permission dialog.
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) {
+            cameraController = MobileScannerController();
+            setState(() {
+              _isCameraReady = true;
+            });
+          }
+        });
+      }
     }
     
     _animationController = AnimationController(
@@ -82,7 +96,18 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
                 ),
               ),
             )
-          : Stack(
+          : (!_isCameraReady)
+              ? const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Starting Camera...'),
+                    ],
+                  ),
+                )
+              : Stack(
               children: [
                 MobileScanner(
                   controller: cameraController!,
