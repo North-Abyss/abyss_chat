@@ -16,9 +16,12 @@ rm -f /etc/apt/sources.list.d/abysschat.sources
 rm -f /etc/apt/sources.list.d/abyss-chat.list
 rm -f /etc/apt/sources.list.d/abyss-chat.sources
 
-# Create the sources.list entry
-cat <<EOF > /etc/apt/sources.list.d/abyss-chat.list
-deb [trusted=yes] https://north-abyss.github.io/abyss_chat/apt/debian /
+# Create the modern DEB822 sources entry
+cat <<EOF > /etc/apt/sources.list.d/abyss-chat.sources
+Types: deb
+URIs: https://north-abyss.github.io/abyss_chat/apt/debian
+Suites: /
+Trusted: yes
 EOF
 
 echo "Repository added. Updating apt cache..."
