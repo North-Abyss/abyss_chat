@@ -126,8 +126,10 @@ class ActiveStatusBanner extends ConsumerWidget {
   }
 
   Widget _buildTicTacToeBoard(BuildContext context, WidgetRef ref, GameState gameState, String? myId) {
-    return AspectRatio(
-      aspectRatio: 1,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 300, maxHeight: 300),
+      child: AspectRatio(
+        aspectRatio: 1,
       child: GridView.builder(
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -161,6 +163,6 @@ class ActiveStatusBanner extends ConsumerWidget {
           );
         },
       ),
-    );
+    ));
   }
 }

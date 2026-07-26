@@ -993,7 +993,8 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       // Create new thread if missing (e.g. they sent messages while we were completely offline and deleted thread)
       final sorted = incomingMessages..sort((a, b) => a.timestamp.compareTo(b.timestamp));
       final contacts = ref.read(contactsProvider).value ?? [];
-      final peer = contacts.where((c) => c.id == threadId).firstOrNull ?? User(id: threadId, name: 'Unknown', avatarIcon: 0xe491, avatarColor: 0xFF6750A4);
+      final fallbackName = incomingMessages.isNotEmpty ? (incomingMessages.first.senderName ?? 'Unknown') : 'Unknown';
+      final peer = contacts.where((c) => c.id == threadId).firstOrNull ?? User(id: threadId, name: fallbackName, avatarIcon: 0xe491, avatarColor: 0xFF6750A4);
       final newThread = ChatThread(
         id: threadId,
         peer: peer,
