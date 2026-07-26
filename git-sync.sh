@@ -35,7 +35,7 @@ git commit -m "$commit_message" || echo "No changes to commit"
 
 # Fetch latest changes from remote (this also fetches the latest tags)
 echo -e "${BLUE}Fetching from remote...${NC}"
-git fetch origin
+git fetch origin "$(git rev-parse --abbrev-ref HEAD)" --tags
 
 # Pull latest changes to current branch
 echo -e "${BLUE}Pulling changes...${NC}"
