@@ -19,10 +19,7 @@ class ReactionInstance {
 class CallScreen extends ConsumerStatefulWidget {
   final bool isIncoming;
 
-  const CallScreen({
-    super.key,
-    this.isIncoming = false,
-  });
+  const CallScreen({super.key, this.isIncoming = false});
 
   @override
   ConsumerState<CallScreen> createState() => _CallScreenState();
@@ -34,15 +31,15 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   bool _isSpeaker = true;
   bool _isEmojiDockOpen = false;
   final Map<String, TransformationController> _transformControllers = {};
-  
+
   double _pipLeft = -1;
   double _pipTop = 16.0;
   double _pipWidth = 100.0;
   double _pipHeight = 150.0;
-  
+
   final List<ReactionInstance> _activeReactions = [];
   StreamSubscription? _reactionSub;
-  
+
   @override
   void initState() {
     super.initState();
@@ -65,8 +62,8 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   void _spawnReaction(String emoji) {
     if (!mounted) return;
     final id = const Uuid().v4();
-    final xOffset = 0.2 + (DateTime.now().millisecondsSinceEpoch % 60) / 100.0; 
-    
+    final xOffset = 0.2 + (DateTime.now().millisecondsSinceEpoch % 60) / 100.0;
+
     setState(() {
       _activeReactions.add(ReactionInstance(id, emoji, xOffset));
     });
@@ -96,10 +93,12 @@ class _CallScreenState extends ConsumerState<CallScreen> {
   void _endCall() {
     final callState = ref.read(callProvider);
     if (callState == null) return;
-    
+
     final startTime = callState.startTime;
-    final duration = startTime != null ? DateTime.now().difference(startTime) : null;
-    
+    final duration = startTime != null
+        ? DateTime.now().difference(startTime)
+        : null;
+
     // Log the call for all peers
     for (final peer in callState.peers) {
       final log = CallLog(
@@ -113,25 +112,23 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       );
       ref.read(callLogsProvider.notifier).addCallLog(log);
     }
-    
+
     ref.read(callProvider.notifier).endCall();
   }
 
   @override
   Widget build(BuildContext context) {
-
-    
     final callState = ref.watch(callProvider);
     final isConnected = callState?.state == CallState.connected;
     final remoteRenderers = ref.watch(callProvider.notifier).remoteRenderers;
     final size = MediaQuery.of(context).size;
-    
+
     if (_pipLeft == -1) {
       _pipLeft = size.width - 100 - 16;
     }
 
     if (callState == null) return const Scaffold(backgroundColor: Colors.black);
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
       body: PopScope(
@@ -148,178 +145,239 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                 child: Stack(
                   children: [
                     // Main Content Area (Video or Avatar)
-              Positioned.fill(
-                child: (isConnected && callState.isVideo && remoteRenderers.isNotEmpty)
-                    ? _buildVideoGrid(remoteRenderers, callState.peers)
-                    : _buildAudioPlaceholder(callState, isConnected),
-              ),
-              
-              // Reactions Overlay
-              if (_activeReactions.isNotEmpty)
-                Positioned.fill(child: _buildReactionsOverlay()),
+                    Positioned.fill(
+                      child:
+                          (isConnected &&
+                              callState.isVideo &&
+                              remoteRenderers.isNotEmpty)
+                          ? _buildVideoGrid(remoteRenderers, callState.peers)
+                          : _buildAudioPlaceholder(callState, isConnected),
+                    ),
 
-              // Local Mini Video (Picture in Picture)
-              if (isConnected && callState.isVideo)
-                Positioned(
-                  left: _pipLeft,
-                  top: _pipTop,
-                  width: _pipWidth,
-                  height: _pipHeight,
-                  child: GestureDetector(
-                    onPanUpdate: (details) {
-                      setState(() {
-                        _pipLeft += details.delta.dx;
-                        _pipTop += details.delta.dy;
-                        
-                        // constrain to screen bounds
-                        if (_pipLeft < 0) _pipLeft = 0;
-                        if (_pipTop < 0) _pipTop = 0;
-                        if (_pipLeft > size.width - _pipWidth) _pipLeft = size.width - _pipWidth;
-                        if (_pipTop > size.height - _pipHeight) _pipTop = size.height - _pipHeight;
-                      });
-                    },
-                    child: Stack(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white24, width: 2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.5),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: _isVideoEnabled
-                            ? RTCVideoView(
-                                ref.read(callProvider.notifier).localRenderer,
-                                mirror: true,
-                                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
-                              )
-                            : Container(
-                                color: Colors.black87,
-                                child: Center(
-                                  child: ref.watch(myProfileProvider).when(
-                                    data: (profile) => UserAvatar(
-                                      user: profile ?? User(id: '', name: 'Me', avatarIcon: 0xe491, avatarColor: 0xFF6750A4),
-                                      radius: 20,
+                    // Reactions Overlay
+                    if (_activeReactions.isNotEmpty)
+                      Positioned.fill(child: _buildReactionsOverlay()),
+
+                    // Local Mini Video (Picture in Picture)
+                    if (isConnected && callState.isVideo)
+                      Positioned(
+                        left: _pipLeft,
+                        top: _pipTop,
+                        width: _pipWidth,
+                        height: _pipHeight,
+                        child: GestureDetector(
+                          onPanUpdate: (details) {
+                            setState(() {
+                              _pipLeft += details.delta.dx;
+                              _pipTop += details.delta.dy;
+
+                              // constrain to screen bounds
+                              if (_pipLeft < 0) _pipLeft = 0;
+                              if (_pipTop < 0) _pipTop = 0;
+                              if (_pipLeft > size.width - _pipWidth) {
+                                _pipLeft = size.width - _pipWidth;
+                              }
+                              if (_pipTop > size.height - _pipHeight) {
+                                _pipTop = size.height - _pipHeight;
+                              }
+                            });
+                          },
+                          child: Stack(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.white24,
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
                                     ),
-                                    loading: () => const CircularProgressIndicator(),
-                                    error: (_, _) => const Icon(Icons.person, color: Colors.white),
+                                  ],
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: _isVideoEnabled
+                                    ? RTCVideoView(
+                                        ref
+                                            .read(callProvider.notifier)
+                                            .localRenderer,
+                                        mirror: true,
+                                        objectFit: RTCVideoViewObjectFit
+                                            .RTCVideoViewObjectFitContain,
+                                      )
+                                    : Container(
+                                        color: Colors.black87,
+                                        child: Center(
+                                          child: ref
+                                              .watch(myProfileProvider)
+                                              .when(
+                                                data: (profile) => UserAvatar(
+                                                  user:
+                                                      profile ??
+                                                      User(
+                                                        id: '',
+                                                        name: 'Me',
+                                                        avatarIcon: 0xe491,
+                                                        avatarColor: 0xFF6750A4,
+                                                      ),
+                                                  radius: 20,
+                                                ),
+                                                loading: () =>
+                                                    const CircularProgressIndicator(),
+                                                error: (_, _) => const Icon(
+                                                  Icons.person,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                        ),
+                                      ),
+                              ),
+                              // Resize Handle
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: GestureDetector(
+                                  onPanUpdate: (details) {
+                                    setState(() {
+                                      _pipWidth += details.delta.dx;
+                                      _pipHeight += details.delta.dy;
+
+                                      // Size constraints
+                                      if (_pipWidth < 80) _pipWidth = 80;
+                                      if (_pipHeight < 120) _pipHeight = 120;
+
+                                      final maxWidth = size.width * 0.5;
+                                      final maxHeight = size.height * 0.5;
+                                      if (_pipWidth > maxWidth) {
+                                        _pipWidth = maxWidth;
+                                      }
+                                      if (_pipHeight > maxHeight) {
+                                        _pipHeight = maxHeight;
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    width: 30,
+                                    height: 30,
+                                    color: Colors.transparent,
+                                    child: const Align(
+                                      alignment: Alignment.bottomRight,
+                                      child: Padding(
+                                        padding: EdgeInsets.all(4.0),
+                                        child: Icon(
+                                          Icons.open_in_full,
+                                          size: 16,
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
+                            ],
+                          ),
                         ),
-                        // Resize Handle
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: GestureDetector(
-                            onPanUpdate: (details) {
-                              setState(() {
-                                _pipWidth += details.delta.dx;
-                                _pipHeight += details.delta.dy;
-                                
-                                // Size constraints
-                                if (_pipWidth < 80) _pipWidth = 80;
-                                if (_pipHeight < 120) _pipHeight = 120;
-                                
-                                final maxWidth = size.width * 0.5;
-                                final maxHeight = size.height * 0.5;
-                                if (_pipWidth > maxWidth) _pipWidth = maxWidth;
-                                if (_pipHeight > maxHeight) _pipHeight = maxHeight;
-                              });
-                            },
-                            child: Container(
-                              width: 30,
-                              height: 30,
-                              color: Colors.transparent,
-                              child: const Align(
-                                alignment: Alignment.bottomRight,
-                                child: Padding(
-                                  padding: EdgeInsets.all(4.0),
-                                  child: Icon(Icons.open_in_full, size: 16, color: Colors.white70),
-                                ),
+                      ),
+
+                    // Top Bar
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.black87, Colors.transparent],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.keyboard_arrow_down,
+                                color: Colors.white,
                               ),
+                              onPressed: _minimizeCall,
+                            ),
+                            const Spacer(),
+                            const Icon(
+                              Icons.lock,
+                              size: 12,
+                              color: Colors.white54,
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              'End-to-end encrypted',
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const Spacer(),
+                            const SizedBox(width: 48), // Balance
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Floating Emoji Dock overlaid on video
+                    if (_isEmojiDockOpen && isConnected)
+                      Positioned(
+                        bottom: 16,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[800]?.withValues(alpha: 0.95),
+                              borderRadius: BorderRadius.circular(32),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 12,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildEmojiDockButton('👍'),
+                                _buildEmojiDockButton('❤️'),
+                                _buildEmojiDockButton('😂'),
+                                _buildEmojiDockButton('👏'),
+                                _buildEmojiDockButton('🎉'),
+                              ],
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              // Top Bar
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.black87, Colors.transparent],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
-                        onPressed: _minimizeCall,
                       ),
-                      const Spacer(),
-                      const Icon(Icons.lock, size: 12, color: Colors.white54),
-                      const SizedBox(width: 4),
-                      const Text('End-to-end encrypted', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                      const Spacer(),
-                      const SizedBox(width: 48), // Balance
-                    ],
-                  ),
+                  ],
                 ),
               ),
-              // Floating Emoji Dock overlaid on video
-              if (_isEmojiDockOpen && isConnected)
-                Positioned(
-                  bottom: 16,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[800]?.withValues(alpha: 0.95),
-                        borderRadius: BorderRadius.circular(32),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 4)),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildEmojiDockButton('👍'),
-                          _buildEmojiDockButton('❤️'),
-                          _buildEmojiDockButton('😂'),
-                          _buildEmojiDockButton('👏'),
-                          _buildEmojiDockButton('🎉'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-
 
               // Floating Controls Shortcut Box / Dock
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                  horizontal: 24,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.grey[900]?.withValues(alpha: 0.85),
                   border: const Border(top: BorderSide(color: Colors.white12)),
@@ -329,22 +387,40 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      if (widget.isIncoming && callState.state == CallState.ringing) ...[
-                        _buildActionButton(Icons.call_end, Colors.red, _endCall),
-                        _buildActionButton(Icons.call, Colors.green, () => ref.read(callProvider.notifier).answerCall()),
+                      if (widget.isIncoming &&
+                          callState.state == CallState.ringing) ...[
+                        _buildActionButton(
+                          Icons.call_end,
+                          Colors.red,
+                          _endCall,
+                        ),
+                        _buildActionButton(
+                          Icons.call,
+                          Colors.green,
+                          () => ref.read(callProvider.notifier).answerCall(),
+                        ),
                       ] else ...[
                         _buildControlButton(
-                          icon: _isSpeaker ? Icons.volume_up : Icons.volume_down,
+                          icon: _isSpeaker
+                              ? Icons.volume_up
+                              : Icons.volume_down,
                           isActive: _isSpeaker,
-                          onPressed: () => setState(() => _isSpeaker = !_isSpeaker),
+                          onPressed: () =>
+                              setState(() => _isSpeaker = !_isSpeaker),
                         ),
                         if (callState.isVideo)
                           _buildControlButton(
-                            icon: _isVideoEnabled ? Icons.videocam : Icons.videocam_off,
+                            icon: _isVideoEnabled
+                                ? Icons.videocam
+                                : Icons.videocam_off,
                             isActive: !_isVideoEnabled,
                             onPressed: () {
-                              setState(() => _isVideoEnabled = !_isVideoEnabled);
-                              ref.read(callProvider.notifier).toggleVideo(_isVideoEnabled);
+                              setState(
+                                () => _isVideoEnabled = !_isVideoEnabled,
+                              );
+                              ref
+                                  .read(callProvider.notifier)
+                                  .toggleVideo(_isVideoEnabled);
                             },
                           ),
                         _buildControlButton(
@@ -352,16 +428,24 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                           isActive: _isMuted,
                           onPressed: () {
                             setState(() => _isMuted = !_isMuted);
-                            ref.read(callProvider.notifier).toggleAudio(!_isMuted);
+                            ref
+                                .read(callProvider.notifier)
+                                .toggleAudio(!_isMuted);
                           },
                         ),
                         // Emoji Toggle Button
                         _buildControlButton(
                           icon: Icons.emoji_emotions,
                           isActive: _isEmojiDockOpen,
-                          onPressed: () => setState(() => _isEmojiDockOpen = !_isEmojiDockOpen),
+                          onPressed: () => setState(
+                            () => _isEmojiDockOpen = !_isEmojiDockOpen,
+                          ),
                         ),
-                        _buildActionButton(Icons.call_end, Colors.red, _endCall),
+                        _buildActionButton(
+                          Icons.call_end,
+                          Colors.red,
+                          _endCall,
+                        ),
                       ],
                     ],
                   ),
@@ -420,8 +504,8 @@ class _CallScreenState extends ConsumerState<CallScreen> {
             ),
           const SizedBox(height: 32),
           Text(
-            callState.peers.length == 1 
-                ? callState.peers.first.name 
+            callState.peers.length == 1
+                ? callState.peers.first.name
                 : '${callState.peers.length} Participants',
             style: const TextStyle(
               color: Colors.white,
@@ -432,22 +516,23 @@ class _CallScreenState extends ConsumerState<CallScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            isConnected 
-              ? '${(callState.currentDuration?.inMinutes ?? 0).toString().padLeft(2, '0')}:${((callState.currentDuration?.inSeconds ?? 0) % 60).toString().padLeft(2, '0')}' 
-              : callState.state == CallState.ended 
-                  ? '⚠️ Connection failed!'
-                  : (widget.isIncoming ? 'Incoming...' : 'Calling...'),
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 18,
-            ),
+            isConnected
+                ? '${(callState.currentDuration?.inMinutes ?? 0).toString().padLeft(2, '0')}:${((callState.currentDuration?.inSeconds ?? 0) % 60).toString().padLeft(2, '0')}'
+                : callState.state == CallState.ended
+                ? '⚠️ Connection failed!'
+                : (widget.isIncoming ? 'Incoming...' : 'Calling...'),
+            style: const TextStyle(color: Colors.white70, fontSize: 18),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton(IconData icon, Color color, VoidCallback onPressed) {
+  Widget _buildActionButton(
+    IconData icon,
+    Color color,
+    VoidCallback onPressed,
+  ) {
     return IconButton.filled(
       onPressed: onPressed,
       icon: Icon(icon),
@@ -460,109 +545,132 @@ class _CallScreenState extends ConsumerState<CallScreen> {
     );
   }
 
-  Widget _buildVideoGrid(Map<String, RTCVideoRenderer> renderers, List<dynamic> peers) {
-    if (renderers.isEmpty) return const Center(child: CircularProgressIndicator());
-    
+  Widget _buildVideoGrid(
+    Map<String, RTCVideoRenderer> renderers,
+    List<dynamic> peers,
+  ) {
+    if (renderers.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     final count = renderers.length;
 
     Widget buildContainer(String peerId, RTCVideoRenderer renderer) {
-        final matches = peers.where((p) => p.id == peerId).toList();
-        final peerName = matches.isNotEmpty ? matches.first.name : 'Unknown';
-        
-        _transformControllers.putIfAbsent(peerId, () => TransformationController());
-        final tController = _transformControllers[peerId]!;
+      final matches = peers.where((p) => p.id == peerId).toList();
+      final peerName = matches.isNotEmpty ? matches.first.name : 'Unknown';
 
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.grey[850],
-            borderRadius: BorderRadius.circular(16),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (ref.read(callProvider.notifier).remoteMediaStatus[peerId]?['videoEnabled'] ?? true)
-                InteractiveViewer(
-                  transformationController: tController,
-                  minScale: 0.5,
-                  maxScale: 4.0,
-                  scaleEnabled: false,
-                  child: RTCVideoView(
-                    renderer,
-                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
-                  ),
-                )
-              else
-                Container(
-                  color: Colors.black87,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (matches.isNotEmpty)
-                          UserAvatar(user: matches.first, radius: 48)
-                        else
-                          const CircleAvatar(
-                            radius: 48,
-                            backgroundColor: Colors.grey,
-                            child: Icon(Icons.person, size: 48, color: Colors.white),
-                          ),
-                        const SizedBox(height: 16),
-                        Text(
-                          peerName,
-                          style: const TextStyle(color: Colors.white, fontSize: 18),
-                        ),
-                      ],
-                    ),
-                  ),
+      _transformControllers.putIfAbsent(
+        peerId,
+        () => TransformationController(),
+      );
+      final tController = _transformControllers[peerId]!;
+
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[850],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (ref
+                    .read(callProvider.notifier)
+                    .remoteMediaStatus[peerId]?['videoEnabled'] ??
+                true)
+              InteractiveViewer(
+                transformationController: tController,
+                minScale: 0.5,
+                maxScale: 4.0,
+                scaleEnabled: false,
+                child: RTCVideoView(
+                  renderer,
+                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
                 ),
-              // Name Badge
-              Positioned(
-                left: 8,
-                bottom: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    peerName,
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ),
-              ),
-              // Zoom Controls Overlay
-              if (ref.read(callProvider.notifier).remoteMediaStatus[peerId]?['videoEnabled'] ?? true)
-                Positioned(
-                  right: 8,
-                  bottom: 8,
+              )
+            else
+              Container(
+                color: Colors.black87,
+                child: Center(
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildZoomButton(Icons.add, () {
-                        setState(() {
-                          tController.value = tController.value.clone()..multiply(Matrix4.diagonal3Values(1.2, 1.2, 1.2));
-                        });
-                      }),
-                      const SizedBox(height: 4),
-                      _buildZoomButton(Icons.remove, () {
-                        setState(() {
-                          tController.value = tController.value.clone()..multiply(Matrix4.diagonal3Values(0.8, 0.8, 0.8));
-                        });
-                      }),
-                      const SizedBox(height: 4),
-                      _buildZoomButton(Icons.fit_screen, () {
-                        setState(() {
-                          tController.value = Matrix4.identity();
-                        });
-                      }),
+                      if (matches.isNotEmpty)
+                        UserAvatar(user: matches.first, radius: 48)
+                      else
+                        const CircleAvatar(
+                          radius: 48,
+                          backgroundColor: Colors.grey,
+                          child: Icon(
+                            Icons.person,
+                            size: 48,
+                            color: Colors.white,
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+                      Text(
+                        peerName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-            ],
-          ),
-        );
+              ),
+            // Name Badge
+            Positioned(
+              left: 8,
+              bottom: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  peerName,
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ),
+            ),
+            // Zoom Controls Overlay
+            if (ref
+                    .read(callProvider.notifier)
+                    .remoteMediaStatus[peerId]?['videoEnabled'] ??
+                true)
+              Positioned(
+                right: 8,
+                bottom: 8,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildZoomButton(Icons.add, () {
+                      setState(() {
+                        tController.value = tController.value.clone()
+                          ..multiply(Matrix4.diagonal3Values(1.2, 1.2, 1.2));
+                      });
+                    }),
+                    const SizedBox(height: 4),
+                    _buildZoomButton(Icons.remove, () {
+                      setState(() {
+                        tController.value = tController.value.clone()
+                          ..multiply(Matrix4.diagonal3Values(0.8, 0.8, 0.8));
+                      });
+                    }),
+                    const SizedBox(height: 4),
+                    _buildZoomButton(Icons.fit_screen, () {
+                      setState(() {
+                        tController.value = Matrix4.identity();
+                      });
+                    }),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
     }
 
     if (count == 1) {

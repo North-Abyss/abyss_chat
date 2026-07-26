@@ -28,7 +28,7 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
   late PageController _pageController;
   late int _currentIndex;
   final FocusNode _focusNode = FocusNode();
-  
+
   bool _showControls = true;
   final Set<String> _selectedMessageIds = {};
   bool _isSelectionMode = false;
@@ -40,9 +40,24 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
   }
 
   bool _isDocument(Message msg) {
-     if (msg.fileName == null) return false;
-     final ext = msg.fileName!.split('.').last.toLowerCase();
-     return !['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'avi', 'mkv', 'webm', 'mp3', 'wav', 'ogg', 'm4a'].contains(ext);
+    if (msg.fileName == null) return false;
+    final ext = msg.fileName!.split('.').last.toLowerCase();
+    return ![
+      'jpg',
+      'jpeg',
+      'png',
+      'gif',
+      'webp',
+      'mp4',
+      'mov',
+      'avi',
+      'mkv',
+      'webm',
+      'mp3',
+      'wav',
+      'ogg',
+      'm4a',
+    ].contains(ext);
   }
 
   @override
@@ -80,20 +95,28 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
         Navigator.pop(context);
       } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
         if (_currentIndex > 0) {
-          _pageController.previousPage(duration: const Duration(milliseconds: 200), curve: Curves.easeInOut);
+          _pageController.previousPage(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+          );
         }
       } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
         if (_currentIndex < widget.mediaMessages.length - 1) {
-          _pageController.nextPage(duration: const Duration(milliseconds: 200), curve: Curves.easeInOut);
+          _pageController.nextPage(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+          );
         }
       }
     }
   }
 
   Future<void> _shareSelected() async {
-    final toShare = _isSelectionMode 
-      ? widget.mediaMessages.where((m) => _selectedMessageIds.contains(m.id)).toList()
-      : [widget.mediaMessages[_currentIndex]];
+    final toShare = _isSelectionMode
+        ? widget.mediaMessages
+              .where((m) => _selectedMessageIds.contains(m.id))
+              .toList()
+        : [widget.mediaMessages[_currentIndex]];
 
     final List<XFile> xFiles = [];
     for (final msg in toShare) {
@@ -101,26 +124,31 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
         xFiles.add(XFile(msg.localFilePath!));
       }
     }
-    
+
     if (xFiles.isNotEmpty) {
       await SharePlus.instance.share(
-        ShareParams(
-          files: xFiles,
-          text: 'Shared from Abyss Chat'
-        )
+        ShareParams(files: xFiles, text: 'Shared from Abyss Chat'),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No local files available to share. Download them first.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No local files available to share. Download them first.',
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _downloadSelected() async {
-    final toDownload = _isSelectionMode 
-      ? widget.mediaMessages.where((m) => _selectedMessageIds.contains(m.id)).toList()
-      : [widget.mediaMessages[_currentIndex]];
-      
+    final toDownload = _isSelectionMode
+        ? widget.mediaMessages
+              .where((m) => _selectedMessageIds.contains(m.id))
+              .toList()
+        : [widget.mediaMessages[_currentIndex]];
+
     int downloadedCount = 0;
-    
+
     if (kIsWeb) {
       for (final msg in toDownload) {
         if (msg.fileData != null && msg.fileData!.startsWith('web_idb:')) {
@@ -137,7 +165,9 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
       } else if (Platform.isLinux || Platform.isMacOS) {
         homeDir = Platform.environment['HOME'];
       } else if (Platform.isAndroid || Platform.isIOS) {
-        final dir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
+        final dir =
+            await getExternalStorageDirectory() ??
+            await getApplicationDocumentsDirectory();
         homeDir = dir.path;
       }
 
@@ -146,13 +176,17 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
         if (!abyssDir.existsSync()) {
           abyssDir.createSync(recursive: true);
         }
-        
+
         for (final msg in toDownload) {
-          if (msg.localFilePath != null && File(msg.localFilePath!).existsSync()) {
+          if (msg.localFilePath != null &&
+              File(msg.localFilePath!).existsSync()) {
             final sourceFile = File(msg.localFilePath!);
-            
+
             // Organize into subfolders based on file type
-            final extension = (msg.fileName ?? sourceFile.path.split('/').last).split('.').last.toLowerCase();
+            final extension = (msg.fileName ?? sourceFile.path.split('/').last)
+                .split('.')
+                .last
+                .toLowerCase();
             String subFolderName = 'Documents';
             if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(extension)) {
               subFolderName = 'Images';
@@ -161,13 +195,15 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
             } else if (['mp3', 'wav', 'ogg', 'm4a'].contains(extension)) {
               subFolderName = 'Audio';
             }
-            
+
             final targetDir = Directory('${abyssDir.path}/$subFolderName');
             if (!targetDir.existsSync()) {
               targetDir.createSync(recursive: true);
             }
-            
-            final fileName = msg.fileName ?? 'abyss_media_${DateTime.now().millisecondsSinceEpoch}.$extension';
+
+            final fileName =
+                msg.fileName ??
+                'abyss_media_${DateTime.now().millisecondsSinceEpoch}.$extension';
             final targetPath = '${targetDir.path}/$fileName';
             await sourceFile.copy(targetPath);
             downloadedCount++;
@@ -175,9 +211,11 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
         }
       }
     }
-    
+
     if (mounted && downloadedCount > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Downloaded $downloadedCount items')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Downloaded $downloadedCount items')),
+      );
     }
     setState(() {
       _isSelectionMode = false;
@@ -197,18 +235,29 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
         child: SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12.0,
+              vertical: 16.0,
+            ),
             child: Row(
               children: [
                 IconButton(
-                  icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onSurface),
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
                 const SizedBox(width: 8),
                 CircleAvatar(
                   radius: 22,
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                  child: Icon(Icons.person, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer,
+                  child: Icon(
+                    Icons.person,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -216,24 +265,49 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(msg.senderName ?? 'Unknown', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                        msg.senderName ?? 'Unknown',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text(dateStr, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
+                      Text(
+                        dateStr,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 if (_isSelectionMode)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Text('${_selectedMessageIds.length} Selected', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      '${_selectedMessageIds.length} Selected',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 IconButton(
-                  icon: Icon(Icons.download, color: Theme.of(context).colorScheme.onSurface),
+                  icon: Icon(
+                    Icons.download,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                   onPressed: _downloadSelected,
                   tooltip: 'Download',
                 ),
                 IconButton(
-                  icon: Icon(Icons.share, color: Theme.of(context).colorScheme.onSurface),
+                  icon: Icon(
+                    Icons.share,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                   onPressed: _shareSelected,
                   tooltip: 'Share',
                 ),
@@ -261,55 +335,77 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
                 child: ListView.builder(
                   shrinkWrap: true,
                   scrollDirection: Axis.horizontal,
-            itemCount: widget.mediaMessages.length,
-          itemBuilder: (context, index) {
-            final msg = widget.mediaMessages[index];
-            final isSelected = _currentIndex == index;
-            final isMultiSelected = _selectedMessageIds.contains(msg.id);
+                  itemCount: widget.mediaMessages.length,
+                  itemBuilder: (context, index) {
+                    final msg = widget.mediaMessages[index];
+                    final isSelected = _currentIndex == index;
+                    final isMultiSelected = _selectedMessageIds.contains(
+                      msg.id,
+                    );
 
-            return GestureDetector(
-              onTap: () {
-                if (_isSelectionMode) {
-                  _toggleSelection(msg.id);
-                } else {
-                  _pageController.animateToPage(index, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                }
-              },
-              onLongPress: () {
-                _toggleSelection(msg.id);
-              },
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                width: 50,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
-                    width: 2,
-                  ),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: WebMediaImage(msg: msg, fit: BoxFit.cover),
-                    ),
-                    if (isMultiSelected)
-                      Positioned(
-                        right: 2,
-                        bottom: 2,
-                        child: Container(
-                          decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.primary),
-                          child: Icon(Icons.check, size: 16, color: Theme.of(context).colorScheme.onPrimary),
+                    return GestureDetector(
+                      onTap: () {
+                        if (_isSelectionMode) {
+                          _toggleSelection(msg.id);
+                        } else {
+                          _pageController.animateToPage(
+                            index,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        }
+                      },
+                      onLongPress: () {
+                        _toggleSelection(msg.id);
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 8,
                         ),
-                      )
-                  ],
+                        width: 50,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(2),
+                              child: WebMediaImage(msg: msg, fit: BoxFit.cover),
+                            ),
+                            if (isMultiSelected)
+                              Positioned(
+                                right: 2,
+                                bottom: 2,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                  child: Icon(
+                                    Icons.check,
+                                    size: 16,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimary,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              ),
-            );
-          },
-        ),
               ),
             ),
           ),
@@ -328,62 +424,84 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
         body: Stack(
           children: [
             PageView.builder(
-                controller: _pageController,
-                onPageChanged: (index) {
-                  setState(() {
-                    _currentIndex = index;
-                  });
-                },
-                itemCount: widget.mediaMessages.length,
-                itemBuilder: (context, index) {
-                  final msg = widget.mediaMessages[index];
-                  
-                  if (_isVideo(msg)) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.videocam, size: 100, color: Colors.white54),
-                          const SizedBox(height: 16),
-                          Text(msg.fileName ?? 'Video', style: const TextStyle(color: Colors.white, fontSize: 18)),
-                          const SizedBox(height: 16),
-                          const Text('Video playback not supported yet.\nPlease download to view.', style: TextStyle(color: Colors.white54), textAlign: TextAlign.center),
-                        ],
-                      ),
-                    );
-                  }
-                  
-                  if (_isDocument(msg)) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.insert_drive_file, size: 100, color: Colors.white54),
-                          const SizedBox(height: 16),
-                          Text(msg.fileName ?? 'Document', style: const TextStyle(color: Colors.white, fontSize: 18)),
-                          const SizedBox(height: 16),
-                          const Text('Please download to view this file.', style: TextStyle(color: Colors.white54)),
-                        ],
-                      ),
-                    );
-                  }
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              itemCount: widget.mediaMessages.length,
+              itemBuilder: (context, index) {
+                final msg = widget.mediaMessages[index];
 
-                  return _ZoomableMediaItem(
-                    msg: msg,
-                    onTap: () {
-                      setState(() {
-                        _showControls = !_showControls;
-                      });
-                    },
+                if (_isVideo(msg)) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.videocam,
+                          size: 100,
+                          color: Colors.white54,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          msg.fileName ?? 'Video',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Video playback not supported yet.\nPlease download to view.',
+                          style: TextStyle(color: Colors.white54),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   );
-                },
-              ),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: _buildTopAppBar(),
+                }
+
+                if (_isDocument(msg)) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.insert_drive_file,
+                          size: 100,
+                          color: Colors.white54,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          msg.fileName ?? 'Document',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Please download to view this file.',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return _ZoomableMediaItem(
+                  msg: msg,
+                  onTap: () {
+                    setState(() {
+                      _showControls = !_showControls;
+                    });
+                  },
+                );
+              },
             ),
+            Positioned(top: 0, left: 0, right: 0, child: _buildTopAppBar()),
             Positioned(
               bottom: 0,
               left: 0,

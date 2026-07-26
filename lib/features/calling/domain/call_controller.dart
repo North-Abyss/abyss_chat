@@ -2,7 +2,7 @@
 // Abyss Chat - Call Controller
 // ==========================================
 // Version: 1.2.0
-// Description: 
+// Description:
 //   Manages Voice and Video Call states, handles WebRTC peer connections,
 //   negotiates media streams, and ensures flawless call synchronization
 //   between devices.
@@ -20,8 +20,10 @@ import 'package:abyss_chat/network/mdns_service.dart';
 import 'package:abyss_chat/features/calling/domain/models/call_log.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' hide MessageType;
 import 'package:abyss_chat/features/chat/domain/models/message.dart';
+
 // Global navigator key to insert the overlay anywhere
-final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> globalNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 enum CallState { idle, ringing, connected, ended }
 
@@ -45,8 +47,8 @@ class CallSession {
   CallSession copyWith({
     List<User>? peers,
     bool? isVideo,
-    CallState? state, 
-    DateTime? startTime, 
+    CallState? state,
+    DateTime? startTime,
     Duration? currentDuration,
     bool? isGroup,
   }) {
@@ -72,19 +74,27 @@ class CallNotifier extends Notifier<CallSession?> {
   bool get _isAudioSupported {
     if (kIsWeb) return true;
     return defaultTargetPlatform == TargetPlatform.android ||
-           defaultTargetPlatform == TargetPlatform.iOS ||
-           defaultTargetPlatform == TargetPlatform.macOS;
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
   }
-  
-  final StreamController<Map<String, dynamic>> _reactionStreamController = StreamController.broadcast();
-  Stream<Map<String, dynamic>> get reactionStream => _reactionStreamController.stream;
-  
+
+  final StreamController<Map<String, dynamic>> _reactionStreamController =
+      StreamController.broadcast();
+  Stream<Map<String, dynamic>> get reactionStream =>
+      _reactionStreamController.stream;
+
   final Map<String, dynamic> _activeConnections = {};
   final Map<String, RTCVideoRenderer> remoteRenderers = {};
   final Map<String, Map<String, bool>> remoteMediaStatus = {};
 
-  bool get isLocalVideoEnabled => _localStream?.getVideoTracks().isNotEmpty == true ? _localStream!.getVideoTracks()[0].enabled : false;
-  bool get isLocalAudioEnabled => _localStream?.getAudioTracks().isNotEmpty == true ? _localStream!.getAudioTracks()[0].enabled : false;
+  bool get isLocalVideoEnabled =>
+      _localStream?.getVideoTracks().isNotEmpty == true
+      ? _localStream!.getVideoTracks()[0].enabled
+      : false;
+  bool get isLocalAudioEnabled =>
+      _localStream?.getAudioTracks().isNotEmpty == true
+      ? _localStream!.getAudioTracks()[0].enabled
+      : false;
 
   @override
   CallSession? build() {
@@ -92,7 +102,7 @@ class CallNotifier extends Notifier<CallSession?> {
     if (_isAudioSupported) {
       _audioPlayer = AudioPlayer();
     }
-    
+
     ref.onDispose(() {
       localRenderer.dispose();
       for (final r in remoteRenderers.values) {
@@ -100,16 +110,16 @@ class CallNotifier extends Notifier<CallSession?> {
       }
       _audioPlayer?.dispose();
     });
-    
+
     // Subscribe to incoming calls from PeerDartService
     Future.microtask(() {
       final peerService = ref.read(peerServiceProvider);
       final lanService = ref.read(lanMessengerProvider);
       final localWebrtcService = ref.read(localWebrtcServiceProvider);
-      
+
       peerService.onCallReceived.listen(_handleIncomingCall);
       localWebrtcService.onCallReceived.listen(_handleIncomingCall);
-      
+
       peerService.onCallRequest.listen(_handleCallRequest);
       peerService.onCallEnded.listen(_handleCallEnded);
       peerService.onMediaStatus.listen(_handleMediaStatus);
@@ -133,14 +143,14 @@ class CallNotifier extends Notifier<CallSession?> {
             break;
         }
       }
-      
+
       lanService.onDataMessage.listen(handleTunneledSignal);
       peerService.onDataMessage.listen(handleTunneledSignal);
     });
-    
+
     return null;
   }
-  
+
   Future<void> _initLocalRenderer() async {
     await localRenderer.initialize();
   }
@@ -160,21 +170,37 @@ class CallNotifier extends Notifier<CallSession?> {
     _audioPlayer?.stop();
   }
 
-  Future<void> startCall(List<User> peers, bool isVideo, {bool isGroup = false}) async {
+  Future<void> startCall(
+    List<User> peers,
+    bool isVideo, {
+    bool isGroup = false,
+  }) async {
     if (state != null) return; // Already in a call
-    
+
     final peerService = ref.read(peerServiceProvider);
-    
-    state = CallSession(peers: peers, isVideo: isVideo, state: CallState.ringing, isGroup: isGroup);
-    
+
+    state = CallSession(
+      peers: peers,
+      isVideo: isVideo,
+      state: CallState.ringing,
+      isGroup: isGroup,
+    );
+
     try {
       try {
         _localStream = await navigator.mediaDevices.getUserMedia({
           'audio': true,
-          'video': isVideo ? (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) ? {'facingMode': 'user'} : true : false,
+          'video': isVideo
+              ? (defaultTargetPlatform == TargetPlatform.android ||
+                        defaultTargetPlatform == TargetPlatform.iOS)
+                    ? {'facingMode': 'user'}
+                    : true
+              : false,
         });
       } catch (videoError) {
-        debugPrint('Camera failed or locked. Falling back to Audio-only: $videoError');
+        debugPrint(
+          'Camera failed or locked. Falling back to Audio-only: $videoError',
+        );
         try {
           _localStream = await navigator.mediaDevices.getUserMedia({
             'audio': true,
@@ -185,27 +211,32 @@ class CallNotifier extends Notifier<CallSession?> {
           debugPrint('Microphone failed or permission denied: $audioError');
           final ctx = globalNavigatorKey.currentContext;
           if (ctx != null && ctx.mounted) {
-            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Microphone permission is required for calls.')));
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              const SnackBar(
+                content: Text('Microphone permission is required for calls.'),
+              ),
+            );
           }
           endCall();
           return;
         }
       }
       localRenderer.srcObject = _localStream;
-      
+
       // Delay showing the UI until after permissions are granted
       if (!isGroup) {
         _showFullCall();
         _playRingtone();
       }
-      
-      final myProfile = ref.read(chatThreadsProvider.notifier).myName ?? 'Someone';
-      
+
+      final myProfile =
+          ref.read(chatThreadsProvider.notifier).myName ?? 'Someone';
+
       for (final peer in peers) {
         if (!peerService.isConnected(peer.id)) {
           ref.read(chatThreadsProvider.notifier).connectToPeer(peer.id);
         }
-        
+
         // Send the call request via LAN and PeerJS metadata signaling
         final payload = {
           'type': 'call_request',
@@ -217,7 +248,7 @@ class CallNotifier extends Notifier<CallSession?> {
         ref.read(lanMessengerProvider).sendCustomData(peer.id, payload);
         peerService.sendUrgentSignal(peer.id, payload);
       }
-      
+
       _timeoutTimer?.cancel();
       _timeoutTimer = Timer(const Duration(seconds: 30), () {
         if (state?.state == CallState.ringing) {
@@ -233,7 +264,7 @@ class CallNotifier extends Notifier<CallSession?> {
 
   void _setupMediaConnection(String peerId, dynamic mediaConnection) {
     _activeConnections[peerId] = mediaConnection;
-    
+
     mediaConnection.on("stream").listen((remoteStream) async {
       if (!remoteRenderers.containsKey(peerId)) {
         final renderer = RTCVideoRenderer();
@@ -241,19 +272,19 @@ class CallNotifier extends Notifier<CallSession?> {
         remoteRenderers[peerId] = renderer;
       }
       remoteRenderers[peerId]!.srcObject = remoteStream as MediaStream;
-      
+
       if (_localStream != null) {
         setConnected();
       }
-      
+
       // Force UI update
       state = state?.copyWith();
     });
-    
+
     mediaConnection.on("close").listen((_) {
       _handlePeerDisconnected(peerId);
     });
-    
+
     mediaConnection.on("error").listen((_) {
       _handlePeerDisconnected(peerId);
     });
@@ -262,7 +293,7 @@ class CallNotifier extends Notifier<CallSession?> {
     final pc = mediaConnection.peerConnection;
     if (pc != null && pc is RTCPeerConnection) {
       pc.onIceConnectionState = (RTCIceConnectionState state) {
-        if (state == RTCIceConnectionState.RTCIceConnectionStateFailed || 
+        if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
             state == RTCIceConnectionState.RTCIceConnectionStateDisconnected ||
             state == RTCIceConnectionState.RTCIceConnectionStateClosed) {
           debugPrint('🧊 ICE Connection state failed for $peerId: $state');
@@ -274,13 +305,13 @@ class CallNotifier extends Notifier<CallSession?> {
 
   void _handlePeerDisconnected(String peerId) {
     _activeConnections.remove(peerId);
-    
+
     if (remoteRenderers.containsKey(peerId)) {
       remoteRenderers[peerId]!.srcObject = null;
       remoteRenderers[peerId]!.dispose();
       remoteRenderers.remove(peerId);
     }
-    
+
     remoteMediaStatus.remove(peerId);
 
     if (state != null) {
@@ -302,8 +333,11 @@ class CallNotifier extends Notifier<CallSession?> {
       }
     }
   }
+
   void _handleCallAccepted(String peerId) {
-    if (state != null && state!.state == CallState.ringing && state!.peers.any((p) => p.id == peerId)) {
+    if (state != null &&
+        state!.state == CallState.ringing &&
+        state!.peers.any((p) => p.id == peerId)) {
       setConnected();
     }
   }
@@ -327,18 +361,18 @@ class CallNotifier extends Notifier<CallSession?> {
 
   void sendReaction(String emoji) {
     if (state == null) return;
-    
+
     final msg = {
       'type': 'reaction',
       'emoji': emoji,
       'peerId': 'local', // Or use actual local ID if available
     };
-    
+
     // Broadcast to all remote peers
     for (final peer in state!.peers) {
       ref.read(peerServiceProvider).sendCustomData(peer.id, msg);
     }
-    
+
     // Show locally immediately
     _reactionStreamController.add(msg);
   }
@@ -348,43 +382,55 @@ class CallNotifier extends Notifier<CallSession?> {
     final callerName = request['callerName'] as String;
     final isVideo = request['isVideo'] as bool;
     final isGroup = request['isGroup'] == true;
-    
+
     if (state != null) {
       // GLARE: We're already in a call. Check if it's with this same peer.
-      if (state!.state == CallState.ringing && state!.peers.any((p) => p.id == peerId)) {
+      if (state!.state == CallState.ringing &&
+          state!.peers.any((p) => p.id == peerId)) {
         // Both tried to call each other simultaneously.
         // Deterministic tie-break: lower ID is the caller, higher ID becomes callee.
         final myPeerId = ref.read(chatThreadsProvider.notifier).myId ?? '';
         if (myPeerId.compareTo(peerId) < 0) {
           // I win (caller). Ignore their request — they should answer mine.
-          debugPrint('🔀 Glare resolved: I am the caller (lower ID). Ignoring remote call_request.');
+          debugPrint(
+            '🔀 Glare resolved: I am the caller (lower ID). Ignoring remote call_request.',
+          );
           return;
         } else {
           // They win (caller). I become the callee — auto-answer.
-          debugPrint('🔀 Glare resolved: They are the caller (lower ID). Auto-answering.');
+          debugPrint(
+            '🔀 Glare resolved: They are the caller (lower ID). Auto-answering.',
+          );
           answerCall();
           return;
         }
       }
       return; // Busy with another call entirely
     }
-    
+
     // Check contacts for real avatar/color
     User? knownUser;
     final contacts = ref.read(contactsProvider).value;
     if (contacts != null) {
       knownUser = contacts.where((c) => c.id == peerId).firstOrNull;
     }
-    
-    final peer = knownUser ?? User(id: peerId, name: callerName, avatarIcon: 0xe491, avatarColor: 0xFF6750A4);
-    
+
+    final peer =
+        knownUser ??
+        User(
+          id: peerId,
+          name: callerName,
+          avatarIcon: 0xe491,
+          avatarColor: 0xFF6750A4,
+        );
+
     state = CallSession(
       peers: [peer],
       isVideo: isVideo,
       state: CallState.ringing,
       isGroup: isGroup,
     );
-    
+
     if (!isGroup) {
       _showFullCall(isIncoming: true);
       _playRingtone();
@@ -393,37 +439,41 @@ class CallNotifier extends Notifier<CallSession?> {
 
   void _handleIncomingCall(dynamic mediaConnection) {
     final peerId = mediaConnection.peer;
-    
+
     if (_activeConnections.containsKey(peerId)) {
-      debugPrint('⏳ Already have active connection for $peerId. Ignoring duplicate media stream.');
+      debugPrint(
+        '⏳ Already have active connection for $peerId. Ignoring duplicate media stream.',
+      );
       mediaConnection.close();
       return;
     }
-    
+
     if (state != null) {
       // Are we already in a call? If it's a new peer and we're in a group call, maybe accept?
       // For now, if we're ringing and it's from the person calling us, we accept it when user answers.
       // Or if we are already connected, we can automatically accept it if it's part of the group.
-      
+
       if (state!.state == CallState.connected && state!.isGroup) {
-         // Auto-answer incoming from a group member
-         if (_localStream != null) {
-           _activeConnections[peerId] = mediaConnection;
-           mediaConnection.answer(_localStream!);
-           _setupMediaConnection(peerId, mediaConnection);
-         }
-      } else if (state!.state == CallState.connected && state!.peers.any((p) => p.id == peerId)) {
-         // Auto-answer incoming if we already clicked Accept but the media connection arrived late
-         if (_localStream != null) {
-           _activeConnections[peerId] = mediaConnection;
-           mediaConnection.answer(_localStream!);
-           _setupMediaConnection(peerId, mediaConnection);
-         }
-      } else if (state!.state == CallState.ringing && state!.peers.any((p) => p.id == peerId)) {
+        // Auto-answer incoming from a group member
+        if (_localStream != null) {
+          _activeConnections[peerId] = mediaConnection;
+          mediaConnection.answer(_localStream!);
+          _setupMediaConnection(peerId, mediaConnection);
+        }
+      } else if (state!.state == CallState.connected &&
+          state!.peers.any((p) => p.id == peerId)) {
+        // Auto-answer incoming if we already clicked Accept but the media connection arrived late
+        if (_localStream != null) {
+          _activeConnections[peerId] = mediaConnection;
+          mediaConnection.answer(_localStream!);
+          _setupMediaConnection(peerId, mediaConnection);
+        }
+      } else if (state!.state == CallState.ringing &&
+          state!.peers.any((p) => p.id == peerId)) {
         // We received the media connection. If we also initiated a call (localStream != null), auto-answer it to resolve simultaneous calls.
         _activeConnections[peerId] = mediaConnection;
         _setupMediaConnection(peerId, mediaConnection);
-        
+
         if (_localStream != null) {
           mediaConnection.answer(_localStream!);
           setConnected();
@@ -434,39 +484,53 @@ class CallNotifier extends Notifier<CallSession?> {
       }
       return;
     }
-    
+
     // Fallback if we didn't get call_request
     User? knownUser;
     final contacts = ref.read(contactsProvider).value;
     if (contacts != null) {
       knownUser = contacts.where((c) => c.id == peerId).firstOrNull;
     }
-    final peer = knownUser ?? User(id: peerId, name: 'Peer $peerId', avatarIcon: 0xe491, avatarColor: 0xFF6750A4);
-    
+    final peer =
+        knownUser ??
+        User(
+          id: peerId,
+          name: 'Peer $peerId',
+          avatarIcon: 0xe491,
+          avatarColor: 0xFF6750A4,
+        );
+
     state = CallSession(
-      peers: [peer], 
+      peers: [peer],
       isVideo: true, // assume true until we check
       state: CallState.ringing,
     );
-    
+
     _activeConnections[peerId] = mediaConnection;
     _setupMediaConnection(peerId, mediaConnection);
-    
+
     _showFullCall(isIncoming: true);
     _playRingtone();
   }
 
   Future<void> answerCall() async {
     if (state == null) return;
-    
+
     try {
       try {
         _localStream = await navigator.mediaDevices.getUserMedia({
           'audio': true,
-          'video': state!.isVideo ? (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) ? {'facingMode': 'user'} : true : false,
+          'video': state!.isVideo
+              ? (defaultTargetPlatform == TargetPlatform.android ||
+                        defaultTargetPlatform == TargetPlatform.iOS)
+                    ? {'facingMode': 'user'}
+                    : true
+              : false,
         });
       } catch (videoError) {
-        debugPrint('Camera failed or locked. Falling back to Audio-only: $videoError');
+        debugPrint(
+          'Camera failed or locked. Falling back to Audio-only: $videoError',
+        );
         try {
           _localStream = await navigator.mediaDevices.getUserMedia({
             'audio': true,
@@ -477,17 +541,21 @@ class CallNotifier extends Notifier<CallSession?> {
           debugPrint('Microphone failed or permission denied: $audioError');
           final ctx = globalNavigatorKey.currentContext;
           if (ctx != null && ctx.mounted) {
-            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Microphone permission is required for calls.')));
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              const SnackBar(
+                content: Text('Microphone permission is required for calls.'),
+              ),
+            );
           }
           endCall();
           return;
         }
       }
       localRenderer.srcObject = _localStream;
-      
+
       final peerService = ref.read(peerServiceProvider);
       final localWebrtcService = ref.read(localWebrtcServiceProvider);
-      
+
       for (final peer in state!.peers) {
         if (_activeConnections.containsKey(peer.id)) {
           // Backward compatibility / simultaneous calls
@@ -495,32 +563,38 @@ class CallNotifier extends Notifier<CallSession?> {
         } else {
           // FLIP THE HOST: The Callee initiates the stream!
           dynamic mediaConnection;
-          
+
           final mdnsPeers = ref.read(nearbyPeersProvider);
           var lanPeer = mdnsPeers.where((p) => p.id == peer.id).firstOrNull;
-          
+
           if (lanPeer == null || lanPeer.ipAddress == null) {
             final contacts = await ref.read(contactsProvider.future);
             lanPeer = contacts.where((c) => c.id == peer.id).firstOrNull;
           }
-          
+
           final isLocal = lanPeer != null && lanPeer.ipAddress != null;
-          
+
           if (isLocal) {
-            mediaConnection = await localWebrtcService.makeCall(peer.id, _localStream!);
+            mediaConnection = await localWebrtcService.makeCall(
+              peer.id,
+              _localStream!,
+            );
           } else {
             mediaConnection = peerService.makeCall(peer.id, _localStream!);
           }
-          
+
           if (mediaConnection != null) {
             _setupMediaConnection(peer.id, mediaConnection);
           }
         }
-        final payload = {'type': 'call_accepted', 'peerId': peerService.myId ?? 'local'};
+        final payload = {
+          'type': 'call_accepted',
+          'peerId': peerService.myId ?? 'local',
+        };
         ref.read(lanMessengerProvider).sendCustomData(peer.id, payload);
         peerService.sendUrgentSignal(peer.id, payload);
       }
-      
+
       setConnected();
     } catch (e) {
       debugPrint('Error answering call: $e');
@@ -531,19 +605,19 @@ class CallNotifier extends Notifier<CallSession?> {
   void _showFullCall({bool isIncoming = false}) {
     debugPrint('📱 _showFullCall called, isIncoming: $isIncoming');
     if (_overlayEntry != null) return;
-    
+
     final navState = globalNavigatorKey.currentState;
     debugPrint('📱 navState: $navState');
     final context = navState?.overlay?.context;
     debugPrint('📱 context: $context');
-    
+
     if (context == null || state == null) {
       debugPrint('📱 Failed to show call: context=$context, state=$state');
       return;
     }
 
     _overlayEntry = OverlayEntry(
-      builder: (context) => CallScreen(isIncoming: isIncoming), 
+      builder: (context) => CallScreen(isIncoming: isIncoming),
     );
     globalNavigatorKey.currentState?.overlay?.insert(_overlayEntry!);
     debugPrint('📱 Overlay inserted successfully!');
@@ -554,12 +628,18 @@ class CallNotifier extends Notifier<CallSession?> {
       _stopRingtone();
       _timeoutTimer?.cancel();
       final startTime = DateTime.now();
-      state = state!.copyWith(state: CallState.connected, startTime: startTime, currentDuration: Duration.zero);
-      
+      state = state!.copyWith(
+        state: CallState.connected,
+        startTime: startTime,
+        currentDuration: Duration.zero,
+      );
+
       _timer?.cancel();
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (state != null && state!.startTime != null) {
-          state = state!.copyWith(currentDuration: DateTime.now().difference(state!.startTime!));
+          state = state!.copyWith(
+            currentDuration: DateTime.now().difference(state!.startTime!),
+          );
         }
       });
     }
@@ -568,36 +648,44 @@ class CallNotifier extends Notifier<CallSession?> {
   Future<void> toggleVideo(bool enabled) async {
     if (_localStream != null) {
       final videoTracks = _localStream!.getVideoTracks();
-      
+
       if (enabled) {
         // We want to turn it back on
         if (videoTracks.isEmpty || !videoTracks[0].enabled) {
           try {
             final newStream = await navigator.mediaDevices.getUserMedia({
               'audio': false,
-              'video': (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) ? {'facingMode': 'user'} : true,
+              'video':
+                  (defaultTargetPlatform == TargetPlatform.android ||
+                      defaultTargetPlatform == TargetPlatform.iOS)
+                  ? {'facingMode': 'user'}
+                  : true,
             });
             final newTrack = newStream.getVideoTracks().first;
-            
+
             // Remove old dead tracks
             for (final track in videoTracks.toList()) {
               _localStream!.removeTrack(track);
             }
-            
+
             _localStream!.addTrack(newTrack);
-            
+
             // Replace track in active peer connections
             for (final conn in _activeConnections.values) {
               final senders = await conn.peerConnection?.getSenders();
               if (senders != null) {
-                final videoSenders = senders.where((s) => (s as RTCRtpSender).track?.kind == 'video');
-                final videoSender = videoSenders.isEmpty ? null : videoSenders.first;
+                final videoSenders = senders.where(
+                  (s) => (s as RTCRtpSender).track?.kind == 'video',
+                );
+                final videoSender = videoSenders.isEmpty
+                    ? null
+                    : videoSenders.first;
                 if (videoSender != null) {
                   await videoSender.replaceTrack(newTrack);
                 }
               }
             }
-            
+
             // Re-bind to local renderer
             localRenderer.srcObject = _localStream;
           } catch (e) {
@@ -614,12 +702,18 @@ class CallNotifier extends Notifier<CallSession?> {
         }
       }
     }
-    
+
     if (state != null) {
       final peerService = ref.read(peerServiceProvider);
-      final audioEnabled = _localStream?.getAudioTracks().isNotEmpty == true ? _localStream!.getAudioTracks()[0].enabled : true;
+      final audioEnabled = _localStream?.getAudioTracks().isNotEmpty == true
+          ? _localStream!.getAudioTracks()[0].enabled
+          : true;
       for (final peer in state!.peers) {
-        peerService.sendMediaStatus(peer.id, videoEnabled: enabled, audioEnabled: audioEnabled);
+        peerService.sendMediaStatus(
+          peer.id,
+          videoEnabled: enabled,
+          audioEnabled: audioEnabled,
+        );
       }
     }
   }
@@ -627,7 +721,7 @@ class CallNotifier extends Notifier<CallSession?> {
   Future<void> toggleAudio(bool enabled) async {
     if (_localStream != null) {
       final audioTracks = _localStream!.getAudioTracks();
-      
+
       if (enabled) {
         // We want to turn it back on
         if (audioTracks.isEmpty || !audioTracks[0].enabled) {
@@ -637,20 +731,24 @@ class CallNotifier extends Notifier<CallSession?> {
               'video': false,
             });
             final newTrack = newStream.getAudioTracks().first;
-            
+
             // Remove old dead tracks
             for (final track in audioTracks.toList()) {
               _localStream!.removeTrack(track);
             }
-            
+
             _localStream!.addTrack(newTrack);
-            
+
             // Replace track in active peer connections
             for (final conn in _activeConnections.values) {
               final senders = await conn.peerConnection?.getSenders();
               if (senders != null) {
-                final audioSenders = senders.where((s) => (s as RTCRtpSender).track?.kind == 'audio');
-                final audioSender = audioSenders.isEmpty ? null : audioSenders.first;
+                final audioSenders = senders.where(
+                  (s) => (s as RTCRtpSender).track?.kind == 'audio',
+                );
+                final audioSender = audioSenders.isEmpty
+                    ? null
+                    : audioSenders.first;
                 if (audioSender != null) {
                   await audioSender.replaceTrack(newTrack);
                 }
@@ -673,9 +771,15 @@ class CallNotifier extends Notifier<CallSession?> {
 
     if (state != null) {
       final peerService = ref.read(peerServiceProvider);
-      final videoEnabled = _localStream?.getVideoTracks().isNotEmpty == true ? _localStream!.getVideoTracks()[0].enabled : true;
+      final videoEnabled = _localStream?.getVideoTracks().isNotEmpty == true
+          ? _localStream!.getVideoTracks()[0].enabled
+          : true;
       for (final peer in state!.peers) {
-        peerService.sendMediaStatus(peer.id, videoEnabled: videoEnabled, audioEnabled: enabled);
+        peerService.sendMediaStatus(
+          peer.id,
+          videoEnabled: videoEnabled,
+          audioEnabled: enabled,
+        );
       }
     }
   }
@@ -685,22 +789,30 @@ class CallNotifier extends Notifier<CallSession?> {
   void endCall({bool local = true}) {
     if (_isEndingCall) return;
     _isEndingCall = true;
-    
+
     if (state != null) {
       final chatController = ref.read(chatThreadsProvider.notifier);
       final isMissed = state!.state != CallState.connected;
       String callMessage;
       if (isMissed) {
-        callMessage = state!.isVideo ? '📞 Missed Video Call' : '📞 Missed Voice Call';
+        callMessage = state!.isVideo
+            ? '📞 Missed Video Call'
+            : '📞 Missed Voice Call';
       } else {
         final duration = state!.currentDuration ?? Duration.zero;
         final minutes = duration.inMinutes.toString().padLeft(2, '0');
         final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
-        callMessage = state!.isVideo ? '📞 Video Call Ended ($minutes:$seconds)' : '📞 Voice Call Ended ($minutes:$seconds)';
+        callMessage = state!.isVideo
+            ? '📞 Video Call Ended ($minutes:$seconds)'
+            : '📞 Voice Call Ended ($minutes:$seconds)';
       }
-      
+
       for (final peer in state!.peers) {
-        chatController.sendMessage(peer.id, callMessage, type: MessageType.system);
+        chatController.sendMessage(
+          peer.id,
+          callMessage,
+          type: MessageType.system,
+        );
       }
     }
 
@@ -709,13 +821,19 @@ class CallNotifier extends Notifier<CallSession?> {
       final lanService = ref.read(lanMessengerProvider);
       for (final peer in state!.peers) {
         peerService.sendCallEnded(peer.id);
-        final payload = {'type': 'call_ended', 'peerId': peerService.myId ?? 'local'};
+        final payload = {
+          'type': 'call_ended',
+          'peerId': peerService.myId ?? 'local',
+        };
         peerService.sendUrgentSignal(peer.id, payload);
         lanService.sendCustomData(peer.id, payload);
       }
-      
+
       // Brief delay to ensure data channel message transmits before tearing down
-      Future.delayed(const Duration(milliseconds: 300), _cleanupCallConnections);
+      Future.delayed(
+        const Duration(milliseconds: 300),
+        _cleanupCallConnections,
+      );
     } else {
       _cleanupCallConnections();
     }
@@ -727,7 +845,7 @@ class CallNotifier extends Notifier<CallSession?> {
     _timeoutTimer?.cancel();
     _timeoutTimer = null;
     _stopRingtone();
-    
+
     // 1. Detach renderers FIRST (prevents dangling refs)
     localRenderer.srcObject = null;
     for (final renderer in remoteRenderers.values) {
@@ -735,13 +853,13 @@ class CallNotifier extends Notifier<CallSession?> {
       renderer.dispose();
     }
     remoteRenderers.clear();
-    
+
     // 2. Close WebRTC media connections
     for (final conn in _activeConnections.values) {
       conn.close();
     }
     _activeConnections.clear();
-    
+
     // 3. Stop EVERY track explicitly, then dispose the stream
     if (_localStream != null) {
       for (final track in _localStream!.getTracks()) {
@@ -750,7 +868,7 @@ class CallNotifier extends Notifier<CallSession?> {
       _localStream!.dispose();
       _localStream = null;
     }
-    
+
     // 4. Reset state
     state = null;
     _isEndingCall = false;
@@ -762,26 +880,24 @@ class CallNotifier extends Notifier<CallSession?> {
 
   void showMiniCall() {
     if (state == null) return;
-    
+
     if (_overlayEntry != null) {
       _overlayEntry!.remove();
     }
-    
+
     final context = globalNavigatorKey.currentState?.overlay?.context;
     if (context == null) return;
 
-    _overlayEntry = OverlayEntry(
-      builder: (context) => const MiniCallOverlay(),
-    );
+    _overlayEntry = OverlayEntry(builder: (context) => const MiniCallOverlay());
     globalNavigatorKey.currentState?.overlay?.insert(_overlayEntry!);
   }
-  
+
   void maximizeCall() {
     if (state == null) return;
     if (_overlayEntry != null) {
       _overlayEntry!.remove();
     }
-    
+
     final context = globalNavigatorKey.currentState?.overlay?.context;
     if (context == null) return;
 
@@ -792,7 +908,9 @@ class CallNotifier extends Notifier<CallSession?> {
   }
 }
 
-final callProvider = NotifierProvider<CallNotifier, CallSession?>(() => CallNotifier());
+final callProvider = NotifierProvider<CallNotifier, CallSession?>(
+  () => CallNotifier(),
+);
 
 class MiniCallOverlay extends ConsumerStatefulWidget {
   const MiniCallOverlay({super.key});
@@ -848,10 +966,14 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
                   child: GestureDetector(
                     onTap: () => ref.read(callProvider.notifier).maximizeCall(),
                     behavior: HitTestBehavior.opaque,
-                    child: _buildVideoContent(callState, isConnected, remoteRenderers),
+                    child: _buildVideoContent(
+                      callState,
+                      isConnected,
+                      remoteRenderers,
+                    ),
                   ),
                 ),
-                
+
                 // Call Controls
                 Positioned(
                   bottom: 12,
@@ -872,12 +994,26 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: ref.read(callProvider.notifier).isLocalVideoEnabled ? Colors.white24 : Colors.white,
+                              color:
+                                  ref
+                                      .read(callProvider.notifier)
+                                      .isLocalVideoEnabled
+                                  ? Colors.white24
+                                  : Colors.white,
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              ref.read(callProvider.notifier).isLocalVideoEnabled ? Icons.videocam : Icons.videocam_off,
-                              color: ref.read(callProvider.notifier).isLocalVideoEnabled ? Colors.white : Colors.black,
+                              ref
+                                      .read(callProvider.notifier)
+                                      .isLocalVideoEnabled
+                                  ? Icons.videocam
+                                  : Icons.videocam_off,
+                              color:
+                                  ref
+                                      .read(callProvider.notifier)
+                                      .isLocalVideoEnabled
+                                  ? Colors.white
+                                  : Colors.black,
                               size: 16,
                             ),
                           ),
@@ -892,12 +1028,24 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: ref.read(callProvider.notifier).isLocalAudioEnabled ? Colors.white24 : Colors.white,
+                            color:
+                                ref
+                                    .read(callProvider.notifier)
+                                    .isLocalAudioEnabled
+                                ? Colors.white24
+                                : Colors.white,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            ref.read(callProvider.notifier).isLocalAudioEnabled ? Icons.mic : Icons.mic_off,
-                            color: ref.read(callProvider.notifier).isLocalAudioEnabled ? Colors.white : Colors.black,
+                            ref.read(callProvider.notifier).isLocalAudioEnabled
+                                ? Icons.mic
+                                : Icons.mic_off,
+                            color:
+                                ref
+                                    .read(callProvider.notifier)
+                                    .isLocalAudioEnabled
+                                ? Colors.white
+                                : Colors.black,
                             size: 16,
                           ),
                         ),
@@ -912,13 +1060,17 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
                             color: Colors.red,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.call_end, color: Colors.white, size: 20),
+                          child: const Icon(
+                            Icons.call_end,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                
+
                 // Resize Handle
                 Positioned(
                   bottom: 0,
@@ -926,8 +1078,14 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
                   child: GestureDetector(
                     onPanUpdate: (details) {
                       setState(() {
-                        width = (width + details.delta.dx).clamp(130.0, MediaQuery.of(context).size.width - 40);
-                        height = (height + details.delta.dy).clamp(190.0, MediaQuery.of(context).size.height - 100);
+                        width = (width + details.delta.dx).clamp(
+                          130.0,
+                          MediaQuery.of(context).size.width - 40,
+                        );
+                        height = (height + details.delta.dy).clamp(
+                          190.0,
+                          MediaQuery.of(context).size.height - 100,
+                        );
                       });
                     },
                     child: Container(
@@ -940,7 +1098,11 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
                         alignment: Alignment.bottomRight,
                         child: Padding(
                           padding: EdgeInsets.all(4.0),
-                          child: Icon(Icons.open_in_full, size: 14, color: Colors.white54),
+                          child: Icon(
+                            Icons.open_in_full,
+                            size: 14,
+                            color: Colors.white54,
+                          ),
                         ),
                       ),
                     ),
@@ -954,9 +1116,15 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
     );
   }
 
-  Widget _buildVideoContent(CallSession callState, bool isConnected, Map<String, RTCVideoRenderer> remoteRenderers) {
+  Widget _buildVideoContent(
+    CallSession callState,
+    bool isConnected,
+    Map<String, RTCVideoRenderer> remoteRenderers,
+  ) {
     if (!isConnected || !callState.isVideo) {
-      return _buildPlaceholder(callState.peers.isNotEmpty ? callState.peers.first.name : 'Unknown');
+      return _buildPlaceholder(
+        callState.peers.isNotEmpty ? callState.peers.first.name : 'Unknown',
+      );
     }
 
     if (width > 250 && remoteRenderers.length > 1) {
@@ -975,22 +1143,37 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
         itemBuilder: (context, index) {
           final peerId = remoteRenderers.keys.elementAt(index);
           final renderer = remoteRenderers[peerId]!;
-          if (!(ref.read(callProvider.notifier).remoteMediaStatus[peerId]?['videoEnabled'] ?? true)) {
-             return _buildPlaceholder('Participant');
+          if (!(ref
+                  .read(callProvider.notifier)
+                  .remoteMediaStatus[peerId]?['videoEnabled'] ??
+              true)) {
+            return _buildPlaceholder('Participant');
           }
-          return RTCVideoView(renderer, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover);
+          return RTCVideoView(
+            renderer,
+            objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+          );
         },
       );
     } else {
       // Show Single Active Speaker
-      final activeRenderer = remoteRenderers.isNotEmpty ? remoteRenderers.values.first : null;
-      if (activeRenderer != null && (ref.read(callProvider.notifier).remoteMediaStatus[callState.peers.first.id]?['videoEnabled'] ?? true)) {
+      final activeRenderer = remoteRenderers.isNotEmpty
+          ? remoteRenderers.values.first
+          : null;
+      if (activeRenderer != null &&
+          (ref.read(callProvider.notifier).remoteMediaStatus[callState
+                  .peers
+                  .first
+                  .id]?['videoEnabled'] ??
+              true)) {
         return RTCVideoView(
           activeRenderer,
           objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
         );
       } else {
-        return _buildPlaceholder(callState.peers.isNotEmpty ? callState.peers.first.name : 'Unknown');
+        return _buildPlaceholder(
+          callState.peers.isNotEmpty ? callState.peers.first.name : 'Unknown',
+        );
       }
     }
   }
@@ -1006,7 +1189,11 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
               name,
-              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
             ),
@@ -1032,4 +1219,6 @@ class CallLogsNotifier extends AsyncNotifier<List<CallLog>> {
   }
 }
 
-final callLogsProvider = AsyncNotifierProvider<CallLogsNotifier, List<CallLog>>(() => CallLogsNotifier());
+final callLogsProvider = AsyncNotifierProvider<CallLogsNotifier, List<CallLog>>(
+  () => CallLogsNotifier(),
+);

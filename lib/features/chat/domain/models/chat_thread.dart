@@ -9,7 +9,8 @@ class ChatThread {
   final bool isGroup;
   final String? groupName;
   final String? groupImagePath;
-  final List<User> members; // For groups, this contains all members. For 1:1, this might just be the peer.
+  final List<User>
+  members; // For groups, this contains all members. For 1:1, this might just be the peer.
   final int unreadCount;
 
   ChatThread({

@@ -10,7 +10,7 @@ import 'package:abyss_chat/network/web_storage.dart';
 class WebMediaImage extends StatefulWidget {
   final Message msg;
   final BoxFit fit;
-  
+
   const WebMediaImage({super.key, required this.msg, this.fit = BoxFit.cover});
 
   @override
@@ -35,7 +35,9 @@ class _WebMediaImageState extends State<WebMediaImage> {
   }
 
   void _resolveUrl() {
-    if (kIsWeb && widget.msg.fileData != null && widget.msg.fileData!.startsWith('web_idb:')) {
+    if (kIsWeb &&
+        widget.msg.fileData != null &&
+        widget.msg.fileData!.startsWith('web_idb:')) {
       final id = widget.msg.fileData!.split(':')[1];
       WebStorage.getMediaUrl(id).then((url) {
         if (mounted) {
@@ -55,8 +57,9 @@ class _WebMediaImageState extends State<WebMediaImage> {
         child: const Center(child: CircularProgressIndicator()),
       );
     }
-    
-    if (widget.msg.fileData != null && widget.msg.fileData!.startsWith('web_idb:')) {
+
+    if (widget.msg.fileData != null &&
+        widget.msg.fileData!.startsWith('web_idb:')) {
       if (_blobUrl == null) {
         return const Center(child: CircularProgressIndicator());
       }
@@ -64,20 +67,27 @@ class _WebMediaImageState extends State<WebMediaImage> {
     }
 
     // Fallbacks
-    if (widget.msg.fileData != null && widget.msg.fileData!.startsWith('http')) {
-       if (widget.msg.fileData!.toLowerCase().endsWith('.gif')) {
-          // using Image.network for gif or GifView? We'll assume GifPlayer exists.
-          return Image.network(widget.msg.fileData!, fit: widget.fit);
-       }
-       return CachedNetworkImage(imageUrl: widget.msg.fileData!, fit: widget.fit);
+    if (widget.msg.fileData != null &&
+        widget.msg.fileData!.startsWith('http')) {
+      if (widget.msg.fileData!.toLowerCase().endsWith('.gif')) {
+        // using Image.network for gif or GifView? We'll assume GifPlayer exists.
+        return Image.network(widget.msg.fileData!, fit: widget.fit);
+      }
+      return CachedNetworkImage(
+        imageUrl: widget.msg.fileData!,
+        fit: widget.fit,
+      );
     }
     if (widget.msg.fileData != null && widget.msg.fileData!.isNotEmpty) {
       try {
         if (widget.msg.fileData!.startsWith('data:')) {
-           final b64 = widget.msg.fileData!.split(',').last;
-           return Image.memory(base64Decode(b64), fit: widget.fit);
+          final b64 = widget.msg.fileData!.split(',').last;
+          return Image.memory(base64Decode(b64), fit: widget.fit);
         }
-        return Image.memory(base64Decode(widget.msg.fileData!), fit: widget.fit);
+        return Image.memory(
+          base64Decode(widget.msg.fileData!),
+          fit: widget.fit,
+        );
       } catch (e) {
         debugPrint('WebMediaImage base64 decode error: $e');
         return const Icon(Icons.broken_image);

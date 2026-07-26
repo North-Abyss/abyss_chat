@@ -32,14 +32,24 @@ class ThemeNotifier extends AsyncNotifier<ThemeState> {
     final themeName = prefs.getString('themeName') ?? "Teal";
     final customHex = prefs.getInt('customColorValue');
     final customColor = customHex != null ? Color(customHex) : null;
-    return ThemeState(ThemeMode.values[modeIndex], themeName, customColor: customColor);
+    return ThemeState(
+      ThemeMode.values[modeIndex],
+      themeName,
+      customColor: customColor,
+    );
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     final prefs = await SharedPrefsHelper.instance;
     await prefs.setInt('themeMode', mode.index);
     if (state.hasValue) {
-      state = AsyncData(ThemeState(mode, state.value!.themeName, customColor: state.value!.customColor));
+      state = AsyncData(
+        ThemeState(
+          mode,
+          state.value!.themeName,
+          customColor: state.value!.customColor,
+        ),
+      );
     }
   }
 
@@ -47,7 +57,13 @@ class ThemeNotifier extends AsyncNotifier<ThemeState> {
     final prefs = await SharedPrefsHelper.instance;
     await prefs.setString('themeName', themeName);
     if (state.hasValue) {
-      state = AsyncData(ThemeState(state.value!.mode, themeName, customColor: state.value!.customColor));
+      state = AsyncData(
+        ThemeState(
+          state.value!.mode,
+          themeName,
+          customColor: state.value!.customColor,
+        ),
+      );
     }
   }
 
@@ -56,7 +72,9 @@ class ThemeNotifier extends AsyncNotifier<ThemeState> {
     await prefs.setInt('customColorValue', color.toARGB32());
     await prefs.setString('themeName', 'Custom');
     if (state.hasValue) {
-      state = AsyncData(ThemeState(state.value!.mode, 'Custom', customColor: color));
+      state = AsyncData(
+        ThemeState(state.value!.mode, 'Custom', customColor: color),
+      );
     }
   }
 }

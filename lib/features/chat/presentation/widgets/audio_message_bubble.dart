@@ -47,8 +47,8 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
               await _audioPlayer.setUrl(url);
             }
           } else {
-            final dataUri = widget.msg.fileData!.startsWith('data:') 
-                ? widget.msg.fileData! 
+            final dataUri = widget.msg.fileData!.startsWith('data:')
+                ? widget.msg.fileData!
                 : 'data:audio/mp4;base64,${widget.msg.fileData}';
             await _audioPlayer.setUrl(dataUri);
           }
@@ -61,7 +61,7 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
           await _audioPlayer.setFilePath(file.path);
         }
       }
-      
+
       _audioPlayer.durationStream.listen((d) {
         if (mounted) setState(() => _duration = d ?? Duration.zero);
       });
@@ -93,7 +93,10 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: widget.isMe ? cs.onPrimaryContainer : cs.onSurface),
+          icon: Icon(
+            _isPlaying ? Icons.pause : Icons.play_arrow,
+            color: widget.isMe ? cs.onPrimaryContainer : cs.onSurface,
+          ),
           onPressed: () {
             if (_isPlaying) {
               _audioPlayer.pause();
@@ -108,7 +111,9 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
             tween: Tween(begin: 0, end: _position.inMilliseconds.toDouble()),
             duration: const Duration(milliseconds: 200),
             builder: (context, val, _) {
-              final maxVal = _duration.inMilliseconds.toDouble() > 0 ? _duration.inMilliseconds.toDouble() : 1.0;
+              final maxVal = _duration.inMilliseconds.toDouble() > 0
+                  ? _duration.inMilliseconds.toDouble()
+                  : 1.0;
               return Slider(
                 value: val.clamp(0.0, maxVal),
                 max: maxVal,
@@ -116,7 +121,9 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
                   _audioPlayer.seek(Duration(milliseconds: newVal.toInt()));
                 },
                 activeColor: widget.isMe ? cs.onPrimaryContainer : cs.primary,
-                inactiveColor: widget.isMe ? cs.onPrimaryContainer.withValues(alpha: 0.3) : cs.primary.withValues(alpha: 0.3),
+                inactiveColor: widget.isMe
+                    ? cs.onPrimaryContainer.withValues(alpha: 0.3)
+                    : cs.primary.withValues(alpha: 0.3),
               );
             },
           ),
@@ -130,7 +137,11 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
         ),
         if (_playableFilePath != null && !kIsWeb)
           IconButton(
-            icon: Icon(Icons.share, size: 16, color: widget.isMe ? cs.onPrimaryContainer : cs.onSurfaceVariant),
+            icon: Icon(
+              Icons.share,
+              size: 16,
+              color: widget.isMe ? cs.onPrimaryContainer : cs.onSurfaceVariant,
+            ),
             onPressed: () {
               // ignore: deprecated_member_use
               Share.shareXFiles([XFile(_playableFilePath!)]);

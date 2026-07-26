@@ -9,7 +9,7 @@ class ContactsNotifier extends AsyncNotifier<List<User>> {
   Future<List<User>> build() async {
     final storage = ref.watch(storageServiceProvider);
     final contacts = await storage.loadContacts();
-    
+
     // Deduplicate by ID, keeping the one with a real name or newest timestamp
     final Map<String, User> deduped = {};
     for (final c in contacts) {
@@ -21,19 +21,20 @@ class ContactsNotifier extends AsyncNotifier<List<User>> {
         final newPlaceholder = _isPlaceholderName(c.name);
         if (existingPlaceholder && !newPlaceholder) {
           deduped[c.id] = c;
-        } else if (c.profileUpdatedAt != null && 
-                   (existing.profileUpdatedAt == null || c.profileUpdatedAt!.isAfter(existing.profileUpdatedAt!))) {
+        } else if (c.profileUpdatedAt != null &&
+            (existing.profileUpdatedAt == null ||
+                c.profileUpdatedAt!.isAfter(existing.profileUpdatedAt!))) {
           deduped[c.id] = c;
         }
       }
     }
-    
+
     // Remove self-contacts
     final profile = await storage.loadUserProfile();
     if (profile != null && profile['id'] != null) {
       deduped.remove(profile['id'] as String);
     }
-    
+
     final result = deduped.values.toList();
     if (result.length != contacts.length) {
       storage.saveContacts(result);
@@ -42,7 +43,9 @@ class ContactsNotifier extends AsyncNotifier<List<User>> {
   }
 
   static bool _isPlaceholderName(String name) {
-    return name == 'Unknown' || name.startsWith('Peer ') || name == 'Scanned Peer';
+    return name == 'Unknown' ||
+        name.startsWith('Peer ') ||
+        name == 'Scanned Peer';
   }
 
   void upsertContact(User user) {
@@ -56,15 +59,16 @@ class ContactsNotifier extends AsyncNotifier<List<User>> {
     } else {
       final existing = contacts[idx];
       bool shouldUpdate = false;
-      
+
       if (user.profileUpdatedAt != null) {
-        if (existing.profileUpdatedAt == null || user.profileUpdatedAt!.isAfter(existing.profileUpdatedAt!)) {
+        if (existing.profileUpdatedAt == null ||
+            user.profileUpdatedAt!.isAfter(existing.profileUpdatedAt!)) {
           shouldUpdate = true;
         }
       } else {
-        if (existing.name != user.name || 
-            existing.avatarIcon != user.avatarIcon || 
-            existing.avatarColor != user.avatarColor || 
+        if (existing.name != user.name ||
+            existing.avatarIcon != user.avatarIcon ||
+            existing.avatarColor != user.avatarColor ||
             existing.profileImagePath != user.profileImagePath) {
           shouldUpdate = true;
         }
@@ -89,10 +93,10 @@ class ContactsNotifier extends AsyncNotifier<List<User>> {
     contacts.removeWhere((c) => c.id == id);
     state = AsyncData(contacts);
     ref.read(storageServiceProvider).saveContacts(contacts);
-    
+
     // Also delete chat thread history
     ref.read(chatThreadsProvider.notifier).deleteThread(id);
-    
+
     // Add to deleted contacts so mDNS doesn't auto-re-add them
     ref.read(deletedContactsProvider.notifier).markDeleted(id);
   }
@@ -120,7 +124,10 @@ class DeletedContactsNotifier extends AsyncNotifier<List<String>> {
   }
 }
 
-final deletedContactsProvider = AsyncNotifierProvider<DeletedContactsNotifier, List<String>>(() => DeletedContactsNotifier());
+final deletedContactsProvider =
+    AsyncNotifierProvider<DeletedContactsNotifier, List<String>>(
+      () => DeletedContactsNotifier(),
+    );
 
 class BlockedContactsNotifier extends AsyncNotifier<List<String>> {
   @override
@@ -139,6 +146,11 @@ class BlockedContactsNotifier extends AsyncNotifier<List<String>> {
   }
 }
 
-final blockedContactsProvider = AsyncNotifierProvider<BlockedContactsNotifier, List<String>>(() => BlockedContactsNotifier());
+final blockedContactsProvider =
+    AsyncNotifierProvider<BlockedContactsNotifier, List<String>>(
+      () => BlockedContactsNotifier(),
+    );
 
-final contactsProvider = AsyncNotifierProvider<ContactsNotifier, List<User>>(() => ContactsNotifier());
+final contactsProvider = AsyncNotifierProvider<ContactsNotifier, List<User>>(
+  () => ContactsNotifier(),
+);

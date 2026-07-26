@@ -18,7 +18,6 @@ import 'package:abyss_chat/features/qr/presentation/screens/my_qr_screen.dart';
 import 'package:abyss_chat/features/contacts/presentation/screens/contacts_screen.dart';
 import 'package:abyss_chat/features/contacts/domain/models/user.dart';
 
-
 class HomeScreen extends ConsumerWidget {
   final bool isDesktop;
   const HomeScreen({super.key, this.isDesktop = false});
@@ -52,7 +51,9 @@ class HomeScreen extends ConsumerWidget {
                 } else {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => ChatScreen(threadId: peerId)),
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(threadId: peerId),
+                    ),
                   );
                 }
               }
@@ -70,7 +71,9 @@ class HomeScreen extends ConsumerWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text('Connect to Peer'),
           content: TextField(
             controller: controller,
@@ -89,7 +92,9 @@ class HomeScreen extends ConsumerWidget {
             FilledButton.tonal(
               onPressed: () {
                 if (controller.text.trim().isNotEmpty) {
-                  ref.read(chatThreadsProvider.notifier).startNewChat(controller.text.trim());
+                  ref
+                      .read(chatThreadsProvider.notifier)
+                      .startNewChat(controller.text.trim());
                   Navigator.pop(context);
                 }
               },
@@ -115,22 +120,28 @@ class HomeScreen extends ConsumerWidget {
                 final peers = allPeers.where((p) {
                   final query = searchQuery.toLowerCase();
                   final nameMatches = p.name.toLowerCase().contains(query);
-                  final usernameMatches = p.username?.toLowerCase().contains(query) ?? false;
+                  final usernameMatches =
+                      p.username?.toLowerCase().contains(query) ?? false;
                   return nameMatches || usernameMatches;
                 }).toList();
-                
+
                 return Padding(
                   padding: EdgeInsets.only(
                     bottom: MediaQuery.of(context).viewInsets.bottom,
                   ),
                   child: Container(
                     padding: const EdgeInsets.all(16),
-                    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.7,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Nearby Users (mDNS)', style: Theme.of(context).textTheme.titleLarge),
+                        Text(
+                          'Nearby Users (mDNS)',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
                         const SizedBox(height: 12),
                         TextField(
                           decoration: const InputDecoration(
@@ -148,7 +159,9 @@ class HomeScreen extends ConsumerWidget {
                         if (peers.isEmpty)
                           const Padding(
                             padding: EdgeInsets.all(16.0),
-                            child: Text('No users found on local network matching search criteria.'),
+                            child: Text(
+                              'No users found on local network matching search criteria.',
+                            ),
                           )
                         else
                           Expanded(
@@ -160,17 +173,33 @@ class HomeScreen extends ConsumerWidget {
                                 return ListTile(
                                   leading: UserAvatar(user: peer, radius: 20),
                                   title: Text(peer.name),
-                                  subtitle: Text(peer.username != null ? '@${peer.username}' : 'ID: ${peer.id}'),
+                                  subtitle: Text(
+                                    peer.username != null
+                                        ? '@${peer.username}'
+                                        : 'ID: ${peer.id}',
+                                  ),
                                   trailing: FilledButton.tonal(
                                     onPressed: () {
-                                      ref.read(chatThreadsProvider.notifier).startNewChat(peer.id, peerName: peer.name);
+                                      ref
+                                          .read(chatThreadsProvider.notifier)
+                                          .startNewChat(
+                                            peer.id,
+                                            peerName: peer.name,
+                                          );
                                       Navigator.pop(context);
                                       if (isDesktop) {
-                                        ref.read(selectedThreadIdProvider.notifier).select(peer.id);
+                                        ref
+                                            .read(
+                                              selectedThreadIdProvider.notifier,
+                                            )
+                                            .select(peer.id);
                                       } else {
                                         Navigator.push(
                                           context,
-                                          MaterialPageRoute(builder: (_) => ChatScreen(threadId: peer.id)),
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                ChatScreen(threadId: peer.id),
+                                          ),
                                         );
                                       }
                                     },
@@ -206,68 +235,97 @@ class HomeScreen extends ConsumerWidget {
           padding: const EdgeInsets.only(left: 8.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Abyss Chat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-            if (myId != null) 
-              GestureDetector(
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: myId));
-                  NotificationService.showMessageNotification('Abyss Chat', 'Copied ID to clipboard');
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(top: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.copy, size: 10, color: Theme.of(context).colorScheme.onPrimaryContainer),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          'ID: $myId', 
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11, 
-                            fontWeight: FontWeight.bold, 
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+            children: [
+              const Text(
+                'Abyss Chat',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+              if (myId != null)
+                GestureDetector(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: myId));
+                    NotificationService.showMessageNotification(
+                      'Abyss Chat',
+                      'Copied ID to clipboard',
+                    );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.copy,
+                          size: 10,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'ID: $myId',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-          ],
-        ),
+            ],
+          ),
         ),
         centerTitle: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
             onPressed: () async {
-              final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const QRScanScreen()));
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const QRScanScreen()),
+              );
               if (result != null && result is String) {
                 String threadIdToOpen = result;
-                
+
                 try {
                   final Map<String, dynamic> decoded = jsonDecode(result);
                   if (decoded['type'] == 'group_join') {
                     final groupId = decoded['id'] as String;
                     final groupName = decoded['name'] as String;
-                    ref.read(chatThreadsProvider.notifier).joinGroup(groupId, groupName, null);
+                    ref
+                        .read(chatThreadsProvider.notifier)
+                        .joinGroup(groupId, groupName, null);
                     threadIdToOpen = groupId;
                   } else {
                     // Manual P2P QR payload
                     final peerId = decoded['id'] as String;
-                    final peerName = decoded['name'] as String? ?? 'Scanned Peer';
+                    final peerName =
+                        decoded['name'] as String? ?? 'Scanned Peer';
                     final ip = decoded['ip'] as String?;
                     final port = decoded['port'] as int?;
-                    
+
                     if (ip != null && port != null) {
                       // Add to mDNS provider manually to trigger local routing
                       final manualPeer = User(
@@ -278,25 +336,40 @@ class HomeScreen extends ConsumerWidget {
                         avatarIcon: 0xe491,
                         avatarColor: 0xFF6750A4,
                       );
-                      ref.read(nearbyPeersProvider.notifier).addManualPeer(manualPeer);
-                      
+                      ref
+                          .read(nearbyPeersProvider.notifier)
+                          .addManualPeer(manualPeer);
+
                       // Pre-connect LAN socket
-                      ref.read(lanMessengerProvider).connectToPeer(peerId, ip, port);
+                      ref
+                          .read(lanMessengerProvider)
+                          .connectToPeer(peerId, ip, port);
                     }
-                    
-                    ref.read(chatThreadsProvider.notifier).startNewChat(peerId, peerName: peerName);
+
+                    ref
+                        .read(chatThreadsProvider.notifier)
+                        .startNewChat(peerId, peerName: peerName);
                     threadIdToOpen = peerId;
                   }
                 } catch (e) {
                   // Not JSON, assume direct Peer ID
-                  ref.read(chatThreadsProvider.notifier).startNewChat(result, peerName: 'Scanned Peer');
+                  ref
+                      .read(chatThreadsProvider.notifier)
+                      .startNewChat(result, peerName: 'Scanned Peer');
                 }
 
                 if (isDesktop) {
-                  ref.read(selectedThreadIdProvider.notifier).select(threadIdToOpen);
+                  ref
+                      .read(selectedThreadIdProvider.notifier)
+                      .select(threadIdToOpen);
                 } else {
                   if (context.mounted) {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(threadId: threadIdToOpen)));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(threadId: threadIdToOpen),
+                      ),
+                    );
                   }
                 }
               }
@@ -305,7 +378,10 @@ class HomeScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.qr_code_2),
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const MyQRScreen()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyQRScreen()),
+              );
             },
           ),
           IconButton(
@@ -317,10 +393,17 @@ class HomeScreen extends ConsumerWidget {
               );
               if (selectedId != null) {
                 if (isDesktop) {
-                  ref.read(selectedThreadIdProvider.notifier).select(selectedId);
+                  ref
+                      .read(selectedThreadIdProvider.notifier)
+                      .select(selectedId);
                 } else {
                   if (context.mounted) {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(threadId: selectedId)));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(threadId: selectedId),
+                      ),
+                    );
                   }
                 }
               }
@@ -360,17 +443,24 @@ class HomeScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      Icons.chat_bubble_outline, 
-                      size: 64, 
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
+                      Icons.chat_bubble_outline,
+                      size: 64,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.5),
                     ),
                     const SizedBox(height: 16),
-                    Text('No active chats yet', style: Theme.of(context).textTheme.titleLarge),
+                    Text(
+                      'No active chats yet',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
                     const SizedBox(height: 8),
                     Text(
-                      'Connect with a friend to start chatting securely.', 
+                      'Connect with a friend to start chatting securely.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     FilledButton.icon(
@@ -388,21 +478,30 @@ class HomeScreen extends ConsumerWidget {
             itemCount: threads.length,
             itemBuilder: (context, index) {
               final thread = threads[index];
-              final lastMessage = thread.messages.isNotEmpty 
-                ? thread.messages.last 
-                : null;
+              final lastMessage = thread.messages.isNotEmpty
+                  ? thread.messages.last
+                  : null;
               final isSelected = isDesktop && selectedId == thread.id;
 
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 4.0,
+                ),
                 child: Card(
                   elevation: isSelected ? 4 : 1,
-                  shadowColor: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shadowColor: Theme.of(
+                    context,
+                  ).colorScheme.shadow.withValues(alpha: 0.1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   clipBehavior: Clip.antiAlias,
                   child: ListTile(
                     selected: isSelected,
-                    selectedTileColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                    selectedTileColor: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer.withValues(alpha: 0.5),
                     leading: Stack(
                       children: [
                         UserAvatar(user: thread.peer, radius: 24),
@@ -413,16 +512,24 @@ class HomeScreen extends ConsumerWidget {
                             child: Container(
                               padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).scaffoldBackgroundColor,
+                                color: Theme.of(
+                                  context,
+                                ).scaffoldBackgroundColor,
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.group, size: 14, color: Theme.of(context).colorScheme.primary),
+                              child: Icon(
+                                Icons.group,
+                                size: 14,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                             ),
                           ),
                       ],
                     ),
                     title: Text(
-                      thread.isGroup ? (thread.groupName ?? 'Group') : thread.peer.name,
+                      thread.isGroup
+                          ? (thread.groupName ?? 'Group')
+                          : thread.peer.name,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Text(
@@ -440,8 +547,11 @@ class HomeScreen extends ConsumerWidget {
                         if (lastMessage != null)
                           Text(
                             _formatDate(lastMessage.timestamp),
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: thread.unreadCount > 0 ? Theme.of(context).colorScheme.primary : null,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: thread.unreadCount > 0
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
                                 ),
                           ),
                         if (thread.unreadCount > 0)
@@ -455,69 +565,92 @@ class HomeScreen extends ConsumerWidget {
                             child: Text(
                               '${thread.unreadCount}',
                               style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onPrimary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold),
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                       ],
                     ),
                     onLongPress: () {
-                  showModalBottomSheet(
-                    context: context,
-                    builder: (context) => SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ListTile(
-                            leading: const Icon(Icons.person),
-                            title: const Text('View Profile'),
-                            onTap: () {
-                              Navigator.pop(context);
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => ContactProfileScreen(peer: thread.peer)));
-                            },
+                      showModalBottomSheet(
+                        context: context,
+                        builder: (context) => SafeArea(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.person),
+                                title: const Text('View Profile'),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ContactProfileScreen(
+                                        peer: thread.peer,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.clear_all),
+                                title: const Text('Clear Messages'),
+                                onTap: () {
+                                  ref
+                                      .read(chatThreadsProvider.notifier)
+                                      .clearMessages(thread.id);
+                                  Navigator.pop(context);
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
+                                title: const Text(
+                                  'Delete Chat',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                                onTap: () {
+                                  ref
+                                      .read(chatThreadsProvider.notifier)
+                                      .deleteThread(thread.id);
+                                  if (isDesktop && selectedId == thread.id) {
+                                    ref
+                                        .read(selectedThreadIdProvider.notifier)
+                                        .select(null);
+                                  }
+                                  Navigator.pop(context);
+                                },
+                              ),
+                            ],
                           ),
-                          ListTile(
-                            leading: const Icon(Icons.clear_all),
-                            title: const Text('Clear Messages'),
-                            onTap: () {
-                              ref.read(chatThreadsProvider.notifier).clearMessages(thread.id);
-                              Navigator.pop(context);
-                            },
+                        ),
+                      );
+                    },
+                    onTap: () {
+                      if (isDesktop) {
+                        ref
+                            .read(selectedThreadIdProvider.notifier)
+                            .select(thread.id);
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ChatScreen(threadId: thread.id),
                           ),
-                          ListTile(
-                            leading: const Icon(Icons.delete, color: Colors.red),
-                            title: const Text('Delete Chat', style: TextStyle(color: Colors.red)),
-                            onTap: () {
-                              ref.read(chatThreadsProvider.notifier).deleteThread(thread.id);
-                              if (isDesktop && selectedId == thread.id) {
-                                ref.read(selectedThreadIdProvider.notifier).select(null);
-                              }
-                              Navigator.pop(context);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                onTap: () {
-                  if (isDesktop) {
-                    ref.read(selectedThreadIdProvider.notifier).select(thread.id);
-                  } else {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ChatScreen(threadId: thread.id),
-                      ),
-                    );
-                  }
-                },
-              ),
-            ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              );
+            },
           );
-        },
-      );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
@@ -544,7 +677,12 @@ class HomeScreen extends ConsumerWidget {
                     title: const Text('Contacts'),
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ContactsScreen(),
+                        ),
+                      );
                     },
                   ),
                   ListTile(
@@ -552,7 +690,12 @@ class HomeScreen extends ConsumerWidget {
                     title: const Text('New Group'),
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateGroupScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CreateGroupScreen(),
+                        ),
+                      );
                     },
                   ),
                   if (!kIsWeb)
@@ -566,11 +709,23 @@ class HomeScreen extends ConsumerWidget {
                     )
                   else
                     ListTile(
-                      leading: Icon(Icons.radar, color: Theme.of(context).disabledColor),
-                      title: Text('Scan Nearby (Native Only)', style: TextStyle(color: Theme.of(context).disabledColor)),
+                      leading: Icon(
+                        Icons.radar,
+                        color: Theme.of(context).disabledColor,
+                      ),
+                      title: Text(
+                        'Scan Nearby (Native Only)',
+                        style: TextStyle(
+                          color: Theme.of(context).disabledColor,
+                        ),
+                      ),
                       onTap: () {
                         Navigator.pop(context);
-                        AbyssSnackBar.show(context, 'Local network scanning (mDNS) is not supported in web browsers due to security restrictions. Please use Connect via ID.', type: SnackBarType.info);
+                        AbyssSnackBar.show(
+                          context,
+                          'Local network scanning (mDNS) is not supported in web browsers due to security restrictions. Please use Connect via ID.',
+                          type: SnackBarType.info,
+                        );
                       },
                     ),
                 ],
@@ -588,7 +743,8 @@ class HomeScreen extends ConsumerWidget {
     final difference = now.difference(date);
     if (difference.inDays == 0 && now.day == date.day) {
       return DateFormat.jm().format(date); // e.g. 5:30 PM
-    } else if (difference.inDays == 1 || (difference.inDays == 0 && now.day != date.day)) {
+    } else if (difference.inDays == 1 ||
+        (difference.inDays == 0 && now.day != date.day)) {
       return 'Yesterday';
     } else if (difference.inDays < 7) {
       return DateFormat.E().format(date); // e.g. Mon

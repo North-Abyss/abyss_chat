@@ -6,11 +6,7 @@ class PickedMedia {
   final Uint8List bytes;
   final String? path;
 
-  PickedMedia({
-    required this.name,
-    required this.bytes,
-    this.path,
-  });
+  PickedMedia({required this.name, required this.bytes, this.path});
 
   bool get isImage {
     final ext = name.split('.').last.toLowerCase();
@@ -20,7 +16,12 @@ class PickedMedia {
 
 class MediaPreviewDialog extends StatefulWidget {
   final List<PickedMedia> mediaList;
-  final Function(List<PickedMedia> selectedMedia, String caption, bool compressToZip) onSend;
+  final Function(
+    List<PickedMedia> selectedMedia,
+    String caption,
+    bool compressToZip,
+  )
+  onSend;
 
   const MediaPreviewDialog({
     super.key,
@@ -54,10 +55,7 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
   Widget _buildPreviewItem(PickedMedia media) {
     if (media.isImage) {
       return InteractiveViewer(
-        child: Image.memory(
-          media.bytes,
-          fit: BoxFit.contain,
-        ),
+        child: Image.memory(media.bytes, fit: BoxFit.contain),
       );
     } else {
       // Document/File preview
@@ -65,7 +63,11 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.insert_drive_file, size: 100, color: Colors.indigo),
+            const Icon(
+              Icons.insert_drive_file,
+              size: 100,
+              color: Colors.indigo,
+            ),
             const SizedBox(height: 16),
             Text(
               media.name,
@@ -104,7 +106,10 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
                 children: [
                   Text(
                     'Preview Media (${_currentIndex + 1}/${widget.mediaList.length})',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -113,7 +118,7 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
                 ],
               ),
             ),
-            
+
             // Carousel
             Expanded(
               child: Stack(
@@ -129,36 +134,54 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
                       );
                     },
                   ),
-                  
+
                   // Left Arrow
                   if (_currentIndex > 0)
                     Align(
                       alignment: Alignment.centerLeft,
                       child: IconButton(
-                        icon: const Icon(Icons.arrow_back_ios, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
-                        onPressed: () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
+                        icon: const Icon(
+                          Icons.arrow_back_ios,
+                          color: Colors.white,
+                          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                        ),
+                        onPressed: () => _pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        ),
                       ),
                     ),
-                  
+
                   // Right Arrow
                   if (_currentIndex < widget.mediaList.length - 1)
                     Align(
                       alignment: Alignment.centerRight,
                       child: IconButton(
-                        icon: const Icon(Icons.arrow_forward_ios, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
-                        onPressed: () => _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
+                        icon: const Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.white,
+                          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                        ),
+                        onPressed: () => _pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        ),
                       ),
                     ),
                 ],
               ),
             ),
-            
+
             // Controls
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                color: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(24),
+                ),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -174,12 +197,15 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
                         borderRadius: BorderRadius.circular(30),
                         borderSide: BorderSide.none,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                     ),
                     maxLines: null,
                   ),
                   const SizedBox(height: 12),
-                  
+
                   Row(
                     children: [
                       // Zip Compression Toggle
@@ -199,16 +225,22 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
                         )
                       else
                         const Spacer(),
-                        
+
                       // Send Button
                       FloatingActionButton(
                         onPressed: () {
-                          widget.onSend(widget.mediaList, _captionController.text.trim(), _compressToZip);
+                          widget.onSend(
+                            widget.mediaList,
+                            _captionController.text.trim(),
+                            _compressToZip,
+                          );
                           Navigator.of(context).pop();
                         },
                         elevation: 0,
                         backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                        foregroundColor: Theme.of(
+                          context,
+                        ).colorScheme.onPrimary,
                         child: const Icon(Icons.send),
                       ),
                     ],

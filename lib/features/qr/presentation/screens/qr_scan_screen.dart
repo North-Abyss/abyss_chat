@@ -11,25 +11,28 @@ class QRScanScreen extends ConsumerStatefulWidget {
   ConsumerState<QRScanScreen> createState() => _QRScanScreenState();
 }
 
-class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerProviderStateMixin {
+class _QRScanScreenState extends ConsumerState<QRScanScreen>
+    with SingleTickerProviderStateMixin {
   late final bool _isUnsupportedPlatform;
   MobileScannerController? cameraController;
   bool _isScanning = true;
   late AnimationController _animationController;
-  bool _isCameraReady = kIsWeb; // On Web, initialize immediately to preserve user-gesture
+  bool _isCameraReady =
+      kIsWeb; // On Web, initialize immediately to preserve user-gesture
 
   @override
   void initState() {
     super.initState();
-    _isUnsupportedPlatform = 
-        !kIsWeb && (defaultTargetPlatform == TargetPlatform.linux || 
-        defaultTargetPlatform == TargetPlatform.windows);
-    
+    _isUnsupportedPlatform =
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.linux ||
+            defaultTargetPlatform == TargetPlatform.windows);
+
     if (!_isUnsupportedPlatform) {
       if (kIsWeb) {
         cameraController = MobileScannerController();
       } else {
-        // Delay native initialization by 400ms to prevent the route transition 
+        // Delay native initialization by 400ms to prevent the route transition
         // from stealing window focus and cancelling the system permission dialog.
         Future.delayed(const Duration(milliseconds: 400), () {
           if (mounted) {
@@ -41,7 +44,7 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
         });
       }
     }
-    
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -51,9 +54,7 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scan QR Code'),
-      ),
+      appBar: AppBar(title: const Text('Scan QR Code')),
       body: _isUnsupportedPlatform
           ? Center(
               child: Padding(
@@ -61,11 +62,18 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.qr_code_scanner, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    Icon(
+                      Icons.qr_code_scanner,
+                      size: 64,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'QR Camera Scanning is optimized for Mobile & macOS.',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
@@ -97,17 +105,17 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
               ),
             )
           : (!_isCameraReady)
-              ? const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Starting Camera...'),
-                    ],
-                  ),
-                )
-              : Stack(
+          ? const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Starting Camera...'),
+                ],
+              ),
+            )
+          : Stack(
               children: [
                 MobileScanner(
                   controller: cameraController!,
@@ -124,13 +132,18 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
                   onDetect: (capture) {
                     if (!_isScanning) return;
                     final List<Barcode> barcodes = capture.barcodes;
-                    if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+                    if (barcodes.isNotEmpty &&
+                        barcodes.first.rawValue != null) {
                       final String code = barcodes.first.rawValue!;
                       setState(() {
                         _isScanning = false;
                       });
-                      
-                      AbyssSnackBar.show(context, 'Connecting to peer...', type: SnackBarType.info);
+
+                      AbyssSnackBar.show(
+                        context,
+                        'Connecting to peer...',
+                        type: SnackBarType.info,
+                      );
                       Navigator.pop(context, code);
                     }
                   },
@@ -141,7 +154,10 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
                     width: 250,
                     height: 250,
                     decoration: BoxDecoration(
-                      border: Border.all(color: Theme.of(context).colorScheme.primary, width: 3),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 3,
+                      ),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: AnimatedBuilder(
@@ -159,7 +175,9 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
                                   color: Colors.greenAccent,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.greenAccent.withValues(alpha: 0.6),
+                                      color: Colors.greenAccent.withValues(
+                                        alpha: 0.6,
+                                      ),
                                       blurRadius: 10,
                                       spreadRadius: 2,
                                     ),
@@ -175,7 +193,10 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
                 ),
                 // Overlay darkening outside the box
                 ColorFiltered(
-                  colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.5), BlendMode.srcOut),
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withValues(alpha: 0.5),
+                    BlendMode.srcOut,
+                  ),
                   child: Stack(
                     children: [
                       Container(
@@ -201,7 +222,7 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen> with SingleTickerPr
             ),
     );
   }
-  
+
   @override
   void dispose() {
     _animationController.dispose();

@@ -1,19 +1,21 @@
-# Abyss Chat - v1.1.4+ 🚀
+# Abyss Chat v1.1.4 Release Notes
 
-Welcome to **Abyss Chat v1.1.4+**! This release introduces a massive underlying infrastructure upgrade for connections, robust network recovery, and resolves several critical bugs that were causing duplicate contacts and call collisions.
+We are thrilled to announce the release of **Abyss Chat v1.1.4**, bringing significant quality-of-life UI improvements, enhanced WebRTC stability, and smarter chat management.
 
-## 🎁 What's New
+## 🌟 What's New & Improved
 
-*   **Multi-Tier TURN/STUN Infrastructure**: Implemented a robust, free fallback connection system utilizing Google STUN, Cloudflare STUN, and Metered Open Relay TURN. This provides ultra-fast direct P2P connections and a reliable fallback for restrictive corporate NATs without requiring self-hosting.
-*   **Smart Peer Reconnection**: Implemented automatic network recovery. The app now tracks known active peers and intelligently re-establishes dropped data channels and signaling connections if the network goes down.
-*   **Abyss Chat**: The Android app name has finally been fixed to read "Abyss Chat" on your home screen instead of the internal `abyss_chat` identifier.
+### UI & UX Enhancements
+- **WhatsApp-Style Message Grouping:** Consecutive messages sent by the same user within 2 minutes are now visually grouped together! The chat bubbles dynamically adjust their border radiuses and margins, giving your conversations a much cleaner, cohesive look.
+- **Floating Menus:** Say goodbye to awkward bottom sheets on desktop and tablet screens! The Attachment Menu, Games Menu, and Activity Launcher are now beautiful, centered floating dialogs that adapt perfectly to large screens.
+- **Theme-Aware Mini-Games:** The Tic-Tac-Toe grid and other in-chat mini-games now automatically adapt to your device's light and dark mode, using `surfaceContainerHighest` colors for optimal visibility instead of hardcoded grays.
+- **Game History:** When you finish a game of Tic-Tac-Toe or Guess the Word, the winner (or draw) is now automatically announced in the chat thread and saved to the message history permanently!
 
-## 🛠️ Critical Bug Fixes
+### Logic & Bug Fixes
+- **Smart Thread Deduplication:** Fixed an issue where duplicate chat threads could appear in your list. Threads are now strictly merged based on the peer's unique ID/PIN, keeping your conversations organized.
+- **WebRTC "Bad State" Crash Fix:** Resolved a critical crash (`Bad state: Cannot add new events after calling close`) that occurred when attempting to sync data to a closed connection. This vastly improves stability when users minimize the app or lose connection abruptly.
+- **Optimized Web Discovery:** Reduced the number of default STUN/TURN servers to 3. This resolves the browser warning `Using five or more STUN/TURN servers slows down discovery` and speeds up the initial WebRTC connection phase. 
 
-*   **Contact Duplication Fixes**: Resolved a major issue causing duplicate contacts (e.g., "Peer ID..." or "Scanned Peer") during hot-reloads and "Connect via ID" flows. The system now perfectly merges placeholders with real names and stops aggressively mutating Web IDs.
-*   **Call Glare Collision**: Fixed the bug where two people calling each other simultaneously would get stuck ringing forever. Added deterministic tie-breaking logic.
-*   **Hardware Permission Leaks**: Reordered call teardown logic to guarantee the camera and mic hardware are immediately released when a call ends, turning off the green OS indicator dot. Fixed a similar memory leak in the QR scanner.
-*   **QR Contact Naming**: The QR scanner now correctly parses the contact's real display name from the JSON payload instead of hardcoding "Scanned Peer".
-*   **Notification Toggle Desync**: Fixed mismatched default values between UI toggles and the notification service, ensuring system and in-app notifications obey user preferences perfectly.
+*Note for Web Users: Make sure to hard refresh (Ctrl+Shift+R) your browser if you are still experiencing old WebRTC cache warnings.*
 
 ---
+**Thank you for using Abyss Chat!** As always, your conversations remain completely decentralized, encrypted, and serverless.

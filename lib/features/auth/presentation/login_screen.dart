@@ -23,7 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLoading = false;
 
   String _myHash = '';
-  
+
   @override
   void initState() {
     super.initState();
@@ -49,8 +49,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         final rnd = Random();
-        _myHash = String.fromCharCodes(Iterable.generate(
-          6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
+        _myHash = String.fromCharCodes(
+          Iterable.generate(
+            6,
+            (_) => chars.codeUnitAt(rnd.nextInt(chars.length)),
+          ),
+        );
       });
     }
   }
@@ -58,14 +62,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _login() async {
     final name = _nameController.text.trim();
     final username = _usernameController.text.trim().toLowerCase();
-    
+
     if (name.isEmpty) {
-      AbyssSnackBar.show(context, 'Please enter a name', type: SnackBarType.error);
+      AbyssSnackBar.show(
+        context,
+        'Please enter a name',
+        type: SnackBarType.error,
+      );
       return;
     }
-    
+
     if (username.isEmpty || username.contains(' ')) {
-      AbyssSnackBar.show(context, 'Please enter a valid username (no spaces)', type: SnackBarType.error);
+      AbyssSnackBar.show(
+        context,
+        'Please enter a valid username (no spaces)',
+        type: SnackBarType.error,
+      );
       return;
     }
 
@@ -73,21 +85,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final storage = ref.read(storageServiceProvider);
-      
+
       await CryptoService.init(_myHash);
       await storage.saveUserProfile(_myHash, name, username: username);
-      
+
       await storage.preloadCache();
-      
-      await ref.read(chatThreadsProvider.notifier).initializePeer(_myHash, name, username: username);
-      
+
+      await ref
+          .read(chatThreadsProvider.notifier)
+          .initializePeer(_myHash, name, username: username);
+
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const ResponsiveLayout()),
       );
     } catch (e) {
-      AbyssSnackBar.show(context, 'Failed to connect: $e', type: SnackBarType.error);
+      AbyssSnackBar.show(
+        context,
+        'Failed to connect: $e',
+        type: SnackBarType.error,
+      );
       setState(() => _isLoading = false);
     }
   }
@@ -104,11 +122,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Image.asset(
-                  'assets/abyss-chat.png',
-                  height: 80,
-                  width: 80,
-                ),
+                Image.asset('assets/abyss-chat.png', height: 80, width: 80),
                 const SizedBox(height: 24),
                 Text(
                   'Abyss Chat',
@@ -145,9 +159,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: Theme.of(context).colorScheme.outlineVariant,
@@ -159,14 +178,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Your Abyss ID', style: Theme.of(context).textTheme.bodySmall),
+                          Text(
+                            'Your Abyss ID',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                           const SizedBox(height: 4),
                           Text(
                             _myHash,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
                           ),
                         ],
                       ),
@@ -174,7 +197,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         icon: const Icon(Icons.copy),
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: _myHash));
-                          AbyssSnackBar.show(context, 'ID copied to clipboard', type: SnackBarType.success);
+                          AbyssSnackBar.show(
+                            context,
+                            'ID copied to clipboard',
+                            type: SnackBarType.success,
+                          );
                         },
                       ),
                     ],
@@ -186,9 +213,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: _isLoading 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Connect to Network'),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Connect to Network'),
                 ),
                 const SizedBox(height: 32),
                 Row(
@@ -201,16 +235,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     InkWell(
-                      onTap: () => launchUrl(Uri.parse('https://github.com/North-Abyss')),
+                      onTap: () => launchUrl(
+                        Uri.parse('https://github.com/North-Abyss'),
+                      ),
                       borderRadius: BorderRadius.circular(4),
                       child: Padding(
                         padding: const EdgeInsets.all(2.0),
                         child: Text(
                           'North-Abyss',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
                       ),
                     ),
@@ -224,9 +261,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 TextButton(
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PrivacyPolicyScreen(),
+                      ),
+                    );
                   },
-                  child: const Text('Privacy Policy & Terms', style: TextStyle(fontSize: 12)),
+                  child: const Text(
+                    'Privacy Policy & Terms',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),

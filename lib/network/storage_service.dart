@@ -37,7 +37,7 @@ class StorageService {
         if (ciphertext == null || ciphertext.isEmpty) return null;
         return CryptoService.decryptData(ciphertext);
       }
-      
+
       final file = await _getFile(filename);
       if (!await file.exists()) return null;
       final ciphertext = await file.readAsString();
@@ -76,7 +76,7 @@ class StorageService {
   Future<void> clearAllData() async {
     final prefs = await SharedPrefsHelper.instance;
     await prefs.clear();
-    
+
     if (!kIsWeb) {
       try {
         final path = await _getAppDirPath();
@@ -120,10 +120,12 @@ class StorageService {
   Future<List<User>> loadContacts() async {
     final data = await _readEncryptedFile(_contactsFile);
     if (data == null) return [];
-    
+
     try {
       final List<dynamic> jsonList = jsonDecode(data);
-      return jsonList.map((e) => User.fromJson(e as Map<String, dynamic>)).toList();
+      return jsonList
+          .map((e) => User.fromJson(e as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       return [];
     }
@@ -133,11 +135,11 @@ class StorageService {
     final jsonList = contacts.map((c) => c.toJson()).toList();
     await _writeEncryptedFile(_contactsFile, jsonEncode(jsonList));
   }
-  
+
   Future<List<String>> loadBlockedPeers() async {
     final data = await _readEncryptedFile(_blockedFile);
     if (data == null) return [];
-    
+
     try {
       final List<dynamic> jsonList = jsonDecode(data);
       return jsonList.cast<String>();
@@ -149,11 +151,11 @@ class StorageService {
   Future<void> saveBlockedPeers(List<String> blocked) async {
     await _writeEncryptedFile(_blockedFile, jsonEncode(blocked));
   }
-  
+
   Future<List<String>> loadDeletedPeers() async {
     final data = await _readEncryptedFile('deleted_peers.json');
     if (data == null) return [];
-    
+
     try {
       final List<dynamic> jsonList = jsonDecode(data);
       return jsonList.cast<String>();
@@ -187,31 +189,38 @@ class StorageService {
   // --- Profile Image ---
   Future<String> saveProfileImage(String userId, File imageFile) async {
     if (kIsWeb) {
-      return imageFile.path; // Web typically returns an object URL from FilePicker
+      return imageFile
+          .path; // Web typically returns an object URL from FilePicker
     }
     final path = await _getAppDirPath();
     final profileDir = Directory('$path/profiles');
     if (!await profileDir.exists()) {
       await profileDir.create(recursive: true);
     }
-    
+
     // We get file extension
     final ext = imageFile.path.split('.').last;
     final targetPath = '${profileDir.path}/$userId.$ext';
-    
+
     await imageFile.copy(targetPath);
     return targetPath;
   }
 
-  Future<String?> saveProfileImageFromBase64(String userId, String base64Data) async {
-    if (kIsWeb) return base64Data; // On web, we can just use the base64 string directly as the image source!
+  Future<String?> saveProfileImageFromBase64(
+    String userId,
+    String base64Data,
+  ) async {
+    if (kIsWeb) {
+      return base64Data; // On web, we can just use the base64 string directly as the image source!
+    }
     try {
       final bytes = base64Decode(base64Data);
       final path = await _getAppDirPath();
       final profileDir = Directory('$path/profiles');
       if (!await profileDir.exists()) await profileDir.create(recursive: true);
-      
-      final targetPath = '${profileDir.path}/$userId.jpg'; // Default to jpg for synced
+
+      final targetPath =
+          '${profileDir.path}/$userId.jpg'; // Default to jpg for synced
       final file = File(targetPath);
       await file.writeAsBytes(bytes);
       return targetPath;
@@ -222,7 +231,11 @@ class StorageService {
   }
 
   // --- Media Files ---
-  Future<String?> saveMediaFile(String messageId, Uint8List data, String fileName) async {
+  Future<String?> saveMediaFile(
+    String messageId,
+    Uint8List data,
+    String fileName,
+  ) async {
     final extension = fileName.split('.').last.toLowerCase();
     String mimeType = 'application/octet-stream';
     if (extension == 'jpg' || extension == 'jpeg') {
@@ -241,12 +254,12 @@ class StorageService {
       await WebStorage.saveMedia(messageId, data, mimeType);
       return 'web_idb:$messageId';
     }
-    
+
     try {
       final path = await _getAppDirPath();
       final mediaDir = Directory('$path/media');
       if (!await mediaDir.exists()) await mediaDir.create(recursive: true);
-      
+
       final targetPath = '${mediaDir.path}/$messageId-$fileName';
       final file = File(targetPath);
       await file.writeAsBytes(data);
@@ -284,7 +297,9 @@ class StorageService {
     return utf8.encode(jsonStr).length;
   }
 
-  Future<Map<String, int>> getStorageUsageByChat(List<ChatThread> threads) async {
+  Future<Map<String, int>> getStorageUsageByChat(
+    List<ChatThread> threads,
+  ) async {
     final Map<String, int> usage = {};
     for (final thread in threads) {
       int threadSize = 0;
@@ -336,7 +351,7 @@ class StorageService {
       }
       return;
     }
-    
+
     for (final msg in thread.messages) {
       if (msg.localFilePath != null) {
         final file = File(msg.localFilePath!);
@@ -348,7 +363,15 @@ class StorageService {
   }
 
   // --- User Profile (Unencrypted/Prefs) ---
-  Future<void> saveUserProfile(String id, String name, {String? username, int avatarIcon = 0xe491, int avatarColor = 0xFF6750A4, String? profileImagePath, DateTime? profileUpdatedAt}) async {
+  Future<void> saveUserProfile(
+    String id,
+    String name, {
+    String? username,
+    int avatarIcon = 0xe491,
+    int avatarColor = 0xFF6750A4,
+    String? profileImagePath,
+    DateTime? profileUpdatedAt,
+  }) async {
     final prefs = await SharedPrefsHelper.instance;
     await prefs.setString('my_id', id);
     await prefs.setString('my_name', name);
@@ -363,7 +386,10 @@ class StorageService {
       await prefs.remove('my_profile_image');
     }
     if (profileUpdatedAt != null) {
-      await prefs.setString('my_profile_updated_at', profileUpdatedAt.toIso8601String());
+      await prefs.setString(
+        'my_profile_updated_at',
+        profileUpdatedAt.toIso8601String(),
+      );
     } else {
       await prefs.remove('my_profile_updated_at');
     }
@@ -378,15 +404,25 @@ class StorageService {
     final color = prefs.getInt('my_avatar_color') ?? 0xFF6750A4;
     final imagePath = prefs.getString('my_profile_image');
     final updatedAtStr = prefs.getString('my_profile_updated_at');
-    final updatedAt = updatedAtStr != null ? DateTime.tryParse(updatedAtStr) : null;
-    
+    final updatedAt = updatedAtStr != null
+        ? DateTime.tryParse(updatedAtStr)
+        : null;
+
     if (id != null && name != null) {
       if (id.startsWith('#')) {
         id = id.substring(1);
-        await saveUserProfile(id, name, username: username, avatarIcon: icon, avatarColor: color, profileImagePath: imagePath, profileUpdatedAt: updatedAt);
+        await saveUserProfile(
+          id,
+          name,
+          username: username,
+          avatarIcon: icon,
+          avatarColor: color,
+          profileImagePath: imagePath,
+          profileUpdatedAt: updatedAt,
+        );
       }
       return {
-        'id': id, 
+        'id': id,
         'name': name,
         'username': username,
         'avatarIcon': icon,

@@ -16,7 +16,7 @@ extension type WebNotification._(JSObject _) implements JSObject {
 
 void showWebNotification(String title, String body) {
   if (_notificationGlobal == null) return;
-  
+
   final perm = _permission?.toDart;
   if (perm == 'granted') {
     WebNotification(title, {'body': body}.jsify() as JSObject);

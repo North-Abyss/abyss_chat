@@ -2,9 +2,9 @@
 // Abyss Chat - Local WebRTC Service
 // ==========================================
 // Version: 1.2.0
-// Description: 
+// Description:
 //   Manages robust WebRTC P2P connections over the Local Area Network,
-//   bypassing external signaling servers entirely. Handles ultra high-bandwidth 
+//   bypassing external signaling servers entirely. Handles ultra high-bandwidth
 //   video and audio media streams directly between devices.
 // ==========================================
 import 'dart:async';
@@ -12,7 +12,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:abyss_chat/network/lan_messenger.dart';
-import 'package:abyss_chat/features/chat/domain/models/message.dart' hide MessageType;
+import 'package:abyss_chat/features/chat/domain/models/message.dart'
+    hide MessageType;
 
 class LocalMediaEvent {
   final String type; // 'stream', 'close', 'error'
@@ -23,9 +24,10 @@ class LocalMediaEvent {
 class LocalMediaConnection {
   final String peer;
   final RTCPeerConnection peerConnection;
-  
-  final StreamController<LocalMediaEvent> _events = StreamController.broadcast();
-  
+
+  final StreamController<LocalMediaEvent> _events =
+      StreamController.broadcast();
+
   LocalMediaConnection(this.peer, this.peerConnection) {
     peerConnection.onAddStream = (stream) {
       _events.add(LocalMediaEvent('stream', stream));
@@ -38,16 +40,16 @@ class LocalMediaConnection {
       }
     };
   }
-  
+
   Stream<dynamic> on(String eventType) {
     return _events.stream.where((e) => e.type == eventType).map((e) => e.data);
   }
-  
+
   void close() {
     peerConnection.close();
     _events.add(LocalMediaEvent('close', null));
   }
-  
+
   void answer(MediaStream localStream) {
     localStream.getTracks().forEach((track) {
       peerConnection.addTrack(track, localStream);
@@ -59,16 +61,16 @@ class LocalDataConnection {
   final String peer;
   final RTCPeerConnection peerConnection;
   RTCDataChannel? dataChannel;
-  
+
   final StreamController<dynamic> _data = StreamController.broadcast();
   Stream<dynamic> get onData => _data.stream;
 
   final StreamController<void> _close = StreamController.broadcast();
   Stream<void> get onClose => _close.stream;
-  
+
   final StreamController<void> _open = StreamController.broadcast();
   Stream<void> get onOpen => _open.stream;
-  
+
   LocalDataConnection(this.peer, this.peerConnection) {
     peerConnection.onIceConnectionState = (state) {
       if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
@@ -78,7 +80,7 @@ class LocalDataConnection {
       }
     };
   }
-  
+
   void attachDataChannel(RTCDataChannel dc) {
     dataChannel = dc;
     dc.onMessage = (RTCDataChannelMessage message) {
@@ -94,13 +96,13 @@ class LocalDataConnection {
       }
     };
   }
-  
+
   void send(String data) {
     if (dataChannel?.state == RTCDataChannelState.RTCDataChannelOpen) {
       dataChannel?.send(RTCDataChannelMessage(data));
     }
   }
-  
+
   void close() {
     dataChannel?.close();
     peerConnection.close();
@@ -111,81 +113,90 @@ class LocalDataConnection {
 class LocalWebrtcService {
   final LanMessenger lanMessenger;
   final String Function() getMyId;
-  
+
   String get myId => getMyId();
-  
+
   final Map<String, LocalMediaConnection> _activeCalls = {};
   final Map<String, LocalDataConnection> _activeDataConnections = {};
-  
-  final StreamController<LocalMediaConnection> _incomingCalls = StreamController.broadcast();
+
+  final StreamController<LocalMediaConnection> _incomingCalls =
+      StreamController.broadcast();
   Stream<LocalMediaConnection> get onCallReceived => _incomingCalls.stream;
 
-  final StreamController<LocalDataConnection> _incomingDataConnections = StreamController.broadcast();
-  Stream<LocalDataConnection> get onDataConnectionReceived => _incomingDataConnections.stream;
-  
-  final StreamController<Message> _incomingMessages = StreamController.broadcast();
+  final StreamController<LocalDataConnection> _incomingDataConnections =
+      StreamController.broadcast();
+  Stream<LocalDataConnection> get onDataConnectionReceived =>
+      _incomingDataConnections.stream;
+
+  final StreamController<Message> _incomingMessages =
+      StreamController.broadcast();
   Stream<Message> get onMessageReceived => _incomingMessages.stream;
-  
+
   LocalWebrtcService(this.lanMessenger, this.getMyId) {
     lanMessenger.onDataMessage.listen(_handleSignalingData);
-    
+
     _incomingDataConnections.stream.listen((conn) {
       conn.onClose.listen((_) {
         _activeDataConnections.remove(conn.peer);
       });
     });
-    
+
     _incomingCalls.stream.listen((conn) {
       conn.on('close').listen((_) {
         _activeCalls.remove(conn.peer);
       });
     });
   }
-  
-  Future<LocalMediaConnection?> makeCall(String peerId, MediaStream localStream) async {
+
+  Future<LocalMediaConnection?> makeCall(
+    String peerId,
+    MediaStream localStream,
+  ) async {
     try {
       final pc = await _createPeerConnection(peerId, isData: false);
       final mediaConn = LocalMediaConnection(peerId, pc);
       _activeCalls[peerId] = mediaConn;
-      
+
       localStream.getTracks().forEach((track) {
         pc.addTrack(track, localStream);
       });
-      
+
       final offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      
+
       lanMessenger.sendCustomData(peerId, {
         'type': 'webrtc_offer',
         'sdp': offer.sdp,
         'peerId': myId,
         'isData': false,
       });
-      
+
       return mediaConn;
     } catch (e) {
       debugPrint('Error making local call: $e');
       return null;
     }
   }
-  
+
   Future<LocalDataConnection?> connectData(String peerId) async {
-    debugPrint('🚀 [LocalWebrtcService] Initiating WebRTC Data connection to $peerId');
+    debugPrint(
+      '🚀 [LocalWebrtcService] Initiating WebRTC Data connection to $peerId',
+    );
     try {
       final pc = await _createPeerConnection(peerId, isData: true);
       final dataConn = LocalDataConnection(peerId, pc);
       _activeDataConnections[peerId] = dataConn;
-      
+
       final dcInit = RTCDataChannelInit()
         ..negotiated = false
         ..id = 1;
       final dc = await pc.createDataChannel('abyss_local_chat', dcInit);
       dataConn.attachDataChannel(dc);
-      
+
       dataConn.onClose.listen((_) {
         _activeDataConnections.remove(peerId);
       });
-      
+
       dataConn.onData.listen((data) {
         try {
           final json = jsonDecode(data);
@@ -194,31 +205,41 @@ class LocalWebrtcService {
           debugPrint('Failed to parse local webrtc data: $e');
         }
       });
-      
+
       final offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      
+
       lanMessenger.sendCustomData(peerId, {
         'type': 'webrtc_offer',
         'sdp': offer.sdp,
         'peerId': myId,
         'isData': true,
       });
-      
+
       return dataConn;
     } catch (e) {
       debugPrint('Error making local data connection: $e');
       return null;
     }
   }
-  
-  Future<RTCPeerConnection> _createPeerConnection(String peerId, {required bool isData}) async {
+
+  Future<RTCPeerConnection> _createPeerConnection(
+    String peerId, {
+    required bool isData,
+  }) async {
     final pc = await createPeerConnection({
       'iceServers': [
         // Tier 1: Google STUN (fastest, most reliable, direct P2P)
-        {'urls': ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302']},
+        {
+          'urls': [
+            'stun:stun.l.google.com:19302',
+            'stun:stun1.l.google.com:19302',
+          ],
+        },
         // Tier 2: Cloudflare STUN (fast CDN-backed fallback)
-        {'urls': ['stun:stun.cloudflare.com:3478']},
+        {
+          'urls': ['stun:stun.cloudflare.com:3478'],
+        },
         // Tier 3: Metered Open Relay TURN (free relay for NAT traversal)
         {
           'urls': [
@@ -233,7 +254,7 @@ class LocalWebrtcService {
       ],
       'sdpSemantics': 'unified-plan',
     });
-    
+
     pc.onIceCandidate = (candidate) {
       lanMessenger.sendCustomData(peerId, {
         'type': 'webrtc_candidate',
@@ -242,32 +263,35 @@ class LocalWebrtcService {
         'isData': isData,
       });
     };
-    
+
     return pc;
   }
-  
+
   bool sendMessage(String peerId, Message message) {
     final conn = _activeDataConnections[peerId];
-    if (conn != null && conn.dataChannel?.state == RTCDataChannelState.RTCDataChannelOpen) {
+    if (conn != null &&
+        conn.dataChannel?.state == RTCDataChannelState.RTCDataChannelOpen) {
       final messageJson = jsonEncode(message.toJson());
       conn.send(messageJson);
       return true;
     }
     return false;
   }
-  
+
   void _handleSignalingData(Map<String, dynamic> data) async {
     final type = data['type'];
     final peerId = data['peerId'] as String?;
     if (peerId == null) return;
-    
-    debugPrint('📡 [LocalWebrtcService] Received signaling data: type=$type from=$peerId');
-    
+
+    debugPrint(
+      '📡 [LocalWebrtcService] Received signaling data: type=$type from=$peerId',
+    );
+
     final bool isData = data['isData'] == true;
-    
+
     if (type == 'webrtc_offer') {
       final pc = await _createPeerConnection(peerId, isData: isData);
-      
+
       if (isData) {
         final dataConn = LocalDataConnection(peerId, pc);
         _activeDataConnections[peerId] = dataConn;
@@ -288,20 +312,19 @@ class LocalWebrtcService {
         _activeCalls[peerId] = mediaConn;
         _incomingCalls.add(mediaConn);
       }
-      
+
       final offer = RTCSessionDescription(data['sdp'], 'offer');
       await pc.setRemoteDescription(offer);
-      
+
       final answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      
+
       lanMessenger.sendCustomData(peerId, {
         'type': 'webrtc_answer',
         'sdp': answer.sdp,
         'peerId': myId,
         'isData': isData,
       });
-      
     } else if (type == 'webrtc_answer') {
       if (isData) {
         final dataConn = _activeDataConnections[peerId];
@@ -323,7 +346,7 @@ class LocalWebrtcService {
         candidateMap['sdpMid'],
         candidateMap['sdpMLineIndex'],
       );
-      
+
       if (isData) {
         final dataConn = _activeDataConnections[peerId];
         if (dataConn != null) {

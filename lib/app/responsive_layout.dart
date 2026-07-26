@@ -19,18 +19,23 @@ class NavigationIndexNotifier extends Notifier<int> {
   }
 }
 
-final navigationIndexProvider = NotifierProvider<NavigationIndexNotifier, int>(() => NavigationIndexNotifier());
+final navigationIndexProvider = NotifierProvider<NavigationIndexNotifier, int>(
+  () => NavigationIndexNotifier(),
+);
 
 class LeftDockVisibilityNotifier extends Notifier<bool> {
   @override
   bool build() => false;
-  
+
   void toggle() {
     state = !state;
   }
 }
 
-final isLeftDockVisibleProvider = NotifierProvider<LeftDockVisibilityNotifier, bool>(() => LeftDockVisibilityNotifier());
+final isLeftDockVisibleProvider =
+    NotifierProvider<LeftDockVisibilityNotifier, bool>(
+      () => LeftDockVisibilityNotifier(),
+    );
 
 class FloatingDockToggle extends ConsumerStatefulWidget {
   final bool isVisible;
@@ -71,8 +76,11 @@ class _FloatingDockToggleState extends ConsumerState<FloatingDockToggle> {
           padding: const EdgeInsets.symmetric(vertical: 24),
           child: FloatingActionButton.small(
             elevation: 4,
-            onPressed: () => ref.read(isLeftDockVisibleProvider.notifier).toggle(),
-            child: Icon(widget.isVisible ? Icons.chevron_left : Icons.chevron_right),
+            onPressed: () =>
+                ref.read(isLeftDockVisibleProvider.notifier).toggle(),
+            child: Icon(
+              widget.isVisible ? Icons.chevron_left : Icons.chevron_right,
+            ),
           ),
         ),
       ),
@@ -87,7 +95,7 @@ class ResponsiveLayout extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Initialize call provider to listen for incoming calls globally
     ref.watch(callProvider);
-    
+
     final layoutStateAsync = ref.watch(layoutProvider);
     final tabIndex = ref.watch(navigationIndexProvider);
 
@@ -101,31 +109,35 @@ class ResponsiveLayout extends ConsumerWidget {
             final isTwoPane = isExpanded || (isMedium && width > 700);
 
             final isLeft = layoutState.dockPosition == DockPosition.left;
-            
+
             final dockItems = [
               FloatingDockItem(
                 icon: Icons.chat_bubble_outline,
                 selectedIcon: Icons.chat_bubble,
                 label: 'Chats',
-                onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(0),
+                onTap: () =>
+                    ref.read(navigationIndexProvider.notifier).setIndex(0),
               ),
               FloatingDockItem(
                 icon: Icons.call_outlined,
                 selectedIcon: Icons.call,
                 label: 'Calls',
-                onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(1),
+                onTap: () =>
+                    ref.read(navigationIndexProvider.notifier).setIndex(1),
               ),
               FloatingDockItem(
                 icon: Icons.checklist_rtl_outlined,
                 selectedIcon: Icons.checklist_rtl,
                 label: 'Activity',
-                onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(2),
+                onTap: () =>
+                    ref.read(navigationIndexProvider.notifier).setIndex(2),
               ),
               FloatingDockItem(
                 icon: Icons.settings_outlined,
                 selectedIcon: Icons.settings,
                 label: 'Settings',
-                onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(3),
+                onTap: () =>
+                    ref.read(navigationIndexProvider.notifier).setIndex(3),
               ),
             ];
 
@@ -136,14 +148,16 @@ class ResponsiveLayout extends ConsumerWidget {
                 children: [
                   // Main Content
                   Positioned.fill(
-                    left: isLeft && isExpanded && isLeftDockVisible ? 80 : 0, // Padding for left dock
+                    left: isLeft && isExpanded && isLeftDockVisible
+                        ? 80
+                        : 0, // Padding for left dock
                     bottom: !isLeft ? 80 : 0, // Padding for bottom dock
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
                       child: _buildContent(tabIndex, ref, context, isTwoPane),
                     ),
                   ),
-                  
+
                   // Dock
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 300),
@@ -162,7 +176,7 @@ class ResponsiveLayout extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  
+
                   // Dock Toggle Button (Floating)
                   if (isLeft)
                     AnimatedPositioned(
@@ -179,12 +193,18 @@ class ResponsiveLayout extends ConsumerWidget {
           },
         );
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, s) => Scaffold(body: Center(child: Text('Error: $e'))),
     );
   }
 
-  Widget _buildContent(int tabIndex, WidgetRef ref, BuildContext context, bool isTwoPane) {
+  Widget _buildContent(
+    int tabIndex,
+    WidgetRef ref,
+    BuildContext context,
+    bool isTwoPane,
+  ) {
     // We add Key to AnimatedSwitcher children so it knows they changed
     switch (tabIndex) {
       case 0:
@@ -200,7 +220,11 @@ class ResponsiveLayout extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: const HomeScreen(isDesktop: true),
@@ -213,9 +237,17 @@ class ResponsiveLayout extends ConsumerWidget {
                           constraints: const BoxConstraints(maxWidth: 400),
                           padding: const EdgeInsets.all(48),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest
+                                .withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(32),
-                            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                            border: Border.all(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outlineVariant
+                                  .withValues(alpha: 0.5),
+                            ),
                           ),
                           child: SingleChildScrollView(
                             child: Column(
@@ -225,22 +257,31 @@ class ResponsiveLayout extends ConsumerWidget {
                                 Container(
                                   padding: const EdgeInsets.all(24),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.primaryContainer,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer,
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
                                     Icons.forum_outlined,
                                     size: 64,
-                                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimaryContainer,
                                   ),
                                 ),
                                 const SizedBox(height: 32),
                                 Text(
                                   'Welcome to Abyss Web',
-                                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.onSurface,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
+                                      ),
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 16),
@@ -248,7 +289,9 @@ class ResponsiveLayout extends ConsumerWidget {
                                   'Select a chat from the left panel or start a new one to begin sending secure P2P messages.',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                     fontSize: 16,
                                   ),
                                 ),
@@ -262,7 +305,10 @@ class ResponsiveLayout extends ConsumerWidget {
             ],
           );
         } else {
-          return const HomeScreen(key: ValueKey('chats_1pane'), isDesktop: false);
+          return const HomeScreen(
+            key: ValueKey('chats_1pane'),
+            isDesktop: false,
+          );
         }
       case 1:
         return const CallLogScreen(key: ValueKey('calls'));

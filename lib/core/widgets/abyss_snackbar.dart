@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:abyss_chat/network/notification_service.dart';
 
-
 enum SnackBarType { success, error, info }
 
 class AbyssSnackBar {
   static void show(
-    BuildContext context, 
+    BuildContext context,
     String message, {
     SnackBarType type = SnackBarType.info,
     Duration duration = const Duration(seconds: 3),
@@ -26,9 +25,10 @@ class AbyssSnackBar {
 
     // Completely replace the old bottom snackbar with our sleek sliding in-app notification!
     NotificationService.showMessageNotification(
-      title, 
-      message, 
-      inAppOnly: true, // Only show the overlay, don't trigger OS native notifications
+      title,
+      message,
+      inAppOnly:
+          true, // Only show the overlay, don't trigger OS native notifications
     );
   }
 }

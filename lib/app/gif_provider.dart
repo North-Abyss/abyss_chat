@@ -8,9 +8,9 @@ final gifProvider = NotifierProvider<GifNotifier, GifState>(() {
 class GifState {
   final List<String> recentGifs;
   final List<String> favoriteGifs;
-  
+
   GifState({this.recentGifs = const [], this.favoriteGifs = const []});
-  
+
   GifState copyWith({List<String>? recentGifs, List<String>? favoriteGifs}) {
     return GifState(
       recentGifs: recentGifs ?? this.recentGifs,
@@ -38,16 +38,16 @@ class GifNotifier extends Notifier<GifState> {
 
   Future<void> addRecent(String url) async {
     if (url.isEmpty || !url.startsWith('http')) return;
-    
+
     final prefs = await SharedPreferences.getInstance();
     final recents = List<String>.from(state.recentGifs);
-    
+
     recents.remove(url);
     recents.insert(0, url);
     if (recents.length > 20) {
       recents.removeLast(); // Keep top 20
     }
-    
+
     await prefs.setStringList(_recentKey, recents);
     state = state.copyWith(recentGifs: recents);
   }
@@ -55,13 +55,13 @@ class GifNotifier extends Notifier<GifState> {
   Future<void> toggleFavorite(String url) async {
     final prefs = await SharedPreferences.getInstance();
     final favorites = List<String>.from(state.favoriteGifs);
-    
+
     if (favorites.contains(url)) {
       favorites.remove(url);
     } else {
       favorites.insert(0, url);
     }
-    
+
     await prefs.setStringList(_favoriteKey, favorites);
     state = state.copyWith(favoriteGifs: favorites);
   }

@@ -4,6 +4,8 @@
 
 Welcome to Abyss Chat! Your privacy is not just a priority—it is the foundational design principle of this application.
 
+> [!IMPORTANT]
+> Your privacy is our top priority. We do not collect, store, or monitor your personal data, messages, or calls. All communications are strictly peer-to-peer.
 ## 1. Information We Collect
 **Short answer: We don't.**
 Abyss Chat is a decentralized, peer-to-peer (P2P) communication application. We do not operate central servers to route, store, or monitor your messages, calls, or files. 

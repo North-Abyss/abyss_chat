@@ -10,10 +10,12 @@ class StorageManagementScreen extends ConsumerStatefulWidget {
   const StorageManagementScreen({super.key});
 
   @override
-  ConsumerState<StorageManagementScreen> createState() => _StorageManagementScreenState();
+  ConsumerState<StorageManagementScreen> createState() =>
+      _StorageManagementScreenState();
 }
 
-class _StorageManagementScreenState extends ConsumerState<StorageManagementScreen> {
+class _StorageManagementScreenState
+    extends ConsumerState<StorageManagementScreen> {
   bool _isLoading = true;
   int _mediaUsage = 0;
   int _chatUsage = 0;
@@ -38,7 +40,9 @@ class _StorageManagementScreenState extends ConsumerState<StorageManagementScree
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
@@ -56,21 +60,33 @@ class _StorageManagementScreenState extends ConsumerState<StorageManagementScree
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text('Storage Usage', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: cs.primary)),
+              Text(
+                'Storage Usage',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: cs.primary),
+              ),
               const SizedBox(height: 16),
-              
+
               if (_isLoading)
                 const Center(child: CircularProgressIndicator())
               else ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(_formatBytes(totalUsage), style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    Text('Total App Usage', style: TextStyle(color: cs.onSurfaceVariant)),
+                    Text(
+                      _formatBytes(totalUsage),
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Total App Usage',
+                      style: TextStyle(color: cs.onSurfaceVariant),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Stacked Bar Chart
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
@@ -97,21 +113,35 @@ class _StorageManagementScreenState extends ConsumerState<StorageManagementScree
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 Row(
                   children: [
-                    Container(width: 12, height: 12, decoration: BoxDecoration(color: cs.primary, shape: BoxShape.circle)),
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: cs.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     Text('Media: ${_formatBytes(_mediaUsage)}'),
                     const Spacer(),
-                    Container(width: 12, height: 12, decoration: BoxDecoration(color: cs.secondary, shape: BoxShape.circle)),
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: cs.secondary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     Text('Chats: ${_formatBytes(_chatUsage)}'),
                   ],
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 FilledButton.tonalIcon(
                   icon: const Icon(Icons.delete_sweep),
                   label: const Text('Clear All Media Cache'),
@@ -120,39 +150,59 @@ class _StorageManagementScreenState extends ConsumerState<StorageManagementScree
                       context: context,
                       builder: (c) => AlertDialog(
                         title: const Text('Clear All Media?'),
-                        content: const Text('This will delete all downloaded photos, videos, and audio. Text messages will remain.'),
+                        content: const Text(
+                          'This will delete all downloaded photos, videos, and audio. Text messages will remain.',
+                        ),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(c, false),
+                            child: const Text('Cancel'),
+                          ),
                           FilledButton(
-                            style: FilledButton.styleFrom(backgroundColor: cs.error),
-                            onPressed: () => Navigator.pop(c, true), 
-                            child: const Text('Clear')
+                            style: FilledButton.styleFrom(
+                              backgroundColor: cs.error,
+                            ),
+                            onPressed: () => Navigator.pop(c, true),
+                            child: const Text('Clear'),
                           ),
                         ],
                       ),
                     );
-                    
-                      if (confirm == true) {
-                        await ref.read(storageServiceProvider).clearAllMedia();
-                        await _loadStorageInfo();
-                        if (context.mounted) {
-                          AbyssSnackBar.show(context, 'Media cache cleared successfully!', type: SnackBarType.success);
-                        }
+
+                    if (confirm == true) {
+                      await ref.read(storageServiceProvider).clearAllMedia();
+                      await _loadStorageInfo();
+                      if (context.mounted) {
+                        AbyssSnackBar.show(
+                          context,
+                          'Media cache cleared successfully!',
+                          type: SnackBarType.success,
+                        );
                       }
+                    }
                   },
                 ),
               ],
-              
+
               const Divider(height: 48),
 
-              Text('Media Auto-Download', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: cs.primary)),
+              Text(
+                'Media Auto-Download',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: cs.primary),
+              ),
               const SizedBox(height: 8),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('When using Wi-Fi'),
                 value: settings.mediaAutoDownloadWifi,
                 onChanged: (val) {
-                  ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(mediaAutoDownloadWifi: val));
+                  ref
+                      .read(appSettingsProvider.notifier)
+                      .updateSettings(
+                        settings.copyWith(mediaAutoDownloadWifi: val),
+                      );
                 },
               ),
               SwitchListTile(
@@ -160,80 +210,121 @@ class _StorageManagementScreenState extends ConsumerState<StorageManagementScree
                 title: const Text('When using Cellular'),
                 value: settings.mediaAutoDownloadCellular,
                 onChanged: (val) {
-                  ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(mediaAutoDownloadCellular: val));
+                  ref
+                      .read(appSettingsProvider.notifier)
+                      .updateSettings(
+                        settings.copyWith(mediaAutoDownloadCellular: val),
+                      );
                 },
               ),
-              
+
               const Divider(height: 48),
-              
-              Text('Chat Breakdown', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: cs.primary)),
+
+              Text(
+                'Chat Breakdown',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: cs.primary),
+              ),
               const SizedBox(height: 8),
-              Consumer(builder: (context, ref, child) {
-                final threadsAsync = ref.watch(chatThreadsProvider);
-                return threadsAsync.when(
-                  data: (threads) {
-                    final sortedThreads = threads.where((t) => (_chatStorageUsage[t.id] ?? 0) > 0).toList()
-                      ..sort((a, b) => (_chatStorageUsage[b.id] ?? 0).compareTo(_chatStorageUsage[a.id] ?? 0));
-                    
-                    if (sortedThreads.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text('No media stored for individual chats.'),
-                      );
-                    }
-                    
-                    return Column(
-                      children: sortedThreads.map((thread) {
-                        final usage = _chatStorageUsage[thread.id] ?? 0;
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: UserAvatar(user: thread.peer, radius: 20),
-                          title: Text(thread.peer.name),
-                          subtitle: Text('${thread.messages.length} messages'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(_formatBytes(usage), style: const TextStyle(fontWeight: FontWeight.bold)),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline),
-                                color: cs.error,
-                                onPressed: () async {
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (c) => AlertDialog(
-                                      title: Text('Clear Media for ${thread.peer.name}?'),
-                                      content: const Text('This will delete all downloaded photos, videos, and audio for this chat. Text messages will remain.'),
-                                      actions: [
-                                        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                                        FilledButton(
-                                          style: FilledButton.styleFrom(backgroundColor: cs.error),
-                                          onPressed: () => Navigator.pop(c, true), 
-                                          child: const Text('Clear')
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  
-                                  if (confirm == true) {
-                                    await ref.read(storageServiceProvider).clearMediaForChat(thread);
-                                    await _loadStorageInfo();
-                                    if (context.mounted) {
-                                      AbyssSnackBar.show(context, 'Media cleared for ${thread.peer.name}.', type: SnackBarType.success);
-                                    }
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
+              Consumer(
+                builder: (context, ref, child) {
+                  final threadsAsync = ref.watch(chatThreadsProvider);
+                  return threadsAsync.when(
+                    data: (threads) {
+                      final sortedThreads =
+                          threads
+                              .where((t) => (_chatStorageUsage[t.id] ?? 0) > 0)
+                              .toList()
+                            ..sort(
+                              (a, b) => (_chatStorageUsage[b.id] ?? 0)
+                                  .compareTo(_chatStorageUsage[a.id] ?? 0),
+                            );
+
+                      if (sortedThreads.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text('No media stored for individual chats.'),
                         );
-                      }).toList(),
-                    );
-                  },
-                  loading: () => const CircularProgressIndicator(),
-                  error: (err, stack) => Text('Error: $err'),
-                );
-              }),
+                      }
+
+                      return Column(
+                        children: sortedThreads.map((thread) {
+                          final usage = _chatStorageUsage[thread.id] ?? 0;
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: UserAvatar(user: thread.peer, radius: 20),
+                            title: Text(thread.peer.name),
+                            subtitle: Text(
+                              '${thread.messages.length} messages',
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _formatBytes(usage),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  color: cs.error,
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (c) => AlertDialog(
+                                        title: Text(
+                                          'Clear Media for ${thread.peer.name}?',
+                                        ),
+                                        content: const Text(
+                                          'This will delete all downloaded photos, videos, and audio for this chat. Text messages will remain.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(c, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          FilledButton(
+                                            style: FilledButton.styleFrom(
+                                              backgroundColor: cs.error,
+                                            ),
+                                            onPressed: () =>
+                                                Navigator.pop(c, true),
+                                            child: const Text('Clear'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (confirm == true) {
+                                      await ref
+                                          .read(storageServiceProvider)
+                                          .clearMediaForChat(thread);
+                                      await _loadStorageInfo();
+                                      if (context.mounted) {
+                                        AbyssSnackBar.show(
+                                          context,
+                                          'Media cleared for ${thread.peer.name}.',
+                                          type: SnackBarType.success,
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
+                    loading: () => const CircularProgressIndicator(),
+                    error: (err, stack) => Text('Error: $err'),
+                  );
+                },
+              ),
             ],
           );
         },

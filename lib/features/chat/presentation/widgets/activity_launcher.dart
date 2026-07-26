@@ -10,10 +10,8 @@ import 'package:abyss_chat/app/responsive_layout.dart';
 
 class ActivityLauncher {
   static void show(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => const _ActivitySheet(),
     );
   }
@@ -33,33 +31,23 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Material(
-      color: cs.surface,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+    return Dialog(
+      backgroundColor: cs.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       clipBehavior: Clip.antiAlias,
       child: Container(
         padding: const EdgeInsets.all(24),
-        child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 24),
-                decoration: BoxDecoration(
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            if (_selectedActivity == null)
-              ...[
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_selectedActivity == null) ...[
                 Text(
                   'Launch Activity',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -95,9 +83,7 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
                   color: Colors.purple,
                   onTap: () => setState(() => _selectedActivity = 'poll'),
                 ),
-              ]
-            else
-              ...[
+              ] else ...[
                 Row(
                   children: [
                     IconButton(
@@ -106,25 +92,36 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
                     ),
                     Text(
                       'Select Chat',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 _buildChatSelector(context, ref),
               ],
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
 
-  Widget _buildActivityOption(BuildContext context, {required String title, required String subtitle, required IconData icon, required Color color, required VoidCallback onTap}) {
+  Widget _buildActivityOption(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 8),
-      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      color: Theme.of(
+        context,
+      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
@@ -144,7 +141,7 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
 
   Widget _buildChatSelector(BuildContext context, WidgetRef ref) {
     final threadsAsync = ref.watch(chatThreadsProvider);
-    
+
     return threadsAsync.when(
       data: (threads) {
         if (threads.isEmpty) {
@@ -154,7 +151,9 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
           );
         }
         return ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.4,
+          ),
           child: ListView.builder(
             shrinkWrap: true,
             itemCount: threads.length,
@@ -162,7 +161,11 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
               final thread = threads[index];
               return ListTile(
                 leading: UserAvatar(user: thread.peer, radius: 20),
-                title: Text(thread.isGroup ? (thread.groupName ?? 'Group') : thread.peer.name),
+                title: Text(
+                  thread.isGroup
+                      ? (thread.groupName ?? 'Group')
+                      : thread.peer.name,
+                ),
                 onTap: () => _launchActivity(thread.id),
               );
             },
@@ -178,7 +181,14 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
     if (_selectedActivity == 'coin') {
       final result = Random().nextBool() ? 'Heads' : 'Tails';
       final payload = jsonEncode({'activity': 'coin', 'result': result});
-      ref.read(chatThreadsProvider.notifier).sendMessage(threadId, '🪙 Tossed a coin', type: MessageType.activity, fileData: payload);
+      ref
+          .read(chatThreadsProvider.notifier)
+          .sendMessage(
+            threadId,
+            '🪙 Tossed a coin',
+            type: MessageType.activity,
+            fileData: payload,
+          );
       Navigator.pop(context);
       _openChat(threadId);
     } else if (_selectedActivity == 'dice') {
@@ -188,24 +198,56 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
           title: const Text('Roll how many dice?'),
           content: Wrap(
             spacing: 8,
-            children: List.generate(4, (i) => ChoiceChip(
-              label: Text('${i+1}'),
-              selected: false,
-              onSelected: (_) {
-                Navigator.of(context, rootNavigator: true).pop(); // close dialog
-                Navigator.of(context).pop(); // close sheet
-                final rolls = List.generate(i+1, (_) => Random().nextInt(6) + 1);
-                final payload = jsonEncode({'activity': 'dice', 'rolls': rolls});
-                ref.read(chatThreadsProvider.notifier).sendMessage(threadId, '🎲 Rolled ${i+1} dice', type: MessageType.activity, fileData: payload);
-                _openChat(threadId);
-              },
-            )),
+            children: List.generate(
+              4,
+              (i) => ChoiceChip(
+                label: Text('${i + 1}'),
+                selected: false,
+                onSelected: (_) {
+                  Navigator.of(
+                    context,
+                    rootNavigator: true,
+                  ).pop(); // close dialog
+                  Navigator.of(context).pop(); // close sheet
+                  final rolls = List.generate(
+                    i + 1,
+                    (_) => Random().nextInt(6) + 1,
+                  );
+                  final payload = jsonEncode({
+                    'activity': 'dice',
+                    'rolls': rolls,
+                  });
+                  ref
+                      .read(chatThreadsProvider.notifier)
+                      .sendMessage(
+                        threadId,
+                        '🎲 Rolled ${i + 1} dice',
+                        type: MessageType.activity,
+                        fileData: payload,
+                      );
+                  _openChat(threadId);
+                },
+              ),
+            ),
           ),
         ),
       );
     } else if (_selectedActivity == 'tictactoe') {
-      final payload = jsonEncode({'activity': 'tictactoe', 'board': List.filled(9, ''), 'turn': 'X', 'state': 'playing', 'initiator': ref.read(chatThreadsProvider.notifier).myId});
-      ref.read(chatThreadsProvider.notifier).sendMessage(threadId, '❌ Started Tic-Tac-Toe', type: MessageType.activity, fileData: payload);
+      final payload = jsonEncode({
+        'activity': 'tictactoe',
+        'board': List.filled(9, ''),
+        'turn': 'X',
+        'state': 'playing',
+        'initiator': ref.read(chatThreadsProvider.notifier).myId,
+      });
+      ref
+          .read(chatThreadsProvider.notifier)
+          .sendMessage(
+            threadId,
+            '❌ Started Tic-Tac-Toe',
+            type: MessageType.activity,
+            fileData: payload,
+          );
       Navigator.pop(context);
       _openChat(threadId);
     } else if (_selectedActivity == 'poll') {
@@ -216,7 +258,7 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
   void _showPollDialog(String threadId) {
     final qController = TextEditingController();
     final optController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -231,7 +273,10 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
             const SizedBox(height: 8),
             TextField(
               controller: optController,
-              decoration: const InputDecoration(labelText: 'Options (comma separated)', hintText: 'Yes, No, Maybe'),
+              decoration: const InputDecoration(
+                labelText: 'Options (comma separated)',
+                hintText: 'Yes, No, Maybe',
+              ),
             ),
           ],
         ),
@@ -243,7 +288,11 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
           FilledButton(
             onPressed: () {
               final q = qController.text.trim();
-              final opts = optController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+              final opts = optController.text
+                  .split(',')
+                  .map((e) => e.trim())
+                  .where((e) => e.isNotEmpty)
+                  .toList();
               if (q.isNotEmpty && opts.length > 1) {
                 final payload = jsonEncode({
                   'activity': 'poll',
@@ -251,7 +300,14 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
                   'options': opts,
                   'votes': {},
                 });
-                ref.read(chatThreadsProvider.notifier).sendMessage(threadId, '📊 Created a poll', type: MessageType.activity, fileData: payload);
+                ref
+                    .read(chatThreadsProvider.notifier)
+                    .sendMessage(
+                      threadId,
+                      '📊 Created a poll',
+                      type: MessageType.activity,
+                      fileData: payload,
+                    );
                 Navigator.pop(ctx);
                 Navigator.pop(context);
                 _openChat(threadId);
@@ -270,7 +326,10 @@ class _ActivitySheetState extends ConsumerState<_ActivitySheet> {
       ref.read(navigationIndexProvider.notifier).setIndex(0);
       ref.read(selectedThreadIdProvider.notifier).select(threadId);
     } else {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(threadId: threadId)));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ChatScreen(threadId: threadId)),
+      );
     }
   }
 }

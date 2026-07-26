@@ -13,7 +13,12 @@ class ActivityBubble extends ConsumerStatefulWidget {
   final bool isMe;
   final String threadId;
 
-  const ActivityBubble({super.key, required this.msg, required this.isMe, required this.threadId});
+  const ActivityBubble({
+    super.key,
+    required this.msg,
+    required this.isMe,
+    required this.threadId,
+  });
 
   @override
   ConsumerState<ActivityBubble> createState() => _ActivityBubbleState();
@@ -51,7 +56,7 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
   @override
   Widget build(BuildContext context) {
     final activityType = data['activity'] as String?;
-    
+
     switch (activityType) {
       case 'coin':
         return _buildCoinToss(context);
@@ -69,7 +74,12 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
   }
 
   Widget _buildEvent(BuildContext context) {
-    return EventBubble(data: data, isMe: widget.isMe, msgId: widget.msg.id, threadId: widget.threadId);
+    return EventBubble(
+      data: data,
+      isMe: widget.isMe,
+      msgId: widget.msg.id,
+      threadId: widget.threadId,
+    );
   }
 
   Widget _buildCoinToss(BuildContext context) {
@@ -83,16 +93,19 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
   Widget _buildTicTacToe(BuildContext context) {
     final board = List<String>.from(data['board'] ?? List.filled(9, ''));
     final turn = data['turn'] as String? ?? 'X';
-    final state = data['state'] as String? ?? 'playing'; // playing, won_X, won_O, draw
+    final state =
+        data['state'] as String? ?? 'playing'; // playing, won_X, won_O, draw
     final initiator = data['initiator'] as String?;
-    
+
     final myId = ref.read(chatThreadsProvider.notifier).myId;
-    final isMyTurn = (myId == initiator && turn == 'X') || (myId != initiator && turn == 'O');
+    final isMyTurn =
+        (myId == initiator && turn == 'X') ||
+        (myId != initiator && turn == 'O');
     final cs = Theme.of(context).colorScheme;
 
     final threads = ref.read(chatThreadsProvider).value ?? [];
     final thread = threads.where((t) => t.id == widget.threadId).firstOrNull;
-    
+
     String getPlayerName(String playerTurn) {
       if (playerTurn == 'X') {
         if (myId == initiator) return 'You';
@@ -106,22 +119,49 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: widget.isMe ? cs.onPrimaryContainer.withValues(alpha: 0.1) : cs.primary.withValues(alpha: 0.1),
+        color: widget.isMe
+            ? cs.onPrimaryContainer.withValues(alpha: 0.1)
+            : cs.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('❌ Tic-Tac-Toe ⭕', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            '❌ Tic-Tac-Toe ⭕',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           if (state == 'playing')
-            Text(isMyTurn ? 'Your turn ($turn)' : 'Waiting for ${getPlayerName(turn)}...')
+            Text(
+              isMyTurn
+                  ? 'Your turn ($turn)'
+                  : 'Waiting for ${getPlayerName(turn)}...',
+            )
           else if (state == 'won_X')
-            Text('${getPlayerName('X')} Won! 🎉', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green))
+            Text(
+              '${getPlayerName('X')} Won! 🎉',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            )
           else if (state == 'won_O')
-            Text('${getPlayerName('O')} Won! 🎉', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green))
+            Text(
+              '${getPlayerName('O')} Won! 🎉',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            )
           else if (state == 'draw')
-            const Text('Draw!', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+            const Text(
+              'Draw!',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
           const SizedBox(height: 12),
           SizedBox(
             width: 150,
@@ -144,7 +184,7 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
                   },
                   child: Container(
                     decoration: BoxDecoration(
-                      color: cs.surface,
+                      color: cs.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Center(
@@ -167,18 +207,23 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
     );
   }
 
-  void _makeTicTacToeMove(int index, List<String> currentBoard, String currentTurn, String initiator) {
+  void _makeTicTacToeMove(
+    int index,
+    List<String> currentBoard,
+    String currentTurn,
+    String initiator,
+  ) {
     final newBoard = List<String>.from(currentBoard);
     newBoard[index] = currentTurn;
-    
+
     // Check win condition
     String newState = 'playing';
     final lines = [
       [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
       [0, 3, 6], [1, 4, 7], [2, 5, 8], // Cols
-      [0, 4, 8], [2, 4, 6] // Diagonals
+      [0, 4, 8], [2, 4, 6], // Diagonals
     ];
-    
+
     bool won = false;
     for (var line in lines) {
       if (newBoard[line[0]] != '' &&
@@ -189,13 +234,13 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
         break;
       }
     }
-    
+
     if (!won && !newBoard.contains('')) {
       newState = 'draw';
     }
-    
+
     final newTurn = currentTurn == 'X' ? 'O' : 'X';
-    
+
     final payload = jsonEncode({
       'activity': 'tictactoe',
       'board': newBoard,
@@ -203,29 +248,36 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
       'state': newState,
       'initiator': initiator,
     });
-    
-    ref.read(chatThreadsProvider.notifier).sendMessage(
-      widget.threadId,
-      'Played Tic-Tac-Toe',
-      type: MessageType.activity,
-      fileData: payload,
-    );
+
+    ref
+        .read(chatThreadsProvider.notifier)
+        .sendMessage(
+          widget.threadId,
+          'Played Tic-Tac-Toe',
+          type: MessageType.activity,
+          fileData: payload,
+        );
   }
 
   Widget _buildPoll(BuildContext context) {
     final question = data['question'] as String? ?? 'Poll';
     final options = List<String>.from(data['options'] ?? []);
-    final votes = Map<String, List<String>>.from((data['votes'] as Map?)?.map(
-          (k, v) => MapEntry(k as String, List<String>.from(v ?? [])),
-        ) ?? {});
-        
+    final votes = Map<String, List<String>>.from(
+      (data['votes'] as Map?)?.map(
+            (k, v) => MapEntry(k as String, List<String>.from(v ?? [])),
+          ) ??
+          {},
+    );
+
     final cs = Theme.of(context).colorScheme;
     final myId = ref.read(chatThreadsProvider.notifier).myId;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: widget.isMe ? cs.onPrimaryContainer.withValues(alpha: 0.1) : cs.primary.withValues(alpha: 0.1),
+        color: widget.isMe
+            ? cs.onPrimaryContainer.withValues(alpha: 0.1)
+            : cs.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -235,21 +287,32 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
             children: [
               const Icon(Icons.poll, size: 20),
               const SizedBox(width: 8),
-              Expanded(child: Text(question, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+              Expanded(
+                child: Text(
+                  question,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           ...options.map((opt) {
             final voters = List<String>.from(votes[opt] ?? []);
             final hasVoted = voters.contains(myId);
-            final totalVotes = votes.values.fold<int>(0, (sum, list) => sum + list.length);
+            final totalVotes = votes.values.fold<int>(
+              0,
+              (sum, list) => sum + list.length,
+            );
             final percent = totalVotes == 0 ? 0.0 : voters.length / totalVotes;
-            
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: InkWell(
                 onTap: () {
-                   _voteOnPoll(opt, options, votes);
+                  _voteOnPoll(opt, options, votes);
                 },
                 child: Stack(
                   children: [
@@ -258,7 +321,9 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
                       decoration: BoxDecoration(
                         color: cs.surface,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: hasVoted ? cs.primary : cs.outlineVariant),
+                        border: Border.all(
+                          color: hasVoted ? cs.primary : cs.outlineVariant,
+                        ),
                       ),
                     ),
                     FractionallySizedBox(
@@ -277,8 +342,19 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(child: Text(opt, maxLines: 1, overflow: TextOverflow.ellipsis)),
-                            Text('${voters.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Expanded(
+                              child: Text(
+                                opt,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              '${voters.length}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -293,29 +369,31 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
     );
   }
 
-  void _voteOnPoll(String selectedOpt, List<String> options, Map<String, List<String>> currentVotes) {
+  void _voteOnPoll(
+    String selectedOpt,
+    List<String> options,
+    Map<String, List<String>> currentVotes,
+  ) {
     final myId = ref.read(chatThreadsProvider.notifier).myId;
     final newVotes = Map<String, List<dynamic>>.from(currentVotes);
-    
+
     for (var key in newVotes.keys) {
       newVotes[key] = List.from(newVotes[key]!)..remove(myId);
     }
-    
+
     if (newVotes[selectedOpt] == null) newVotes[selectedOpt] = [];
     newVotes[selectedOpt]!.add(myId);
-    
+
     final payload = jsonEncode({
       'activity': 'poll',
       'question': data['question'],
       'options': options,
       'votes': newVotes,
     });
-    
-    ref.read(chatThreadsProvider.notifier).syncActivityUpdate(
-      widget.threadId,
-      widget.msg.id,
-      payload,
-    );
+
+    ref
+        .read(chatThreadsProvider.notifier)
+        .syncActivityUpdate(widget.threadId, widget.msg.id, payload);
   }
 }
 
@@ -323,19 +401,28 @@ class CoinTossBubble extends StatefulWidget {
   final Map<String, dynamic> data;
   final bool isMe;
   final String msgId;
-  const CoinTossBubble({super.key, required this.data, required this.isMe, required this.msgId});
+  const CoinTossBubble({
+    super.key,
+    required this.data,
+    required this.isMe,
+    required this.msgId,
+  });
   @override
   State<CoinTossBubble> createState() => _CoinTossBubbleState();
 }
 
-class _CoinTossBubbleState extends State<CoinTossBubble> with SingleTickerProviderStateMixin {
+class _CoinTossBubbleState extends State<CoinTossBubble>
+    with SingleTickerProviderStateMixin {
   late bool _shouldAnimate;
   late AnimationController _controller;
-  
+
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
     _initCoin();
   }
 
@@ -346,7 +433,7 @@ class _CoinTossBubbleState extends State<CoinTossBubble> with SingleTickerProvid
       _initCoin();
     }
   }
-  
+
   void _initCoin() {
     _shouldAnimate = !_playedActivityAnimations.contains(widget.msgId);
     if (_shouldAnimate) {
@@ -356,28 +443,33 @@ class _CoinTossBubbleState extends State<CoinTossBubble> with SingleTickerProvid
       _controller.value = 1.0;
     }
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final result = widget.data['result'] as String?;
     final cs = Theme.of(context).colorScheme;
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: widget.isMe ? cs.onPrimaryContainer.withValues(alpha: 0.1) : cs.primary.withValues(alpha: 0.1),
+        color: widget.isMe
+            ? cs.onPrimaryContainer.withValues(alpha: 0.1)
+            : cs.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('🪙 Coin Toss', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            '🪙 Coin Toss',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           AnimatedBuilder(
             animation: _controller,
@@ -385,19 +477,22 @@ class _CoinTossBubbleState extends State<CoinTossBubble> with SingleTickerProvid
               final val = Curves.easeOutBack.transform(_controller.value);
               return Transform(
                 alignment: Alignment.center,
-                transform: Matrix4.identity()..rotateY(val * 3.14159 * 6), // Spin 3 times
+                transform: Matrix4.identity()
+                  ..rotateY(val * 3.14159 * 6), // Spin 3 times
                 child: Container(
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: result == 'Heads' ? Colors.amber.shade300 : Colors.blueGrey.shade300,
+                    color: result == 'Heads'
+                        ? Colors.amber.shade300
+                        : Colors.blueGrey.shade300,
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
-                      )
+                      ),
                     ],
                   ),
                   child: Center(
@@ -429,7 +524,12 @@ class DiceRollBubble extends StatefulWidget {
   final Map<String, dynamic> data;
   final bool isMe;
   final String msgId;
-  const DiceRollBubble({super.key, required this.data, required this.isMe, required this.msgId});
+  const DiceRollBubble({
+    super.key,
+    required this.data,
+    required this.isMe,
+    required this.msgId,
+  });
   @override
   State<DiceRollBubble> createState() => _DiceRollBubbleState();
 }
@@ -459,10 +559,13 @@ class _DiceRollBubbleState extends State<DiceRollBubble> {
     _timer?.cancel();
     _finalRolls = List<int>.from(widget.data['rolls'] ?? []);
     _shouldAnimate = !_playedActivityAnimations.contains(widget.msgId);
-    
+
     if (_shouldAnimate && _finalRolls.isNotEmpty) {
       _playedActivityAnimations.add(widget.msgId);
-      _currentRolls = List.generate(_finalRolls.length, (_) => _random.nextInt(6) + 1);
+      _currentRolls = List.generate(
+        _finalRolls.length,
+        (_) => _random.nextInt(6) + 1,
+      );
       int ticks = 0;
       _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
         ticks++;
@@ -472,7 +575,10 @@ class _DiceRollBubbleState extends State<DiceRollBubble> {
         } else {
           if (mounted) {
             setState(() {
-              _currentRolls = List.generate(_finalRolls.length, (_) => _random.nextInt(6) + 1);
+              _currentRolls = List.generate(
+                _finalRolls.length,
+                (_) => _random.nextInt(6) + 1,
+              );
             });
           }
         }
@@ -494,13 +600,18 @@ class _DiceRollBubbleState extends State<DiceRollBubble> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: widget.isMe ? cs.onPrimaryContainer.withValues(alpha: 0.1) : cs.primary.withValues(alpha: 0.1),
+        color: widget.isMe
+            ? cs.onPrimaryContainer.withValues(alpha: 0.1)
+            : cs.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('🎲 Dice Roll', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            '🎲 Dice Roll',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -519,7 +630,7 @@ class _DiceRollBubbleState extends State<DiceRollBubble> {
                       color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 2,
                       offset: const Offset(0, 2),
-                    )
+                    ),
                   ],
                 ),
                 child: Center(
@@ -556,7 +667,13 @@ class EventBubble extends ConsumerWidget {
   final String msgId;
   final String threadId;
 
-  const EventBubble({super.key, required this.data, required this.isMe, required this.msgId, required this.threadId});
+  const EventBubble({
+    super.key,
+    required this.data,
+    required this.isMe,
+    required this.msgId,
+    required this.threadId,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -564,9 +681,11 @@ class EventBubble extends ConsumerWidget {
     final date = data['date'] as String? ?? 'TBD';
     final time = data['time'] as String? ?? 'TBD';
     final location = data['location'] as String? ?? 'TBD';
-    
-    final rsvps = Map<String, String>.from(data['rsvps'] ?? {}); // user_id -> 'going' | 'declined'
-    
+
+    final rsvps = Map<String, String>.from(
+      data['rsvps'] ?? {},
+    ); // user_id -> 'going' | 'declined'
+
     final myId = ref.read(chatThreadsProvider.notifier).myId;
     final myStatus = rsvps[myId];
 
@@ -578,7 +697,9 @@ class EventBubble extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isMe ? cs.onPrimaryContainer.withValues(alpha: 0.1) : cs.primary.withValues(alpha: 0.1),
+        color: isMe
+            ? cs.onPrimaryContainer.withValues(alpha: 0.1)
+            : cs.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -591,7 +712,10 @@ class EventBubble extends ConsumerWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
                 ),
               ),
             ],
@@ -647,7 +771,9 @@ class EventBubble extends ConsumerWidget {
                 child: FilledButton.tonal(
                   style: FilledButton.styleFrom(
                     backgroundColor: myStatus == 'declined' ? Colors.red : null,
-                    foregroundColor: myStatus == 'declined' ? Colors.white : null,
+                    foregroundColor: myStatus == 'declined'
+                        ? Colors.white
+                        : null,
                   ),
                   onPressed: () => _updateRsvp(ref, 'declined'),
                   child: const Text('✕ Decline'),
@@ -676,10 +802,8 @@ class EventBubble extends ConsumerWidget {
       'rsvps': newRsvps,
     });
 
-    ref.read(chatThreadsProvider.notifier).syncActivityUpdate(
-      threadId,
-      msgId,
-      payload,
-    );
+    ref
+        .read(chatThreadsProvider.notifier)
+        .syncActivityUpdate(threadId, msgId, payload);
   }
 }

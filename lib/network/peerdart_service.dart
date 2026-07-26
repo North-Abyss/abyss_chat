@@ -2,9 +2,9 @@
 // Abyss Chat - PeerDart Service (Global WebRTC)
 // ==========================================
 // Version: 1.2.0
-// Description: 
+// Description:
 //   Manages robust WebRTC P2P connections over the internet using STUN/TURN
-//   servers. This serves as the fallback/global communication layer when 
+//   servers. This serves as the fallback/global communication layer when
 //   devices are not on the same local network.
 // ==========================================
 import 'dart:async';
@@ -29,45 +29,59 @@ class PeerDartService {
   int _reconnectAttempts = 0;
   final Map<String, Timer> _pingTimers = {};
   final Map<String, int> _pingMisses = {};
-  
+
   final Set<String> _knownPeers = {};
-  
+
   // Stream controllers for different events
-  final StreamController<Message> _incomingMessages = StreamController<Message>.broadcast();
+  final StreamController<Message> _incomingMessages =
+      StreamController<Message>.broadcast();
   Stream<Message> get onMessageReceived => _incomingMessages.stream;
 
-  final StreamController<String> _connectionStatus = StreamController<String>.broadcast();
+  final StreamController<String> _connectionStatus =
+      StreamController<String>.broadcast();
   Stream<String> get onConnectionStatus => _connectionStatus.stream;
 
-  final StreamController<MediaConnection> _incomingCalls = StreamController<MediaConnection>.broadcast();
+  final StreamController<MediaConnection> _incomingCalls =
+      StreamController<MediaConnection>.broadcast();
   Stream<MediaConnection> get onCallReceived => _incomingCalls.stream;
 
   // New streams for receipts and typing
-  final StreamController<Map<String, dynamic>> _deliveryReceipts = StreamController<Map<String, dynamic>>.broadcast();
-  Stream<Map<String, dynamic>> get onDeliveryReceipt => _deliveryReceipts.stream;
+  final StreamController<Map<String, dynamic>> _deliveryReceipts =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onDeliveryReceipt =>
+      _deliveryReceipts.stream;
 
-  final StreamController<Map<String, dynamic>> _readReceipts = StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _readReceipts =
+      StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onReadReceipt => _readReceipts.stream;
 
-  final StreamController<String> _typingIndicators = StreamController<String>.broadcast();
+  final StreamController<String> _typingIndicators =
+      StreamController<String>.broadcast();
   Stream<String> get onTypingReceived => _typingIndicators.stream;
 
-  final StreamController<String> _connectionOpened = StreamController<String>.broadcast();
+  final StreamController<String> _connectionOpened =
+      StreamController<String>.broadcast();
   Stream<String> get onConnectionOpened => _connectionOpened.stream;
 
-  final StreamController<Map<String, dynamic>> _profileSyncs = StreamController<Map<String, dynamic>>.broadcast();
-  Stream<Map<String, dynamic>> get onProfileSyncReceived => _profileSyncs.stream;
+  final StreamController<Map<String, dynamic>> _profileSyncs =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onProfileSyncReceived =>
+      _profileSyncs.stream;
 
-  final StreamController<Map<String, dynamic>> _callRequests = StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _callRequests =
+      StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onCallRequest => _callRequests.stream;
 
-  final StreamController<String> _callEnded = StreamController<String>.broadcast();
+  final StreamController<String> _callEnded =
+      StreamController<String>.broadcast();
   Stream<String> get onCallEnded => _callEnded.stream;
 
-  final StreamController<Map<String, dynamic>> _mediaStatus = StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _mediaStatus =
+      StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onMediaStatus => _mediaStatus.stream;
 
-  final StreamController<Map<String, dynamic>> _dataMessages = StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _dataMessages =
+      StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onDataMessage => _dataMessages.stream;
 
   String? _myId;
@@ -81,16 +95,14 @@ class PeerDartService {
     // without requiring users to change browser mDNS flags
     final customConfig = {
       'iceServers': [
-        // Tier 1: Google STUN (fastest, most reliable, direct P2P)
-        {'urls': ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302']},
-        // Tier 2: Cloudflare STUN (fast CDN-backed fallback)
-        {'urls': ['stun:stun.cloudflare.com:3478']},
-        // Tier 3: Metered Open Relay TURN (free relay for NAT traversal)
+        // Tier 1: Google STUN
+        {
+          'urls': ['stun:stun.l.google.com:19302'],
+        },
+        // Tier 2: Metered Open Relay TURN (free relay for NAT traversal)
         {
           'urls': [
             'turn:standard.relay.metered.ca:80',
-            'turn:standard.relay.metered.ca:80?transport=tcp',
-            'turn:standard.relay.metered.ca:443',
             'turns:standard.relay.metered.ca:443?transport=tcp',
           ],
           'username': 'e8dd65b92f60390b0f8fa187',
@@ -111,16 +123,19 @@ class PeerDartService {
       _reconnectAttempts = 0;
       debugPrint('✅ Connected to Signaling Server. My ID: $id');
       Future.microtask(() {
-        if (!_connectionStatus.isClosed) _connectionStatus.add('Connected as $id');
+        if (!_connectionStatus.isClosed) {
+          _connectionStatus.add('Connected as $id');
+        }
       });
-      
+
       for (final peerId in _connectionQueue) {
-         connectToPeer(peerId);
+        connectToPeer(peerId);
       }
       _connectionQueue.clear();
-      
+
       for (final peerId in _knownPeers) {
-        if (!_activeConnections.containsKey(peerId) && !_pendingConnections.contains(peerId)) {
+        if (!_activeConnections.containsKey(peerId) &&
+            !_pendingConnections.contains(peerId)) {
           debugPrint('🔄 Auto-reconnecting to known peer: $peerId');
           connectToPeer(peerId);
         }
@@ -130,11 +145,12 @@ class PeerDartService {
     _peer!.on("connection").listen((connection) {
       if (_isDisposed) return;
       final DataConnection conn = connection as DataConnection;
-      if (!_pendingConnections.contains(conn.peer) && !_activeConnections.containsKey(conn.peer)) {
+      if (!_pendingConnections.contains(conn.peer) &&
+          !_activeConnections.containsKey(conn.peer)) {
         _pendingConnections.add(conn.peer);
       }
       _setupConnection(conn);
-      
+
       // Process any urgent signals embedded in the connection metadata
       try {
         dynamic meta = conn.metadata;
@@ -144,7 +160,10 @@ class PeerDartService {
         if (meta != null && meta is Map && meta.containsKey('urgent_signal')) {
           final decoded = meta['urgent_signal'];
           if (decoded is Map) {
-            _processDecodedPayload(conn.peer, Map<String, dynamic>.from(decoded));
+            _processDecodedPayload(
+              conn.peer,
+              Map<String, dynamic>.from(decoded),
+            );
           } else if (decoded is String) {
             _processDecodedPayload(conn.peer, jsonDecode(decoded));
           }
@@ -159,8 +178,10 @@ class PeerDartService {
       _isPeerOpen = false;
       _reconnectAttempts++;
       final backoffSeconds = (1 << _reconnectAttempts).clamp(1, 30);
-      debugPrint('⚠️ Disconnected from signaling server. Reconnecting in $backoffSeconds seconds... (Attempt $_reconnectAttempts)');
-      
+      debugPrint(
+        '⚠️ Disconnected from signaling server. Reconnecting in $backoffSeconds seconds... (Attempt $_reconnectAttempts)',
+      );
+
       Future.delayed(Duration(seconds: backoffSeconds), () {
         if (_isDisposed) return;
         if (!_peer!.destroyed && _peer!.disconnected) {
@@ -179,12 +200,16 @@ class PeerDartService {
     _peer!.on("error").listen((err) {
       if (_isDisposed) return;
       debugPrint('❌ Peer Error: $err');
-      
+
       // Handle hot-reload zombie connections
       if (err.toString().toLowerCase().contains('taken')) {
-        debugPrint('ID is taken. Server still holds the zombie connection. Retrying in 5 seconds...');
+        debugPrint(
+          'ID is taken. Server still holds the zombie connection. Retrying in 5 seconds...',
+        );
         if (kIsWeb) {
-          debugPrint('⏳ Waiting for signaling server to release zombie connection...');
+          debugPrint(
+            '⏳ Waiting for signaling server to release zombie connection...',
+          );
         }
         Future.delayed(const Duration(seconds: 5), () {
           if (_isDisposed) return;
@@ -194,7 +219,7 @@ class PeerDartService {
           }
         });
       }
-      
+
       // Handle peer unavailable errors clearing pending state
       final errStr = err.toString();
       if (errStr.contains('Could not connect to peer')) {
@@ -202,10 +227,12 @@ class PeerDartService {
         if (parts.length > 1) {
           final failedPeerId = parts.last.trim();
           _pendingConnections.remove(failedPeerId);
-          debugPrint('Cleared $failedPeerId from pending connections due to peer offline.');
+          debugPrint(
+            'Cleared $failedPeerId from pending connections due to peer offline.',
+          );
         }
       }
-      
+
       Future.microtask(() {
         if (!_connectionStatus.isClosed) _connectionStatus.add('Error: $err');
       });
@@ -213,7 +240,8 @@ class PeerDartService {
   }
 
   bool isConnected(String peerId) {
-    return _activeConnections.containsKey(peerId) && _activeConnections[peerId]!.open;
+    return _activeConnections.containsKey(peerId) &&
+        _activeConnections[peerId]!.open;
   }
 
   void connectToPeer(String peerId, {dynamic metadata}) {
@@ -224,24 +252,26 @@ class PeerDartService {
     }
 
     if (_peer!.disconnected || _peer!.destroyed) {
-       debugPrint('Peer is disconnected or destroyed. Re-initializing...');
-       if (_peer!.destroyed) {
-         initialize(_myId).then((_) {
-            // It will be queued because _isPeerOpen is false
-            connectToPeer(peerId);
-         });
-       } else {
-         _peer!.reconnect();
-         Future.delayed(AppConstants.webrtcSignalingTimeout, () {
-           connectToPeer(peerId);
-         });
-       }
-       return;
+      debugPrint('Peer is disconnected or destroyed. Re-initializing...');
+      if (_peer!.destroyed) {
+        initialize(_myId).then((_) {
+          // It will be queued because _isPeerOpen is false
+          connectToPeer(peerId);
+        });
+      } else {
+        _peer!.reconnect();
+        Future.delayed(AppConstants.webrtcSignalingTimeout, () {
+          connectToPeer(peerId);
+        });
+      }
+      return;
     }
 
     if (!_isPeerOpen) {
       if (!_connectionQueue.contains(peerId)) {
-        debugPrint('⏳ Queuing connection to $peerId until signaling server is ready.');
+        debugPrint(
+          '⏳ Queuing connection to $peerId until signaling server is ready.',
+        );
         _connectionQueue.add(peerId);
       }
       return;
@@ -249,21 +279,27 @@ class PeerDartService {
 
     if (_activeConnections.containsKey(peerId)) {
       // If we already have a connection object (even if it's currently negotiating ICE),
-      // DO NOT overwrite it! This prevents Glare collisions where we instantly kill 
+      // DO NOT overwrite it! This prevents Glare collisions where we instantly kill
       // an incoming connection just because we also want to send a message to them.
-      debugPrint('⏳ Connection with $peerId is already negotiating or open. Yielding.');
+      debugPrint(
+        '⏳ Connection with $peerId is already negotiating or open. Yielding.',
+      );
       return;
     }
-    
+
     if (_pendingConnections.contains(peerId)) {
-      debugPrint('⏳ Already attempting to connect to $peerId. Ignoring duplicate request.');
+      debugPrint(
+        '⏳ Already attempting to connect to $peerId. Ignoring duplicate request.',
+      );
       return;
     }
-    
+
     _pendingConnections.add(peerId);
     debugPrint('🔄 Attempting to connect to $peerId...');
     try {
-      final options = metadata != null ? PeerConnectOption(metadata: metadata) : null;
+      final options = metadata != null
+          ? PeerConnectOption(metadata: metadata)
+          : null;
       final conn = _peer!.connect(peerId, options: options);
       _setupConnection(conn);
     } catch (e) {
@@ -298,92 +334,113 @@ class PeerDartService {
     _cancelSubscriptions(conn.peer);
     final subs = <StreamSubscription>[];
 
-    subs.add(conn.on("open").listen((_) {
-      if (_activeConnections.containsKey(conn.peer) && _activeConnections[conn.peer] != conn) {
-        // Just remove from map, don't forcefully close to avoid Bad State exception
-        _activeConnections.remove(conn.peer);
-      }
-      debugPrint('🤝 Data connection established with ${conn.peer}');
-      _activeConnections[conn.peer] = conn;
-      _pendingConnections.remove(conn.peer);
-      _knownPeers.add(conn.peer);
-      
-      // Start ping/pong health check
-      _pingMisses[conn.peer] = 0;
-      _pingTimers[conn.peer]?.cancel();
-      _pingTimers[conn.peer] = Timer.periodic(const Duration(seconds: 5), (timer) {
-        if (!_activeConnections.containsKey(conn.peer) || !_activeConnections[conn.peer]!.open) {
-          timer.cancel();
-          return;
-        }
-        
-        _pingMisses[conn.peer] = (_pingMisses[conn.peer] ?? 0) + 1;
-        if ((_pingMisses[conn.peer] ?? 0) > 3) {
-          debugPrint('⏱️ Ping timeout for ${conn.peer}, attempting reconnect');
+    subs.add(
+      conn.on("open").listen((_) {
+        if (_activeConnections.containsKey(conn.peer) &&
+            _activeConnections[conn.peer] != conn) {
+          // Just remove from map, don't forcefully close to avoid Bad State exception
           _activeConnections.remove(conn.peer);
-          _cancelSubscriptions(conn.peer);
-          timer.cancel();
-          // Queue reconnection attempt after brief cooldown
-          Future.delayed(const Duration(seconds: 2), () {
-            if (!_isDisposed && _isPeerOpen && !_activeConnections.containsKey(conn.peer)) {
-              connectToPeer(conn.peer);
-            }
-          });
-          return;
         }
-        
-        _sendPayload(conn.peer, {'type': 'ping'});
-      });
+        debugPrint('🤝 Data connection established with ${conn.peer}');
+        _activeConnections[conn.peer] = conn;
+        _pendingConnections.remove(conn.peer);
+        _knownPeers.add(conn.peer);
 
-      Future.microtask(() {
-        if (!_connectionStatus.isClosed) _connectionStatus.add('Connected to ${conn.peer}');
-      });
-      if (!_connectionOpened.isClosed) _connectionOpened.add(conn.peer);
-    }));
-
-    subs.add(conn.on("data").listen((data) {
-      try {
-        String payload;
-        if (data is String) {
-          payload = data;
-        } else {
-          try {
-            payload = (data as dynamic).text;
-          } catch (_) {
-            payload = data.toString();
+        // Start ping/pong health check
+        _pingMisses[conn.peer] = 0;
+        _pingTimers[conn.peer]?.cancel();
+        _pingTimers[conn.peer] = Timer.periodic(const Duration(seconds: 5), (
+          timer,
+        ) {
+          if (!_activeConnections.containsKey(conn.peer) ||
+              !_activeConnections[conn.peer]!.open) {
+            timer.cancel();
+            return;
           }
+
+          _pingMisses[conn.peer] = (_pingMisses[conn.peer] ?? 0) + 1;
+          if ((_pingMisses[conn.peer] ?? 0) > 3) {
+            debugPrint(
+              '⏱️ Ping timeout for ${conn.peer}, attempting reconnect',
+            );
+            _activeConnections.remove(conn.peer);
+            _cancelSubscriptions(conn.peer);
+            timer.cancel();
+            // Queue reconnection attempt after brief cooldown
+            Future.delayed(const Duration(seconds: 2), () {
+              if (!_isDisposed &&
+                  _isPeerOpen &&
+                  !_activeConnections.containsKey(conn.peer)) {
+                connectToPeer(conn.peer);
+              }
+            });
+            return;
+          }
+
+          _sendPayload(conn.peer, {'type': 'ping'});
+        });
+
+        Future.microtask(() {
+          if (!_connectionStatus.isClosed) {
+            _connectionStatus.add('Connected to ${conn.peer}');
+          }
+        });
+        if (!_connectionOpened.isClosed) _connectionOpened.add(conn.peer);
+      }),
+    );
+
+    subs.add(
+      conn.on("data").listen((data) {
+        try {
+          String payload;
+          if (data is String) {
+            payload = data;
+          } else {
+            try {
+              payload = (data as dynamic).text;
+            } catch (_) {
+              payload = data.toString();
+            }
+          }
+          final decoded = jsonDecode(payload);
+          _processDecodedPayload(conn.peer, decoded);
+        } catch (e) {
+          debugPrint('Error parsing incoming P2P data: $e');
         }
-        final decoded = jsonDecode(payload);
-        _processDecodedPayload(conn.peer, decoded);
-      } catch (e) {
-        debugPrint('Error parsing incoming P2P data: $e');
-      }
-    }));
+      }),
+    );
 
-    subs.add(conn.on("close").listen((_) {
-      debugPrint('🛑 Connection closed with ${conn.peer}');
-      _activeConnections.remove(conn.peer);
-      _pendingConnections.remove(conn.peer);
-      _cancelSubscriptions(conn.peer);
-    }));
+    subs.add(
+      conn.on("close").listen((_) {
+        debugPrint('🛑 Connection closed with ${conn.peer}');
+        _activeConnections.remove(conn.peer);
+        _pendingConnections.remove(conn.peer);
+        _cancelSubscriptions(conn.peer);
+      }),
+    );
 
-    subs.add(conn.on("error").listen((err) {
-      debugPrint('❌ Connection error with ${conn.peer}: $err');
-      _activeConnections.remove(conn.peer);
-      _pendingConnections.remove(conn.peer);
-      _cancelSubscriptions(conn.peer);
-    }));
+    subs.add(
+      conn.on("error").listen((err) {
+        debugPrint('❌ Connection error with ${conn.peer}: $err');
+        _activeConnections.remove(conn.peer);
+        _pendingConnections.remove(conn.peer);
+        _cancelSubscriptions(conn.peer);
+      }),
+    );
 
     _subscriptions[conn.peer] = subs;
   }
-  
-  void _processDecodedPayload(String sourcePeerId, Map<String, dynamic> decoded) {
+
+  void _processDecodedPayload(
+    String sourcePeerId,
+    Map<String, dynamic> decoded,
+  ) {
     final type = decoded['type'];
 
     if (type == 'p2p_message') {
       final msg = Message.fromJson(decoded['payload']);
       // Fallback: If we don't have the connection object handy in this scope (e.g. from metadata), we rely on msg.senderId
-      msg.networkSenderId = msg.senderId; 
+      msg.networkSenderId = msg.senderId;
       if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
       // Auto-send delivery receipt
       _sendPayload(msg.senderId, {
@@ -430,7 +487,7 @@ class PeerDartService {
       'type': 'p2p_message',
       'payload': message.toJson(),
     });
-    
+
     if (success) {
       debugPrint('📤 Sent message to $peerId via WebRTC');
       return true;
@@ -445,7 +502,7 @@ class PeerDartService {
     return success;
   }
 
-  /// Sends a payload, and if the data channel is closed, it immediately initiates a 
+  /// Sends a payload, and if the data channel is closed, it immediately initiates a
   /// new connection with the payload embedded in the PeerJS SDP metadata.
   /// This ensures delivery even if ICE candidates fail to resolve (Native->Web on LAN).
   void sendUrgentSignal(String peerId, Map<String, dynamic> payload) {
@@ -474,13 +531,14 @@ class PeerDartService {
   }
 
   void sendCallEnded(String peerId) {
-    _sendPayload(peerId, {
-      'type': 'call_ended',
-      'peerId': _myId,
-    });
+    _sendPayload(peerId, {'type': 'call_ended', 'peerId': _myId});
   }
 
-  void sendMediaStatus(String peerId, {required bool videoEnabled, required bool audioEnabled}) {
+  void sendMediaStatus(
+    String peerId, {
+    required bool videoEnabled,
+    required bool audioEnabled,
+  }) {
     _sendPayload(peerId, {
       'type': 'media_status',
       'peerId': _myId,
@@ -490,10 +548,7 @@ class PeerDartService {
   }
 
   void sendTypingIndicator(String peerId) {
-    _sendPayload(peerId, {
-      'type': 'typing',
-      'peerId': _myId,
-    });
+    _sendPayload(peerId, {'type': 'typing', 'peerId': _myId});
   }
 
   void sendProfileSync(String peerId, Map<String, dynamic> profileData) {
@@ -524,7 +579,7 @@ class PeerDartService {
     _callRequests.close();
     _callEnded.close();
     _mediaStatus.close();
-    
+
     for (final subs in _subscriptions.values) {
       for (final sub in subs) {
         sub.cancel();

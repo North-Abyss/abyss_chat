@@ -65,7 +65,9 @@ class User {
       ipAddress: json['ipAddress'],
       port: json['port'],
       profileImagePath: json['profileImagePath'],
-      profileUpdatedAt: json['profileUpdatedAt'] != null ? DateTime.parse(json['profileUpdatedAt']) : null,
+      profileUpdatedAt: json['profileUpdatedAt'] != null
+          ? DateTime.parse(json['profileUpdatedAt'])
+          : null,
     );
   }
 

@@ -14,9 +14,7 @@ class ContactsScreen extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Contacts'),
-      ),
+      appBar: AppBar(title: const Text('Contacts')),
       body: contactsAsync.when(
         data: (contacts) {
           if (contacts.isEmpty) {
@@ -24,9 +22,16 @@ class ContactsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.contacts, size: 64, color: cs.primary.withValues(alpha: 0.5)),
+                  Icon(
+                    Icons.contacts,
+                    size: 64,
+                    color: cs.primary.withValues(alpha: 0.5),
+                  ),
                   const SizedBox(height: 16),
-                  Text('No contacts yet', style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    'No contacts yet',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Connect with people to add them here.',
@@ -43,14 +48,24 @@ class ContactsScreen extends ConsumerWidget {
               final contact = contacts[index];
               return ListTile(
                 leading: UserAvatar(user: contact, radius: 24),
-                title: Text(contact.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('ID: ${contact.id}', style: TextStyle(color: cs.onSurfaceVariant)),
+                title: Text(
+                  contact.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  'ID: ${contact.id}',
+                  style: TextStyle(color: cs.onSurfaceVariant),
+                ),
                 trailing: const Icon(Icons.chat_bubble_outline),
                 onTap: () {
-                  ref.read(chatThreadsProvider.notifier).startNewChat(contact.id, peerName: contact.name);
+                  ref
+                      .read(chatThreadsProvider.notifier)
+                      .startNewChat(contact.id, peerName: contact.name);
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (_) => ChatScreen(threadId: contact.id)),
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(threadId: contact.id),
+                    ),
                   );
                 },
               );

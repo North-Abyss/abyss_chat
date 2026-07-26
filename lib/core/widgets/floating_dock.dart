@@ -78,7 +78,7 @@ class FloatingDock extends StatelessWidget {
                 for (int i = 0; i < items.length; i++) ...[
                   buildItem(i, items[i]),
                   if (i < items.length - 1) const SizedBox(height: 8),
-                ]
+                ],
               ],
             )
           : Row(
@@ -87,7 +87,7 @@ class FloatingDock extends StatelessWidget {
                 for (int i = 0; i < items.length; i++) ...[
                   buildItem(i, items[i]),
                   if (i < items.length - 1) const SizedBox(width: 8),
-                ]
+                ],
               ],
             ),
     );

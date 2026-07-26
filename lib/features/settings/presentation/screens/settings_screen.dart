@@ -22,17 +22,26 @@ import 'package:abyss_chat/features/settings/presentation/screens/storage_manage
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  void _showEditProfileDialog(BuildContext context, WidgetRef ref, dynamic profile) {
+  void _showEditProfileDialog(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic profile,
+  ) {
     final nameController = TextEditingController(text: profile.name);
     int selectedIcon = profile.avatarIcon;
     int selectedColor = profile.avatarColor;
 
-    final icons = [Icons.person, Icons.face, Icons.pets, Icons.rocket_launch, Icons.star, Icons.local_florist, Icons.sports_esports, Icons.music_note];
-    final colors = [
-      Colors.black,
-      Colors.white,
-      ...predefinedThemes.values,
+    final icons = [
+      Icons.person,
+      Icons.face,
+      Icons.pets,
+      Icons.rocket_launch,
+      Icons.star,
+      Icons.local_florist,
+      Icons.sports_esports,
+      Icons.music_note,
     ];
+    final colors = [Colors.black, Colors.white, ...predefinedThemes.values];
 
     showDialog(
       context: context,
@@ -46,21 +55,36 @@ class SettingsScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (profile.profileImagePath != null) ...[
-                      const Text('Profile Photo', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text(
+                        'Profile Photo',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 8),
                       Stack(
                         children: [
                           CircleAvatar(
                             radius: 40,
-                            backgroundImage: FileImage(File(profile.profileImagePath!)),
+                            backgroundImage: FileImage(
+                              File(profile.profileImagePath!),
+                            ),
                           ),
                           Positioned(
                             right: -10,
                             top: -10,
                             child: IconButton(
-                              icon: const Icon(Icons.remove_circle, color: Colors.red),
+                              icon: const Icon(
+                                Icons.remove_circle,
+                                color: Colors.red,
+                              ),
                               onPressed: () {
-                                ref.read(chatThreadsProvider.notifier).updateMyProfile(nameController.text, selectedIcon, selectedColor, removeImage: true);
+                                ref
+                                    .read(chatThreadsProvider.notifier)
+                                    .updateMyProfile(
+                                      nameController.text,
+                                      selectedIcon,
+                                      selectedColor,
+                                      removeImage: true,
+                                    );
                                 Navigator.pop(context);
                               },
                             ),
@@ -74,16 +98,29 @@ class SettingsScreen extends ConsumerWidget {
                         String? imagePath;
                         if (Platform.isAndroid || Platform.isIOS) {
                           final picker = ImagePicker();
-                          final xfile = await picker.pickImage(source: ImageSource.gallery);
+                          final xfile = await picker.pickImage(
+                            source: ImageSource.gallery,
+                          );
                           imagePath = xfile?.path;
                         } else {
-                          final result = await FilePicker.pickFiles(type: FileType.image);
+                          final result = await FilePicker.pickFiles(
+                            type: FileType.image,
+                          );
                           imagePath = result?.files.single.path;
                         }
 
                         if (imagePath != null) {
-                          final savedPath = await ref.read(storageServiceProvider).saveProfileImage(profile.id, File(imagePath));
-                          ref.read(chatThreadsProvider.notifier).updateMyProfile(nameController.text, selectedIcon, selectedColor, newImagePath: savedPath);
+                          final savedPath = await ref
+                              .read(storageServiceProvider)
+                              .saveProfileImage(profile.id, File(imagePath));
+                          ref
+                              .read(chatThreadsProvider.notifier)
+                              .updateMyProfile(
+                                nameController.text,
+                                selectedIcon,
+                                selectedColor,
+                                newImagePath: savedPath,
+                              );
                           if (context.mounted) Navigator.pop(context);
                         }
                       },
@@ -93,36 +130,59 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(height: 24),
                     TextField(
                       controller: nameController,
-                      decoration: const InputDecoration(labelText: 'Display Name'),
+                      decoration: const InputDecoration(
+                        labelText: 'Display Name',
+                      ),
                     ),
                     const SizedBox(height: 24),
-                    const Text('Avatar Icon', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Avatar Icon',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: icons.map((icon) {
                         return GestureDetector(
-                          onTap: () => setState(() => selectedIcon = icon.codePoint),
+                          onTap: () =>
+                              setState(() => selectedIcon = icon.codePoint),
                           child: CircleAvatar(
-                            backgroundColor: selectedIcon == icon.codePoint ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceContainerHighest,
-                            child: Icon(icon, color: selectedIcon == icon.codePoint ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurfaceVariant),
+                            backgroundColor: selectedIcon == icon.codePoint
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
+                            child: Icon(
+                              icon,
+                              color: selectedIcon == icon.codePoint
+                                  ? Theme.of(context).colorScheme.onPrimary
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         );
                       }).toList(),
                     ),
                     const SizedBox(height: 24),
-                    const Text('Avatar Color', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Avatar Color',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: colors.map((color) {
                         return GestureDetector(
-                          onTap: () => setState(() => selectedColor = color.toARGB32()),
+                          onTap: () =>
+                              setState(() => selectedColor = color.toARGB32()),
                           child: CircleAvatar(
                             backgroundColor: color,
-                            child: selectedColor == color.toARGB32() ? const Icon(Icons.check, color: Colors.white) : null,
+                            child: selectedColor == color.toARGB32()
+                                ? const Icon(Icons.check, color: Colors.white)
+                                : null,
                           ),
                         );
                       }).toList(),
@@ -131,12 +191,17 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
                 FilledButton(
                   onPressed: () {
                     final name = nameController.text.trim();
                     if (name.isNotEmpty) {
-                      ref.read(chatThreadsProvider.notifier).updateMyProfile(name, selectedIcon, selectedColor);
+                      ref
+                          .read(chatThreadsProvider.notifier)
+                          .updateMyProfile(name, selectedIcon, selectedColor);
                       Navigator.pop(context);
                     }
                   },
@@ -144,7 +209,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ],
             );
-          }
+          },
         );
       },
     );
@@ -188,7 +253,13 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      const Text('#', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      const Text(
+                        '#',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
@@ -199,8 +270,15 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                           onSubmitted: (value) {
                             if (value.length >= 6) {
-                              final color = Color(int.parse(value.replaceAll('#', '').padLeft(8, 'FF'), radix: 16));
-                              ref.read(themeProvider.notifier).setCustomColor(color);
+                              final color = Color(
+                                int.parse(
+                                  value.replaceAll('#', '').padLeft(8, 'FF'),
+                                  radix: 16,
+                                ),
+                              );
+                              ref
+                                  .read(themeProvider.notifier)
+                                  .setCustomColor(color);
                               Navigator.pop(context);
                             }
                           },
@@ -215,7 +293,9 @@ class SettingsScreen extends ConsumerWidget {
                     children: customColors.map((color) {
                       return GestureDetector(
                         onTap: () {
-                          ref.read(themeProvider.notifier).setCustomColor(color);
+                          ref
+                              .read(themeProvider.notifier)
+                              .setCustomColor(color);
                           Navigator.pop(context);
                         },
                         child: Container(
@@ -246,9 +326,7 @@ class SettingsScreen extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: themeStateAsync.when(
         data: (themeState) {
           return ListView(
@@ -261,7 +339,9 @@ class SettingsScreen extends ConsumerWidget {
                   return Card(
                     elevation: 0,
                     color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
                       child: Row(
@@ -272,21 +352,37 @@ class SettingsScreen extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(profile.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                                Text(
+                                  profile.name,
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.bold),
+                                ),
                                 const SizedBox(height: 4),
                                 GestureDetector(
                                   onTap: () {
-                                    Clipboard.setData(ClipboardData(text: profile.id));
-                                    NotificationService.showMessageNotification('Abyss Chat', 'Copied ID to clipboard');
+                                    Clipboard.setData(
+                                      ClipboardData(text: profile.id),
+                                    );
+                                    NotificationService.showMessageNotification(
+                                      'Abyss Chat',
+                                      'Copied ID to clipboard',
+                                    );
                                   },
-                                  child: Text('#${profile.id}', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: cs.primary)),
+                                  child: Text(
+                                    '#${profile.id}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(color: cs.primary),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.edit),
-                            onPressed: () => _showEditProfileDialog(context, ref, profile),
+                            onPressed: () =>
+                                _showEditProfileDialog(context, ref, profile),
                           ),
                         ],
                       ),
@@ -328,7 +424,9 @@ class SettingsScreen extends ConsumerWidget {
                                   ? Icon(Icons.check_circle, color: cs.primary)
                                   : const Icon(Icons.circle_outlined),
                               onTap: () {
-                                ref.read(themeProvider.notifier).setThemeMode(mode);
+                                ref
+                                    .read(themeProvider.notifier)
+                                    .setThemeMode(mode);
                                 Navigator.pop(context);
                               },
                             );
@@ -375,14 +473,18 @@ class SettingsScreen extends ConsumerWidget {
                               ),
                             ],
                             selected: {layoutState.dockPosition},
-                            onSelectionChanged: (Set<DockPosition> newSelection) {
-                              ref.read(layoutProvider.notifier).setDockPosition(newSelection.first);
-                            },
+                            onSelectionChanged:
+                                (Set<DockPosition> newSelection) {
+                                  ref
+                                      .read(layoutProvider.notifier)
+                                      .setDockPosition(newSelection.first);
+                                },
                           ),
                         ),
                       );
                     },
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (e, s) => Text('Error: $e'),
                   );
                 },
@@ -406,7 +508,8 @@ class SettingsScreen extends ConsumerWidget {
                   children: [
                     // Dynamic Theme Option
                     GestureDetector(
-                      onTap: () => ref.read(themeProvider.notifier).setTheme('Default'),
+                      onTap: () =>
+                          ref.read(themeProvider.notifier).setTheme('Default'),
                       child: Container(
                         margin: const EdgeInsets.only(right: 16),
                         width: 100,
@@ -415,27 +518,54 @@ class SettingsScreen extends ConsumerWidget {
                           color: cs.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: themeState.themeName == 'Default' ? cs.primary : Colors.transparent,
+                            color: themeState.themeName == 'Default'
+                                ? cs.primary
+                                : Colors.transparent,
                             width: 3,
                           ),
-                          boxShadow: themeState.themeName == 'Default' ? [BoxShadow(color: cs.primary.withValues(alpha: 0.3), blurRadius: 12)] : null,
+                          boxShadow: themeState.themeName == 'Default'
+                              ? [
+                                  BoxShadow(
+                                    color: cs.primary.withValues(alpha: 0.3),
+                                    blurRadius: 12,
+                                  ),
+                                ]
+                              : null,
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.auto_awesome, size: 32, color: themeState.themeName == 'Default' ? cs.primary : cs.onSurfaceVariant),
+                            Icon(
+                              Icons.auto_awesome,
+                              size: 32,
+                              color: themeState.themeName == 'Default'
+                                  ? cs.primary
+                                  : cs.onSurfaceVariant,
+                            ),
                             const SizedBox(height: 12),
-                            Text('Dynamic\nColor', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: themeState.themeName == 'Default' ? cs.primary : cs.onSurfaceVariant)),
+                            Text(
+                              'Dynamic\nColor',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: themeState.themeName == 'Default'
+                                    ? cs.primary
+                                    : cs.onSurfaceVariant,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
-                    
+
                     // Predefined themes
                     ...predefinedThemes.entries.map((entry) {
                       final isSelected = themeState.themeName == entry.key;
                       return GestureDetector(
-                        onTap: () => ref.read(themeProvider.notifier).setTheme(entry.key),
+                        onTap: () => ref
+                            .read(themeProvider.notifier)
+                            .setTheme(entry.key),
                         child: Container(
                           margin: const EdgeInsets.only(right: 16),
                           width: 100,
@@ -444,24 +574,42 @@ class SettingsScreen extends ConsumerWidget {
                             color: entry.value,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: isSelected ? cs.onSurface : Colors.transparent,
+                              color: isSelected
+                                  ? cs.onSurface
+                                  : Colors.transparent,
                               width: 3,
                             ),
-                            boxShadow: isSelected ? [BoxShadow(color: entry.value.withValues(alpha: 0.5), blurRadius: 12, offset: const Offset(0, 4))] : null,
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: entry.value.withValues(alpha: 0.5),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ]
+                                : null,
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               if (isSelected)
-                                Icon(Icons.check_circle, size: 32, color: entry.value.computeLuminance() > 0.5 ? Colors.black : Colors.white),
+                                Icon(
+                                  Icons.check_circle,
+                                  size: 32,
+                                  color: entry.value.computeLuminance() > 0.5
+                                      ? Colors.black
+                                      : Colors.white,
+                                ),
                               if (isSelected) const SizedBox(height: 12),
                               Text(
                                 entry.key.split(' ').last,
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: 13, 
-                                  color: entry.value.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: entry.value.computeLuminance() > 0.5
+                                      ? Colors.black87
+                                      : Colors.white,
                                 ),
                               ),
                             ],
@@ -479,21 +627,53 @@ class SettingsScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: themeState.themeName == 'Custom' ? cs.onSurface : Colors.transparent,
+                            color: themeState.themeName == 'Custom'
+                                ? cs.onSurface
+                                : Colors.transparent,
                             width: 3,
                           ),
                           gradient: const SweepGradient(
-                            colors: [Colors.red, Colors.orange, Colors.yellow, Colors.green, Colors.blue, Colors.purple, Colors.red],
+                            colors: [
+                              Colors.red,
+                              Colors.orange,
+                              Colors.yellow,
+                              Colors.green,
+                              Colors.blue,
+                              Colors.purple,
+                              Colors.red,
+                            ],
                           ),
-                          boxShadow: themeState.themeName == 'Custom' ? [BoxShadow(color: cs.onSurface.withValues(alpha: 0.3), blurRadius: 12)] : null,
+                          boxShadow: themeState.themeName == 'Custom'
+                              ? [
+                                  BoxShadow(
+                                    color: cs.onSurface.withValues(alpha: 0.3),
+                                    blurRadius: 12,
+                                  ),
+                                ]
+                              : null,
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             if (themeState.themeName == 'Custom')
-                               const Icon(Icons.color_lens, size: 32, color: Colors.white),
-                            if (themeState.themeName == 'Custom') const SizedBox(height: 12),
-                            const Text('Custom', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white, shadows: [Shadow(color: Colors.black54, blurRadius: 4)])),
+                              const Icon(
+                                Icons.color_lens,
+                                size: 32,
+                                color: Colors.white,
+                              ),
+                            if (themeState.themeName == 'Custom')
+                              const SizedBox(height: 12),
+                            const Text(
+                              'Custom',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(color: Colors.black54, blurRadius: 4),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -517,7 +697,10 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text('Chat Wallpaper'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  NotificationService.showMessageNotification('Chat Wallpaper', 'Coming soon in a future update!');
+                  NotificationService.showMessageNotification(
+                    'Chat Wallpaper',
+                    'Coming soon in a future update!',
+                  );
                 },
               ),
               ListTile(
@@ -525,7 +708,12 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text('Notifications'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
+                  );
                 },
               ),
               ListTile(
@@ -533,7 +721,12 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text('Storage and Data'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const StorageManagementScreen()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const StorageManagementScreen(),
+                    ),
+                  );
                 },
               ),
               const Divider(height: 32),
@@ -565,7 +758,12 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: const Text('Download for Desktop/Web (P2P Support)'),
                 trailing: const Icon(Icons.open_in_new, size: 20),
                 onTap: () {
-                  launchUrl(Uri.parse('https://github.com/North-Abyss/abyss_chat/releases/latest'), mode: LaunchMode.externalApplication);
+                  launchUrl(
+                    Uri.parse(
+                      'https://github.com/North-Abyss/abyss_chat/releases/latest',
+                    ),
+                    mode: LaunchMode.externalApplication,
+                  );
                 },
               ),
               ListTile(
@@ -574,15 +772,27 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: const Text('github.com/North-Abyss/abyss_chat'),
                 trailing: const Icon(Icons.copy, size: 20),
                 onTap: () {
-                  Clipboard.setData(const ClipboardData(text: 'https://github.com/North-Abyss/abyss_chat'));
-                  NotificationService.showMessageNotification('App Info', 'Repository link copied to clipboard');
+                  Clipboard.setData(
+                    const ClipboardData(
+                      text: 'https://github.com/North-Abyss/abyss_chat',
+                    ),
+                  );
+                  NotificationService.showMessageNotification(
+                    'App Info',
+                    'Repository link copied to clipboard',
+                  );
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.privacy_tip_outlined),
                 title: const Text('Privacy Policy'),
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrivacyPolicyScreen(),
+                    ),
+                  );
                 },
               ),
               const SizedBox(height: 16),
@@ -621,18 +831,25 @@ class SettingsScreen extends ConsumerWidget {
                     context: context,
                     builder: (c) => AlertDialog(
                       title: const Text('Delete Account?'),
-                      content: const Text('This will permanently delete all your chats, contacts, and settings. This cannot be undone.'),
+                      content: const Text(
+                        'This will permanently delete all your chats, contacts, and settings. This cannot be undone.',
+                      ),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(c, false),
+                          child: const Text('Cancel'),
+                        ),
                         FilledButton(
-                          style: FilledButton.styleFrom(backgroundColor: cs.error),
-                          onPressed: () => Navigator.pop(c, true), 
-                          child: const Text('Delete')
+                          style: FilledButton.styleFrom(
+                            backgroundColor: cs.error,
+                          ),
+                          onPressed: () => Navigator.pop(c, true),
+                          child: const Text('Delete'),
                         ),
                       ],
                     ),
                   );
-                  
+
                   if (confirm == true) {
                     await ref.read(storageServiceProvider).clearAllData();
                     CryptoService.reset();
@@ -655,7 +872,8 @@ class SettingsScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error loading settings: $err')),
+        error: (err, stack) =>
+            Center(child: Text('Error loading settings: $err')),
       ),
     );
   }
@@ -667,7 +885,7 @@ class NotificationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settingsAsync = ref.watch(appSettingsProvider);
-    
+
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
       body: settingsAsync.when(
@@ -680,15 +898,25 @@ class NotificationsScreen extends ConsumerWidget {
                 subtitle: const Text('Show notifications outside the app'),
                 value: settings.systemNotificationsEnabled,
                 onChanged: (val) {
-                  ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(systemNotificationsEnabled: val));
+                  ref
+                      .read(appSettingsProvider.notifier)
+                      .updateSettings(
+                        settings.copyWith(systemNotificationsEnabled: val),
+                      );
                 },
               ),
               SwitchListTile(
                 title: const Text('In-App Chat Notifications'),
-                subtitle: const Text('Show floating notifications for new messages'),
+                subtitle: const Text(
+                  'Show floating notifications for new messages',
+                ),
                 value: settings.inAppNotificationsEnabled,
                 onChanged: (val) {
-                  ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(inAppNotificationsEnabled: val));
+                  ref
+                      .read(appSettingsProvider.notifier)
+                      .updateSettings(
+                        settings.copyWith(inAppNotificationsEnabled: val),
+                      );
                 },
               ),
               const Divider(),
@@ -697,13 +925,28 @@ class NotificationsScreen extends ConsumerWidget {
                 subtitle: const Text('Where floating notifications appear'),
                 trailing: SegmentedButton<NotificationPosition>(
                   segments: const [
-                    ButtonSegment(value: NotificationPosition.top, label: Text('Top')),
-                    ButtonSegment(value: NotificationPosition.bottom, label: Text('Bottom')),
+                    ButtonSegment(
+                      value: NotificationPosition.top,
+                      label: Text('Top'),
+                    ),
+                    ButtonSegment(
+                      value: NotificationPosition.bottom,
+                      label: Text('Bottom'),
+                    ),
                   ],
                   selected: {settings.notificationPosition},
                   onSelectionChanged: (Set<NotificationPosition> newSelection) {
-                    ref.read(appSettingsProvider.notifier).updateSettings(settings.copyWith(notificationPosition: newSelection.first));
-                    NotificationService.showMessageNotification('Position Changed', 'Notifications will appear here!');
+                    ref
+                        .read(appSettingsProvider.notifier)
+                        .updateSettings(
+                          settings.copyWith(
+                            notificationPosition: newSelection.first,
+                          ),
+                        );
+                    NotificationService.showMessageNotification(
+                      'Position Changed',
+                      'Notifications will appear here!',
+                    );
                   },
                 ),
               ),

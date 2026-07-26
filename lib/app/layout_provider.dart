@@ -17,15 +17,15 @@ class LayoutPreferencesNotifier extends AsyncNotifier<LayoutState> {
 
     // For desktop default to left, for mobile default to bottom
     DockPosition defaultPosition = DockPosition.bottom;
-    
-    // We can't use MediaQuery here directly since it's a provider, 
+
+    // We can't use MediaQuery here directly since it's a provider,
     // but we can rely on defaults and override based on user preference
     if (dockStr == 'left') {
       defaultPosition = DockPosition.left;
     } else if (dockStr == 'bottom') {
       defaultPosition = DockPosition.bottom;
     }
-    
+
     return LayoutState(dockPosition: defaultPosition);
   }
 
@@ -36,6 +36,7 @@ class LayoutPreferencesNotifier extends AsyncNotifier<LayoutState> {
   }
 }
 
-final layoutProvider = AsyncNotifierProvider<LayoutPreferencesNotifier, LayoutState>(() {
-  return LayoutPreferencesNotifier();
-});
+final layoutProvider =
+    AsyncNotifierProvider<LayoutPreferencesNotifier, LayoutState>(() {
+      return LayoutPreferencesNotifier();
+    });

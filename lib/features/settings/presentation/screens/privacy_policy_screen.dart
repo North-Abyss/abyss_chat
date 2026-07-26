@@ -47,14 +47,22 @@ class PrivacyPolicyScreen extends StatelessWidget {
             icon: const Icon(Icons.description),
             tooltip: 'View License',
             onPressed: () {
-              launchUrl(Uri.parse('https://github.com/North-Abyss/abyss_chat/blob/main/LICENSE'));
+              launchUrl(
+                Uri.parse(
+                  'https://github.com/North-Abyss/abyss_chat/blob/main/LICENSE',
+                ),
+              );
             },
           ),
           IconButton(
             icon: const Icon(Icons.policy),
             tooltip: 'View on GitHub',
             onPressed: () {
-              launchUrl(Uri.parse('https://github.com/North-Abyss/abyss_chat/blob/main/PRIVACY.md'));
+              launchUrl(
+                Uri.parse(
+                  'https://github.com/North-Abyss/abyss_chat/blob/main/PRIVACY.md',
+                ),
+              );
             },
           ),
         ],
@@ -70,4 +78,3 @@ class PrivacyPolicyScreen extends StatelessWidget {
     );
   }
 }
-

@@ -6,18 +6,23 @@ class UserAvatar extends StatelessWidget {
   final User user;
   final double radius;
 
-  const UserAvatar({
-    super.key,
-    required this.user,
-    this.radius = 20,
-  });
+  const UserAvatar({super.key, required this.user, this.radius = 20});
 
   IconData _getIconData(int codePoint) {
     const icons = [
-      Icons.person, Icons.face, Icons.pets, Icons.rocket_launch, 
-      Icons.star, Icons.local_florist, Icons.sports_esports, Icons.music_note
+      Icons.person,
+      Icons.face,
+      Icons.pets,
+      Icons.rocket_launch,
+      Icons.star,
+      Icons.local_florist,
+      Icons.sports_esports,
+      Icons.music_note,
     ];
-    return icons.firstWhere((icon) => icon.codePoint == codePoint, orElse: () => Icons.person);
+    return icons.firstWhere(
+      (icon) => icon.codePoint == codePoint,
+      orElse: () => Icons.person,
+    );
   }
 
   @override
@@ -71,4 +76,3 @@ class UserAvatar extends StatelessWidget {
     );
   }
 }
-

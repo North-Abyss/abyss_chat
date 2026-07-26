@@ -12,30 +12,29 @@ import 'package:abyss_chat/core/utils/shared_prefs_helper.dart';
 
 // --- MAIN ENTRY POINT ---
 void main() {
-  runZonedGuarded(() async {
-    final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-    widgetsBinding.deferFirstFrame();
-    try {
-      await SharedPrefsHelper.instance;
-    } catch (e) {
-      debugPrint('Error initializing prefs: $e');
-    }
+  runZonedGuarded(
+    () async {
+      final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+      widgetsBinding.deferFirstFrame();
+      try {
+        await SharedPrefsHelper.instance;
+      } catch (e) {
+        debugPrint('Error initializing prefs: $e');
+      }
 
-    // Catch unhandled async errors (like WebSockets dropping in peerdart)
-    PlatformDispatcher.instance.onError = (error, stack) {
-      debugPrint('Unhandled Async Error (PlatformDispatcher): $error');
-      return true; // Prevents the app from crashing
-    };
+      // Catch unhandled async errors (like WebSockets dropping in peerdart)
+      PlatformDispatcher.instance.onError = (error, stack) {
+        debugPrint('Unhandled Async Error (PlatformDispatcher): $error');
+        return true; // Prevents the app from crashing
+      };
 
-    runApp(
-      const ProviderScope(
-        child: AbyssApp(),
-      ),
-    );
-    widgetsBinding.allowFirstFrame();
-  }, (error, stack) {
-    debugPrint('Caught by runZonedGuarded: $error');
-  });
+      runApp(const ProviderScope(child: AbyssApp()));
+      widgetsBinding.allowFirstFrame();
+    },
+    (error, stack) {
+      debugPrint('Caught by runZonedGuarded: $error');
+    },
+  );
 }
 
 // --- ROOT APPLICATION WIDGET ---
@@ -51,7 +50,8 @@ class AbyssApp extends ConsumerWidget {
         return themeStateAsync.when(
           data: (themeState) {
             Color? seedColor;
-            if (themeState.themeName == 'Custom' && themeState.customColor != null) {
+            if (themeState.themeName == 'Custom' &&
+                themeState.customColor != null) {
               seedColor = themeState.customColor!;
             } else if (themeState.themeName != 'Default') {
               seedColor = predefinedThemes[themeState.themeName];
@@ -69,9 +69,7 @@ class AbyssApp extends ConsumerWidget {
           },
           loading: () => const MaterialApp(
             debugShowCheckedModeBanner: false,
-            home: Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            ),
+            home: Scaffold(body: Center(child: CircularProgressIndicator())),
           ),
           error: (err, stack) => MaterialApp(
             debugShowCheckedModeBanner: false,
@@ -85,9 +83,13 @@ class AbyssApp extends ConsumerWidget {
   }
 
   // --- THEME CONFIGURATION ---
-  ThemeData _buildTheme(Color? seedColor, Brightness brightness, ColorScheme? dynamicScheme) {
+  ThemeData _buildTheme(
+    Color? seedColor,
+    Brightness brightness,
+    ColorScheme? dynamicScheme,
+  ) {
     ColorScheme colorScheme;
-    
+
     if (seedColor == null && dynamicScheme != null) {
       // Use device dynamic color if no custom/predefined seed is set
       colorScheme = dynamicScheme;
@@ -143,7 +145,11 @@ class AbyssApp extends ConsumerWidget {
         backgroundColor: colorScheme.surfaceContainer,
         indicatorColor: colorScheme.primaryContainer,
         labelTextStyle: WidgetStatePropertyAll(
-          TextStyle(color: colorScheme.onSurface, fontSize: 12, fontWeight: FontWeight.w500),
+          TextStyle(
+            color: colorScheme.onSurface,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
@@ -158,8 +164,15 @@ class AbyssApp extends ConsumerWidget {
         indicatorColor: colorScheme.primaryContainer,
         selectedIconTheme: IconThemeData(color: colorScheme.onPrimaryContainer),
         unselectedIconTheme: IconThemeData(color: colorScheme.onSurfaceVariant),
-        selectedLabelTextStyle: TextStyle(color: colorScheme.onSurface, fontSize: 12, fontWeight: FontWeight.w500),
-        unselectedLabelTextStyle: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+        selectedLabelTextStyle: TextStyle(
+          color: colorScheme.onSurface,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+        unselectedLabelTextStyle: TextStyle(
+          color: colorScheme.onSurfaceVariant,
+          fontSize: 12,
+        ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: colorScheme.primaryContainer,
@@ -196,7 +209,9 @@ class AbyssApp extends ConsumerWidget {
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return colorScheme.onPrimary;
+          if (states.contains(WidgetState.selected)) {
+            return colorScheme.onPrimary;
+          }
           return colorScheme.outline;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {

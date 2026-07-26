@@ -3,10 +3,13 @@
 All notable changes to this project will be documented in this file.
 ## [1.1.4+] - 2026-07-26
 ### Added
-- **Multi-Tier TURN/STUN Infrastructure**: Implemented a robust, free fallback connection system utilizing Google STUN, Cloudflare STUN, and Metered Open Relay TURN. This provides ultra-fast direct P2P connections and a reliable fallback for restrictive corporate NATs without requiring self-hosting.
+- **Multi-Tier TURN/STUN Infrastructure**: Implemented a robust, free fallback connection system utilizing Google STUN and Metered Open Relay TURN. This provides ultra-fast direct P2P connections.
+- **Automated CI/CD Workflows**: Added `web-deploy.yml` and `release.yml` GitHub Actions to automatically compile Native apps (APK, Linux, Windows) and Web apps via Cloud Compiler on tags.
 - **Smart Peer Reconnection**: Implemented automatic network recovery. The app now tracks known active peers and intelligently re-establishes dropped data channels and signaling connections if the network goes down.
 
 ### Fixed
+- **WebRTC Native-to-Web Timeout**: Reduced STUN/TURN `iceServers` array to avoid the WebRTC "Using five or more STUN/TURN servers slows down discovery" exception, perfectly resolving the Native-to-Web signaling timeouts.
+- **Gradle `afterEvaluate` Order**: Fixed a build-breaking bug on CI/CD caused by an incorrect Gradle evaluation order in `android/build.gradle`.
 - **Contact Duplication Bugs**: Resolved a major issue causing duplicate contacts (e.g., "Peer ID..." or "Scanned Peer") during hot-reloads and "Connect via ID" flows. The system now perfectly merges placeholders with real names and stops aggressively mutating Web IDs.
 - **Call Glare Collision**: Fixed the bug where two people calling each other simultaneously would get stuck ringing forever. Added deterministic tie-breaking logic.
 - **Dangling Camera Permissions**: Reordered call teardown logic to guarantee the camera and mic hardware are immediately released when a call ends, turning off the green dot. Fixed a similar memory leak in the QR scanner.

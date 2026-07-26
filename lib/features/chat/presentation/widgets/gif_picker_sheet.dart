@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/app/gif_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 class GifPickerSheet extends ConsumerStatefulWidget {
   final Function(String) onGifSelected;
   const GifPickerSheet({super.key, required this.onGifSelected});
@@ -12,7 +13,8 @@ class GifPickerSheet extends ConsumerStatefulWidget {
   ConsumerState<GifPickerSheet> createState() => _GifPickerSheetState();
 }
 
-class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTickerProviderStateMixin {
+class _GifPickerSheetState extends ConsumerState<GifPickerSheet>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   List<String> _searchResults = [];
@@ -37,15 +39,21 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
       _isSearching = true;
       _tabController.animateTo(0);
     });
-    
+
     try {
       // Using public Giphy Beta API Key for demo purposes
-      final response = await http.get(Uri.parse('https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${Uri.encodeComponent(query)}&limit=24'));
+      final response = await http.get(
+        Uri.parse(
+          'https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${Uri.encodeComponent(query)}&limit=24',
+        ),
+      );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List<dynamic> items = data['data'];
         setState(() {
-          _searchResults = items.map((item) => item['images']['fixed_height']['url'] as String).toList();
+          _searchResults = items
+              .map((item) => item['images']['fixed_height']['url'] as String)
+              .toList();
         });
       }
     } catch (e) {
@@ -89,16 +97,32 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
                     decoration: InputDecoration(
                       hintText: 'Search Giphy or paste URL...',
                       prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                     onSubmitted: _submitUrl,
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton.filled(
-                  icon: _isSearching ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.send),
-                  onPressed: _isSearching ? null : () => _submitUrl(_searchController.text),
+                  icon: _isSearching
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.send),
+                  onPressed: _isSearching
+                      ? null
+                      : () => _submitUrl(_searchController.text),
                 ),
               ],
             ),
@@ -115,9 +139,17 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildGifGrid(_searchResults, gifState.favoriteGifs, isSearchTab: true),
+                _buildGifGrid(
+                  _searchResults,
+                  gifState.favoriteGifs,
+                  isSearchTab: true,
+                ),
                 _buildGifGrid(gifState.recentGifs, gifState.favoriteGifs),
-                _buildGifGrid(gifState.favoriteGifs, gifState.favoriteGifs, isFavoritesTab: true),
+                _buildGifGrid(
+                  gifState.favoriteGifs,
+                  gifState.favoriteGifs,
+                  isFavoritesTab: true,
+                ),
               ],
             ),
           ),
@@ -126,7 +158,12 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
     );
   }
 
-  Widget _buildGifGrid(List<String> urls, List<String> favorites, {bool isFavoritesTab = false, bool isSearchTab = false}) {
+  Widget _buildGifGrid(
+    List<String> urls,
+    List<String> favorites, {
+    bool isFavoritesTab = false,
+    bool isSearchTab = false,
+  }) {
     if (urls.isEmpty) {
       if (isSearchTab) {
         return Center(
@@ -135,12 +172,16 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
             children: [
               Text(
                 'API Search is disabled due to rate limits.',
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Copy a GIF link from the web and paste it above!',
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 16),
               Row(
@@ -166,13 +207,14 @@ class _GifPickerSheetState extends ConsumerState<GifPickerSheet> with SingleTick
       return Center(
         child: Text(
           isFavoritesTab ? 'No favorites yet.' : 'No recent GIFs.',
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       );
     }
 
     return GridView.builder(
-      
       padding: const EdgeInsets.all(8),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 250,

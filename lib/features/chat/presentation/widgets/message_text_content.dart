@@ -4,6 +4,7 @@ import 'package:any_link_preview/any_link_preview.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter/foundation.dart';
+
 class MessageTextContent extends StatelessWidget {
   final Message msg;
   final bool isMe;
@@ -12,12 +13,18 @@ class MessageTextContent extends StatelessWidget {
 
   bool _isImageUrl(String url) {
     final lower = url.toLowerCase();
-    return lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.gif') || lower.endsWith('.webp');
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.webp');
   }
 
   bool _isVideoUrl(String url) {
     final lower = url.toLowerCase();
-    return lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.ogg');
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.webm') ||
+        lower.endsWith('.ogg');
   }
 
   @override
@@ -30,7 +37,7 @@ class MessageTextContent extends StatelessWidget {
       r'(?:(?:https?|ftp):\/\/)?[\w/\-?=%.]+\.[\w/\-?=%.]+',
       caseSensitive: false,
     );
-    
+
     final match = urlRegExp.firstMatch(msg.text);
     if (match != null) {
       String url = match.group(0)!;
@@ -40,7 +47,9 @@ class MessageTextContent extends StatelessWidget {
 
       // We have a URL, let's render text + preview
       return Column(
-        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isMe
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           // Text before/after or just the text with the URL
           InkWell(
@@ -61,13 +70,7 @@ class MessageTextContent extends StatelessWidget {
     }
 
     // Default plain text
-    return Text(
-      msg.text,
-      style: TextStyle(
-        fontSize: 15,
-        color: textColor,
-      ),
-    );
+    return Text(msg.text, style: TextStyle(fontSize: 15, color: textColor));
   }
 
   Widget _buildPreview(String url, BuildContext context) {
@@ -80,7 +83,8 @@ class MessageTextContent extends StatelessWidget {
             url,
             width: 200,
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.broken_image),
           ),
         ),
       );
@@ -94,13 +98,22 @@ class MessageTextContent extends StatelessWidget {
           proxyUrl: kIsWeb ? 'https://corsproxy.io/?' : null,
           displayDirection: UIDirection.uiDirectionHorizontal,
           cache: const Duration(days: 7),
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest,
           errorWidget: Container(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             padding: const EdgeInsets.all(8),
             child: InkWell(
               onTap: () => launchUrl(Uri.parse(url)),
-              child: const Text('View link \u2197', style: TextStyle(fontSize: 12, decoration: TextDecoration.underline, color: Colors.blue)),
+              child: const Text(
+                'View link \u2197',
+                style: TextStyle(
+                  fontSize: 12,
+                  decoration: TextDecoration.underline,
+                  color: Colors.blue,
+                ),
+              ),
             ),
           ),
         ),
@@ -126,11 +139,13 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
   void initState() {
     super.initState();
     _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) {
-        if (mounted) setState(() => _initialized = true);
-      }).catchError((e) {
-        if (mounted) setState(() => _error = true);
-      });
+      ..initialize()
+          .then((_) {
+            if (mounted) setState(() => _initialized = true);
+          })
+          .catchError((e) {
+            if (mounted) setState(() => _error = true);
+          });
   }
 
   @override
@@ -142,12 +157,20 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
   @override
   Widget build(BuildContext context) {
     if (_error) return const Icon(Icons.error, color: Colors.red);
-    if (!_initialized) return const SizedBox(width: 200, height: 150, child: Center(child: CircularProgressIndicator()));
+    if (!_initialized) {
+      return const SizedBox(
+        width: 200,
+        height: 150,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return GestureDetector(
       onTap: () {
         setState(() {
-          _controller.value.isPlaying ? _controller.pause() : _controller.play();
+          _controller.value.isPlaying
+              ? _controller.pause()
+              : _controller.play();
         });
       },
       child: Container(
@@ -170,7 +193,11 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
                   shape: BoxShape.circle,
                   color: Colors.black54,
                 ),
-                child: const Icon(Icons.play_arrow, color: Colors.white, size: 40),
+                child: const Icon(
+                  Icons.play_arrow,
+                  color: Colors.white,
+                  size: 40,
+                ),
               ),
           ],
         ),

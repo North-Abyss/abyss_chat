@@ -12,18 +12,26 @@ class WebStorage {
   static Future<Database> _getDb() async {
     if (_db != null) return _db!;
     final idbFactory = idbFactoryBrowser;
-    _db = await idbFactory.open(_dbName, version: 1, onUpgradeNeeded: (VersionChangeEvent event) {
-      final db = event.database;
-      db.createObjectStore(_storeName);
-    });
+    _db = await idbFactory.open(
+      _dbName,
+      version: 1,
+      onUpgradeNeeded: (VersionChangeEvent event) {
+        final db = event.database;
+        db.createObjectStore(_storeName);
+      },
+    );
     return _db!;
   }
 
-  static Future<void> saveMedia(String id, Uint8List data, String mimeType) async {
+  static Future<void> saveMedia(
+    String id,
+    Uint8List data,
+    String mimeType,
+  ) async {
     final db = await _getDb();
     final txn = db.transaction(_storeName, idbModeReadWrite);
     final store = txn.objectStore(_storeName);
-    
+
     // We store as a Dart map with bytes and mimeType
     await store.put({
       'data': data,
@@ -45,7 +53,7 @@ class WebStorage {
     if (value != null) {
       final data = value['data'] as Uint8List;
       final mimeType = value['mimeType'] as String;
-      
+
       final blob = html.Blob([data], mimeType);
       final url = html.Url.createObjectUrlFromBlob(blob);
       _urlCache[id] = url;
@@ -62,7 +70,7 @@ class WebStorage {
     if (value != null) {
       final data = value['data'] as Uint8List;
       final mimeType = value['mimeType'] as String;
-      
+
       final blob = html.Blob([data], mimeType);
       final url = html.Url.createObjectUrlFromBlob(blob);
       html.AnchorElement(href: url)

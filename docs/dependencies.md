@@ -58,6 +58,10 @@ graph TD
 - **`flutter_riverpod`**: A reactive caching and data-binding framework.
   - *Why used*: Manages the application state safely and efficiently, handling things like active chats, WebRTC connection states, and user preferences.
 
+## 🚀 CI/CD Infrastructure
+- **GitHub Actions (`web-deploy.yml`, `release.yml`)**: Cloud compilation workflows.
+  - *Why used*: Automatically builds Native apps (APK, Linux, Windows) and publishes the Web app to GitHub Pages. Ensure `compileSdkVersion 36` is used to prevent Gradle evaluation errors.
+
 ## 🌐 Networking & P2P (The Core of Abyss Chat)
 - **`peerdart`**: A Dart port of PeerJS.
   - *Why used*: Handles the signaling process to establish direct Peer-to-Peer (P2P) connections between users.

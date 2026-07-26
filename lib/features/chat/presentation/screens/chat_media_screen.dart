@@ -10,9 +10,13 @@ class ChatMediaScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mediaMessages = thread.messages.where((m) => m.type == MessageType.image).toList();
-    final docMessages = thread.messages.where((m) => m.type == MessageType.file).toList();
-    
+    final mediaMessages = thread.messages
+        .where((m) => m.type == MessageType.image)
+        .toList();
+    final docMessages = thread.messages
+        .where((m) => m.type == MessageType.file)
+        .toList();
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -49,7 +53,8 @@ class ChatMediaScreen extends StatelessWidget {
       itemCount: messages.length,
       itemBuilder: (context, index) {
         final msg = messages[index];
-        if (msg.localFilePath != null && File(msg.localFilePath!).existsSync()) {
+        if (msg.localFilePath != null &&
+            File(msg.localFilePath!).existsSync()) {
           return Image.file(File(msg.localFilePath!), fit: BoxFit.cover);
         }
         return Container(
@@ -71,7 +76,9 @@ class ChatMediaScreen extends StatelessWidget {
         return ListTile(
           leading: const Icon(Icons.insert_drive_file),
           title: Text(msg.fileName ?? 'Document'),
-          subtitle: Text('${msg.timestamp.month}/${msg.timestamp.day}/${msg.timestamp.year}'),
+          subtitle: Text(
+            '${msg.timestamp.month}/${msg.timestamp.day}/${msg.timestamp.year}',
+          ),
           onTap: () {
             // Handle opening file
           },

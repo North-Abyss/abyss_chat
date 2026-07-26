@@ -22,7 +22,6 @@ class GroupInfoScreen extends ConsumerStatefulWidget {
 }
 
 class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
-  
   Future<void> _pickImage() async {
     String? imagePath;
     if (Platform.isAndroid || Platform.isIOS) {
@@ -35,11 +34,9 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
     }
 
     if (imagePath != null) {
-      ref.read(chatThreadsProvider.notifier).updateGroupProfile(
-        widget.thread.id, 
-        null, 
-        imagePath
-      );
+      ref
+          .read(chatThreadsProvider.notifier)
+          .updateGroupProfile(widget.thread.id, null, imagePath);
     }
   }
 
@@ -55,29 +52,37 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
           autofocus: true,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Save')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
         ],
       ),
     );
 
     if (newName != null && newName.isNotEmpty && newName != currentName) {
-      ref.read(chatThreadsProvider.notifier).updateGroupProfile(
-        widget.thread.id, 
-        newName, 
-        null
-      );
+      ref
+          .read(chatThreadsProvider.notifier)
+          .updateGroupProfile(widget.thread.id, newName, null);
     }
   }
 
   void _showGroupQR(ChatThread liveThread) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => GroupQRScreen(thread: liveThread)));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => GroupQRScreen(thread: liveThread)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final liveThread = ref.watch(singleThreadProvider(widget.thread.id)) ?? widget.thread;
-    
+    final liveThread =
+        ref.watch(singleThreadProvider(widget.thread.id)) ?? widget.thread;
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -85,8 +90,15 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
             expandedHeight: 250,
             pinned: true,
             actions: [
-              IconButton(icon: const Icon(Icons.qr_code), onPressed: () => _showGroupQR(liveThread)),
-              IconButton(icon: const Icon(Icons.edit), onPressed: () => _renameGroup(liveThread.groupName ?? 'Group Info')),
+              IconButton(
+                icon: const Icon(Icons.qr_code),
+                onPressed: () => _showGroupQR(liveThread),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () =>
+                    _renameGroup(liveThread.groupName ?? 'Group Info'),
+              ),
             ],
             flexibleSpace: FlexibleSpaceBar(
               title: Text(liveThread.groupName ?? 'Group Info'),
@@ -96,9 +108,19 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
                   Container(
                     color: Theme.of(context).colorScheme.primaryContainer,
                     child: liveThread.groupImagePath != null
-                        ? Image.file(File(liveThread.groupImagePath!), fit: BoxFit.cover)
+                        ? Image.file(
+                            File(liveThread.groupImagePath!),
+                            fit: BoxFit.cover,
+                          )
                         : Center(
-                            child: Icon(Icons.group, size: 100, color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.5)),
+                            child: Icon(
+                              Icons.group,
+                              size: 100,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer
+                                  .withValues(alpha: 0.5),
+                            ),
                           ),
                   ),
                   Positioned(
@@ -123,7 +145,10 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
                     '${liveThread.members.length} Participants',
-                    style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 ListTile(
@@ -136,7 +161,8 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
                     showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
-                      builder: (context) => _AddParticipantsSheet(thread: liveThread),
+                      builder: (context) =>
+                          _AddParticipantsSheet(thread: liveThread),
                     );
                   },
                 ),
@@ -157,7 +183,10 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.exit_to_app, color: Colors.red),
-                  title: const Text('Exit Group', style: TextStyle(color: Colors.red)),
+                  title: const Text(
+                    'Exit Group',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                   },
@@ -177,7 +206,8 @@ class _AddParticipantsSheet extends ConsumerStatefulWidget {
   const _AddParticipantsSheet({required this.thread});
 
   @override
-  ConsumerState<_AddParticipantsSheet> createState() => _AddParticipantsSheetState();
+  ConsumerState<_AddParticipantsSheet> createState() =>
+      _AddParticipantsSheetState();
 }
 
 class _AddParticipantsSheetState extends ConsumerState<_AddParticipantsSheet> {
@@ -187,7 +217,7 @@ class _AddParticipantsSheetState extends ConsumerState<_AddParticipantsSheet> {
   Widget build(BuildContext context) {
     final contacts = ref.watch(contactsProvider).value ?? [];
     final nearbyPeers = ref.watch(nearbyPeersProvider);
-    
+
     final allAvailable = <String, User>{};
     for (var c in contacts) {
       allAvailable[c.id] = c;
@@ -195,9 +225,11 @@ class _AddParticipantsSheetState extends ConsumerState<_AddParticipantsSheet> {
     for (var p in nearbyPeers) {
       allAvailable[p.id] = p;
     }
-    
+
     final existingIds = widget.thread.members.map((m) => m.id).toSet();
-    final usersList = allAvailable.values.where((u) => !existingIds.contains(u.id)).toList();
+    final usersList = allAvailable.values
+        .where((u) => !existingIds.contains(u.id))
+        .toList();
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.7,
@@ -207,18 +239,36 @@ class _AddParticipantsSheetState extends ConsumerState<_AddParticipantsSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Add Participants', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text(
+                'Add Participants',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
               TextButton(
-                onPressed: _selected.isEmpty ? null : () {
-                  final threads = List<ChatThread>.from(ref.read(chatThreadsProvider).value ?? []);
-                  final threadIndex = threads.indexWhere((t) => t.id == widget.thread.id);
-                  if (threadIndex != -1) {
-                    final updatedMembers = List<User>.from(threads[threadIndex].members)..addAll(_selected);
-                    threads[threadIndex] = threads[threadIndex].copyWith(members: updatedMembers);
-                    ref.read(chatThreadsProvider.notifier).updateGroupMembers(widget.thread.id, updatedMembers);
-                  }
-                  Navigator.pop(context);
-                },
+                onPressed: _selected.isEmpty
+                    ? null
+                    : () {
+                        final threads = List<ChatThread>.from(
+                          ref.read(chatThreadsProvider).value ?? [],
+                        );
+                        final threadIndex = threads.indexWhere(
+                          (t) => t.id == widget.thread.id,
+                        );
+                        if (threadIndex != -1) {
+                          final updatedMembers = List<User>.from(
+                            threads[threadIndex].members,
+                          )..addAll(_selected);
+                          threads[threadIndex] = threads[threadIndex].copyWith(
+                            members: updatedMembers,
+                          );
+                          ref
+                              .read(chatThreadsProvider.notifier)
+                              .updateGroupMembers(
+                                widget.thread.id,
+                                updatedMembers,
+                              );
+                        }
+                        Navigator.pop(context);
+                      },
                 child: const Text('Add'),
               ),
             ],
@@ -232,12 +282,17 @@ class _AddParticipantsSheetState extends ConsumerState<_AddParticipantsSheet> {
                     itemBuilder: (context, index) {
                       final user = usersList[index];
                       final isSelected = _selected.any((m) => m.id == user.id);
-                      
+
                       return ListTile(
                         leading: UserAvatar(user: user, radius: 20),
                         title: Text(user.name),
                         subtitle: Text(user.id),
-                        trailing: isSelected ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary) : null,
+                        trailing: isSelected
+                            ? Icon(
+                                Icons.check_circle,
+                                color: Theme.of(context).colorScheme.primary,
+                              )
+                            : null,
                         onTap: () {
                           setState(() {
                             if (isSelected) {

@@ -10,7 +10,8 @@ class ActivityScreen extends ConsumerStatefulWidget {
   ConsumerState<ActivityScreen> createState() => _ActivityScreenState();
 }
 
-class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTickerProviderStateMixin {
+class _ActivityScreenState extends ConsumerState<ActivityScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _statusController = TextEditingController();
@@ -82,7 +83,10 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Activity & Productivity', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Activity & Productivity',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -101,7 +105,12 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Personal Scratchpad', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: cs.primary)),
+                Text(
+                  'Personal Scratchpad',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(color: cs.primary),
+                ),
                 const SizedBox(height: 16),
                 Expanded(
                   child: TextField(
@@ -112,7 +121,9 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
                     decoration: InputDecoration(
                       hintText: 'Jot down ideas, links, or draft messages...',
                       filled: true,
-                      fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                      fillColor: cs.surfaceContainerHighest.withValues(
+                        alpha: 0.5,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
@@ -125,7 +136,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
               ],
             ),
           ),
-          
+
           // To-Do Tab
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -140,12 +151,17 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
                         decoration: InputDecoration(
                           hintText: 'Add a new task...',
                           filled: true,
-                          fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                          fillColor: cs.surfaceContainerHighest.withValues(
+                            alpha: 0.5,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(24),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
                         ),
                         onSubmitted: (_) => _addTodo(),
                       ),
@@ -160,19 +176,32 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
                 const SizedBox(height: 16),
                 Expanded(
                   child: _todos.isEmpty
-                      ? Center(child: Text('All caught up!', style: TextStyle(color: cs.onSurfaceVariant)))
+                      ? Center(
+                          child: Text(
+                            'All caught up!',
+                            style: TextStyle(color: cs.onSurfaceVariant),
+                          ),
+                        )
                       : ListView.builder(
                           itemCount: _todos.length,
                           itemBuilder: (context, index) {
                             return Card(
                               elevation: 0,
-                              color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+                              color: cs.surfaceContainerHighest.withValues(
+                                alpha: 0.3,
+                              ),
                               margin: const EdgeInsets.only(bottom: 8),
                               child: ListTile(
-                                leading: Icon(Icons.circle_outlined, color: cs.primary),
+                                leading: Icon(
+                                  Icons.circle_outlined,
+                                  color: cs.primary,
+                                ),
                                 title: Text(_todos[index]),
                                 trailing: IconButton(
-                                  icon: const Icon(Icons.check, color: Colors.green),
+                                  icon: const Icon(
+                                    Icons.check,
+                                    color: Colors.green,
+                                  ),
                                   onPressed: () => _removeTodo(index),
                                 ),
                               ),
@@ -183,16 +212,24 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
               ],
             ),
           ),
-          
+
           // Status Tab
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Set Global Status', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: cs.primary)),
+                Text(
+                  'Set Global Status',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(color: cs.primary),
+                ),
                 const SizedBox(height: 8),
-                Text('Let your peers know what you are up to.', style: TextStyle(color: cs.onSurfaceVariant)),
+                Text(
+                  'Let your peers know what you are up to.',
+                  style: TextStyle(color: cs.onSurfaceVariant),
+                ),
                 const SizedBox(height: 24),
                 TextField(
                   controller: _statusController,
@@ -201,7 +238,9 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
                     hintText: 'e.g. In a meeting, Working deep, Available',
                     prefixIcon: const Icon(Icons.emoji_people),
                     filled: true,
-                    fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                    fillColor: cs.surfaceContainerHighest.withValues(
+                      alpha: 0.5,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,
@@ -212,7 +251,11 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> with SingleTick
                 FilledButton.icon(
                   onPressed: () {
                     _saveStatus();
-                    AbyssSnackBar.show(context, 'Status updated', type: SnackBarType.success);
+                    AbyssSnackBar.show(
+                      context,
+                      'Status updated',
+                      type: SnackBarType.success,
+                    );
                   },
                   icon: const Icon(Icons.save),
                   label: const Text('Update Status'),

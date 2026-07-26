@@ -25,7 +25,9 @@ class CallLog {
       peer: User.fromJson(json['peer']),
       isVideo: json['isVideo'] ?? false,
       timestamp: DateTime.parse(json['timestamp']),
-      duration: json['durationMs'] != null ? Duration(milliseconds: json['durationMs']) : null,
+      duration: json['durationMs'] != null
+          ? Duration(milliseconds: json['durationMs'])
+          : null,
       isOutgoing: json['isOutgoing'] ?? false,
       isMissed: json['isMissed'] ?? false,
     );

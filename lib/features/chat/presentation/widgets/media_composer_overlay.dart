@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/features/chat/domain/chat_controller.dart';
@@ -11,7 +10,13 @@ class MediaComposerOverlay extends ConsumerStatefulWidget {
   final VoidCallback onClose;
   final VoidCallback onAddMore;
   final Function(int) onRemove;
-  final Function(List<PickedMedia> selectedMedia, String caption, bool compressToZip, List<String> targetThreadIds) onSend;
+  final Function(
+    List<PickedMedia> selectedMedia,
+    String caption,
+    bool compressToZip,
+    List<String> targetThreadIds,
+  )
+  onSend;
 
   const MediaComposerOverlay({
     super.key,
@@ -24,7 +29,8 @@ class MediaComposerOverlay extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<MediaComposerOverlay> createState() => _MediaComposerOverlayState();
+  ConsumerState<MediaComposerOverlay> createState() =>
+      _MediaComposerOverlayState();
 }
 
 class _MediaComposerOverlayState extends ConsumerState<MediaComposerOverlay> {
@@ -46,7 +52,9 @@ class _MediaComposerOverlayState extends ConsumerState<MediaComposerOverlay> {
     super.didUpdateWidget(oldWidget);
     if (widget.initialMedia.length != oldWidget.initialMedia.length) {
       if (_currentIndex >= widget.initialMedia.length) {
-        _currentIndex = widget.initialMedia.isEmpty ? 0 : widget.initialMedia.length - 1;
+        _currentIndex = widget.initialMedia.isEmpty
+            ? 0
+            : widget.initialMedia.length - 1;
       }
       if (mounted) setState(() {});
     }
@@ -62,23 +70,28 @@ class _MediaComposerOverlayState extends ConsumerState<MediaComposerOverlay> {
   Widget _buildPreviewItem(PickedMedia media) {
     if (media.isImage) {
       return InteractiveViewer(
-        child: Image.memory(
-          media.bytes,
-          fit: BoxFit.contain,
-        ),
+        child: Image.memory(media.bytes, fit: BoxFit.contain),
       );
     } else {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.insert_drive_file, size: 120, color: Colors.indigo),
+            const Icon(
+              Icons.insert_drive_file,
+              size: 120,
+              color: Colors.indigo,
+            ),
             const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
                 media.name,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -120,24 +133,44 @@ class _MediaComposerOverlayState extends ConsumerState<MediaComposerOverlay> {
                       child: Row(
                         children: [
                           ..._selectedThreadIds.map((tid) {
-                            final thread = allThreads.firstWhere((t) => t.id == tid, orElse: () => allThreads.first);
+                            final thread = allThreads.firstWhere(
+                              (t) => t.id == tid,
+                              orElse: () => allThreads.first,
+                            );
                             return Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: Chip(
-                                avatar: UserAvatar(user: thread.peer, radius: 12),
-                                label: Text(thread.isGroup ? (thread.groupName ?? 'Group') : thread.peer.name),
+                                avatar: UserAvatar(
+                                  user: thread.peer,
+                                  radius: 12,
+                                ),
+                                label: Text(
+                                  thread.isGroup
+                                      ? (thread.groupName ?? 'Group')
+                                      : thread.peer.name,
+                                ),
                                 backgroundColor: cs.primaryContainer,
-                                labelStyle: TextStyle(color: cs.onPrimaryContainer),
+                                labelStyle: TextStyle(
+                                  color: cs.onPrimaryContainer,
+                                ),
                                 deleteIconColor: cs.onPrimaryContainer,
-                                onDeleted: _selectedThreadIds.length > 1 ? () {
-                                  setState(() => _selectedThreadIds.remove(tid));
-                                } : null,
+                                onDeleted: _selectedThreadIds.length > 1
+                                    ? () {
+                                        setState(
+                                          () => _selectedThreadIds.remove(tid),
+                                        );
+                                      }
+                                    : null,
                               ),
                             );
                           }),
                           const SizedBox(width: 8),
                           PopupMenuButton<String>(
-                            icon: Icon(Icons.add_circle, color: cs.primary, size: 28),
+                            icon: Icon(
+                              Icons.add_circle,
+                              color: cs.primary,
+                              size: 28,
+                            ),
                             tooltip: 'Send to more contacts',
                             color: cs.surfaceContainerHigh,
                             onSelected: (tid) {
@@ -147,17 +180,28 @@ class _MediaComposerOverlayState extends ConsumerState<MediaComposerOverlay> {
                             },
                             itemBuilder: (context) {
                               return allThreads
-                                  .where((t) => !_selectedThreadIds.contains(t.id))
-                                  .map((t) => PopupMenuItem<String>(
-                                        value: t.id,
-                                        child: Row(
-                                          children: [
-                                            UserAvatar(user: t.peer, radius: 12),
-                                            const SizedBox(width: 8),
-                                            Text(t.isGroup ? (t.groupName ?? 'Group') : t.peer.name, style: TextStyle(color: cs.onSurface)),
-                                          ],
-                                        ),
-                                      ))
+                                  .where(
+                                    (t) => !_selectedThreadIds.contains(t.id),
+                                  )
+                                  .map(
+                                    (t) => PopupMenuItem<String>(
+                                      value: t.id,
+                                      child: Row(
+                                        children: [
+                                          UserAvatar(user: t.peer, radius: 12),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            t.isGroup
+                                                ? (t.groupName ?? 'Group')
+                                                : t.peer.name,
+                                            style: TextStyle(
+                                              color: cs.onSurface,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
                                   .toList();
                             },
                           ),
@@ -200,14 +244,22 @@ class _MediaComposerOverlayState extends ConsumerState<MediaComposerOverlay> {
                           borderRadius: BorderRadius.circular(24),
                           borderSide: BorderSide.none,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   FloatingActionButton(
                     onPressed: () {
-                      widget.onSend(mediaList, _captionController.text, _compressToZip, _selectedThreadIds);
+                      widget.onSend(
+                        mediaList,
+                        _captionController.text,
+                        _compressToZip,
+                        _selectedThreadIds,
+                      );
                     },
                     backgroundColor: cs.primary,
                     foregroundColor: cs.onPrimary,
@@ -230,12 +282,22 @@ class _MediaComposerOverlayState extends ConsumerState<MediaComposerOverlay> {
                       children: [
                         Checkbox(
                           value: _compressToZip,
-                          onChanged: (val) => setState(() => _compressToZip = val ?? false),
-                          fillColor: WidgetStateProperty.resolveWith((states) => cs.primary),
+                          onChanged: (val) =>
+                              setState(() => _compressToZip = val ?? false),
+                          fillColor: WidgetStateProperty.resolveWith(
+                            (states) => cs.primary,
+                          ),
                           checkColor: cs.onPrimary,
                         ),
-                        Text('Send as Zip', style: TextStyle(color: cs.onSurface)),
-                        VerticalDivider(color: cs.outlineVariant, indent: 8, endIndent: 8),
+                        Text(
+                          'Send as Zip',
+                          style: TextStyle(color: cs.onSurface),
+                        ),
+                        VerticalDivider(
+                          color: cs.outlineVariant,
+                          indent: 8,
+                          endIndent: 8,
+                        ),
                       ],
                     ),
                   Expanded(
@@ -257,15 +319,19 @@ class _MediaComposerOverlayState extends ConsumerState<MediaComposerOverlay> {
                                   border: Border.all(color: cs.outlineVariant),
                                 ),
                                 child: Center(
-                                  child: Icon(Icons.add, color: cs.onSurfaceVariant, size: 32),
+                                  child: Icon(
+                                    Icons.add,
+                                    color: cs.onSurfaceVariant,
+                                    size: 32,
+                                  ),
                                 ),
                               ),
                             );
                           }
-                          
+
                           final media = mediaList[index];
                           final isSelected = index == _currentIndex;
-                          
+
                           return GestureDetector(
                             onTap: () {
                               _pageController.animateToPage(
@@ -284,17 +350,25 @@ class _MediaComposerOverlayState extends ConsumerState<MediaComposerOverlay> {
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: isSelected ? cs.primary : Colors.transparent,
+                                        color: isSelected
+                                            ? cs.primary
+                                            : Colors.transparent,
                                         width: 3,
                                       ),
                                     ),
                                     clipBehavior: Clip.antiAlias,
                                     child: media.isImage
-                                        ? Image.memory(media.bytes, fit: BoxFit.cover)
+                                        ? Image.memory(
+                                            media.bytes,
+                                            fit: BoxFit.cover,
+                                          )
                                         : Container(
                                             color: cs.secondaryContainer,
                                             child: Center(
-                                              child: Icon(Icons.insert_drive_file, color: cs.onSecondaryContainer),
+                                              child: Icon(
+                                                Icons.insert_drive_file,
+                                                color: cs.onSecondaryContainer,
+                                              ),
                                             ),
                                           ),
                                   ),
@@ -306,10 +380,16 @@ class _MediaComposerOverlayState extends ConsumerState<MediaComposerOverlay> {
                                       child: Container(
                                         padding: const EdgeInsets.all(2),
                                         decoration: BoxDecoration(
-                                          color: Colors.black.withValues(alpha: 0.6),
+                                          color: Colors.black.withValues(
+                                            alpha: 0.6,
+                                          ),
                                           shape: BoxShape.circle,
                                         ),
-                                        child: const Icon(Icons.close, color: Colors.white, size: 14),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
                                       ),
                                     ),
                                   ),

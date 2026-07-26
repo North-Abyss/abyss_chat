@@ -1,4 +1,5 @@
 enum MessageType { text, system, image, file, audio, activity, game }
+
 enum MessageStatus { pending, sending, sent, delivered, read, failed }
 
 class Message {
@@ -39,8 +40,11 @@ class Message {
       text: json['text'],
       timestamp: DateTime.parse(json['timestamp']),
       status: MessageStatus.values.firstWhere(
-        (e) => e.name == (json['status'] ?? 'sent'), // default to sent for old messages
-        orElse: () => json['isRead'] == true ? MessageStatus.read : MessageStatus.sent,
+        (e) =>
+            e.name ==
+            (json['status'] ?? 'sent'), // default to sent for old messages
+        orElse: () =>
+            json['isRead'] == true ? MessageStatus.read : MessageStatus.sent,
       ),
       type: MessageType.values.firstWhere(
         (e) => e.name == (json['type'] ?? 'text'),

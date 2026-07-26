@@ -24,7 +24,7 @@ class UserSearchDelegate extends SearchDelegate<String?> {
             query = '';
             showSuggestions(context);
           },
-        )
+        ),
     ];
   }
 
@@ -59,9 +59,11 @@ class UserSearchDelegate extends SearchDelegate<String?> {
     }
 
     // Filter by query
-    final filteredUsers = query.isEmpty 
-        ? allUsers 
-        : allUsers.where((u) => u.name.toLowerCase().contains(query.toLowerCase())).toList();
+    final filteredUsers = query.isEmpty
+        ? allUsers
+        : allUsers
+              .where((u) => u.name.toLowerCase().contains(query.toLowerCase()))
+              .toList();
 
     if (filteredUsers.isEmpty) {
       return const Center(child: Text('No users found.'));
@@ -72,13 +74,15 @@ class UserSearchDelegate extends SearchDelegate<String?> {
       itemBuilder: (context, index) {
         final user = filteredUsers[index];
         final isNearby = nearbyPeers.any((p) => p.id == user.id);
-        
+
         return ListTile(
           leading: UserAvatar(user: user, radius: 20),
           title: Text(user.name),
           subtitle: Text(isNearby ? 'Nearby' : 'Contact'),
           onTap: () {
-            ref.read(chatThreadsProvider.notifier).startNewChat(user.id, peerName: user.name);
+            ref
+                .read(chatThreadsProvider.notifier)
+                .startNewChat(user.id, peerName: user.name);
             close(context, user.id);
           },
         );

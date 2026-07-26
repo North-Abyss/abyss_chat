@@ -24,12 +24,19 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
     // Add myself to the group members
     final myId = ref.read(peerServiceProvider).myId ?? 'me';
     final myProfile = ref.read(myProfileProvider).value;
-    
+
     final allMembers = List<User>.from(_selectedMembers);
     if (myProfile != null) {
       allMembers.add(myProfile);
     } else {
-      allMembers.add(User(id: myId, name: 'You', avatarIcon: 0xe491, avatarColor: 0xFF6750A4));
+      allMembers.add(
+        User(
+          id: myId,
+          name: 'You',
+          avatarIcon: 0xe491,
+          avatarColor: 0xFF6750A4,
+        ),
+      );
     }
 
     ref.read(chatThreadsProvider.notifier).createGroup(name, allMembers);
@@ -40,7 +47,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
   Widget build(BuildContext context) {
     final contacts = ref.watch(contactsProvider).value ?? [];
     final nearbyPeers = ref.watch(nearbyPeersProvider);
-    
+
     // Combine contacts and nearby peers, removing duplicates by ID
     final allAvailable = <String, User>{};
     for (var c in contacts) {
@@ -56,8 +63,16 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
         title: const Text('New Group'),
         actions: [
           TextButton(
-            onPressed: _nameController.text.trim().isEmpty ? null : _createGroup,
-            child: const Text('Create', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            onPressed: _nameController.text.trim().isEmpty
+                ? null
+                : _createGroup,
+            child: const Text(
+              'Create',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -89,7 +104,9 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             width: double.infinity,
-            child: Text('Add Participants: ${_selectedMembers.length} selected'),
+            child: Text(
+              'Add Participants: ${_selectedMembers.length} selected',
+            ),
           ),
           Expanded(
             child: usersList.isEmpty
@@ -98,17 +115,26 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                     itemCount: usersList.length,
                     itemBuilder: (context, index) {
                       final user = usersList[index];
-                      final isSelected = _selectedMembers.any((m) => m.id == user.id);
-                      
+                      final isSelected = _selectedMembers.any(
+                        (m) => m.id == user.id,
+                      );
+
                       return ListTile(
                         leading: UserAvatar(user: user, radius: 20),
                         title: Text(user.name),
                         subtitle: Text(user.id),
-                        trailing: isSelected ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary) : null,
+                        trailing: isSelected
+                            ? Icon(
+                                Icons.check_circle,
+                                color: Theme.of(context).colorScheme.primary,
+                              )
+                            : null,
                         onTap: () {
                           setState(() {
                             if (isSelected) {
-                              _selectedMembers.removeWhere((m) => m.id == user.id);
+                              _selectedMembers.removeWhere(
+                                (m) => m.id == user.id,
+                              );
                             } else {
                               _selectedMembers.add(user);
                             }

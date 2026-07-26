@@ -9,42 +9,60 @@ import 'package:abyss_chat/core/utils/shared_prefs_helper.dart';
 import 'package:abyss_chat/network/web_notification.dart'; // Add conditional import
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
 
   static Future<void> initialize() async {
-    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const LinuxInitializationSettings linuxSettings = LinuxInitializationSettings(defaultActionName: 'Open notification');
-    const DarwinInitializationSettings darwinSettings = DarwinInitializationSettings();
-    
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const LinuxInitializationSettings linuxSettings =
+        LinuxInitializationSettings(defaultActionName: 'Open notification');
+    const DarwinInitializationSettings darwinSettings =
+        DarwinInitializationSettings();
+
     const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
       linux: linuxSettings,
       macOS: darwinSettings,
       iOS: darwinSettings,
     );
-    
-    await _plugin.initialize(
-      settings: initSettings,
-    );
-    
+
+    await _plugin.initialize(settings: initSettings);
+
     if (!kIsWeb) {
       if (Platform.isAndroid) {
-        await _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.requestNotificationsPermission();
       } else if (Platform.isIOS) {
-        await _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()?.requestPermissions(alert: true, badge: true, sound: true);
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >()
+            ?.requestPermissions(alert: true, badge: true, sound: true);
       }
     }
-    
+
     _initialized = true;
   }
 
-  static void showMessageNotification(String title, String body, {VoidCallback? onTap, bool inAppOnly = false}) async {
+  static void showMessageNotification(
+    String title,
+    String body, {
+    VoidCallback? onTap,
+    bool inAppOnly = false,
+  }) async {
     final prefs = await SharedPrefsHelper.instance;
-    final systemEnabled = prefs.getBool('systemNotificationsEnabled') ?? !kIsWeb;
+    final systemEnabled =
+        prefs.getBool('systemNotificationsEnabled') ?? !kIsWeb;
     final inAppEnabled = prefs.getBool('inAppNotificationsEnabled') ?? kIsWeb;
     final positionStr = prefs.getString('notificationPosition') ?? 'top';
-    final position = positionStr == 'bottom' ? NotificationPosition.bottom : NotificationPosition.top;
+    final position = positionStr == 'bottom'
+        ? NotificationPosition.bottom
+        : NotificationPosition.top;
 
     if (systemEnabled && !inAppOnly) {
       if (kIsWeb) {
@@ -55,16 +73,19 @@ class NotificationService {
         if (!_initialized) {
           await initialize();
         }
-        
+
         try {
-          const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-            'abyss_chat_messages',
-            'Messages',
-            importance: Importance.high,
-            priority: Priority.high,
+          const AndroidNotificationDetails androidDetails =
+              AndroidNotificationDetails(
+                'abyss_chat_messages',
+                'Messages',
+                importance: Importance.high,
+                priority: Priority.high,
+              );
+          const NotificationDetails platformDetails = NotificationDetails(
+            android: androidDetails,
           );
-          const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
-          
+
           await _plugin.show(
             id: DateTime.now().millisecond,
             title: title,
@@ -77,10 +98,10 @@ class NotificationService {
         }
       }
     }
-    
+
     // In-app fallback or if system notifications are disabled
     if (!inAppEnabled) return;
-    
+
     final overlayState = globalNavigatorKey.currentState?.overlay;
     if (overlayState == null) return;
 
@@ -107,7 +128,9 @@ class NotificationService {
   }) async {
     final prefs = await SharedPrefsHelper.instance;
     final positionStr = prefs.getString('notificationPosition') ?? 'top';
-    final position = positionStr == 'bottom' ? NotificationPosition.bottom : NotificationPosition.top;
+    final position = positionStr == 'bottom'
+        ? NotificationPosition.bottom
+        : NotificationPosition.top;
 
     final overlayState = globalNavigatorKey.currentState?.overlay;
     if (overlayState == null) return;
@@ -148,10 +171,12 @@ class _ConnectionRequestWidget extends StatefulWidget {
   });
 
   @override
-  State<_ConnectionRequestWidget> createState() => _ConnectionRequestWidgetState();
+  State<_ConnectionRequestWidget> createState() =>
+      _ConnectionRequestWidgetState();
 }
 
-class _ConnectionRequestWidgetState extends State<_ConnectionRequestWidget> with SingleTickerProviderStateMixin {
+class _ConnectionRequestWidgetState extends State<_ConnectionRequestWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
 
@@ -162,12 +187,12 @@ class _ConnectionRequestWidgetState extends State<_ConnectionRequestWidget> with
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _offsetAnimation = Tween<Offset>(begin: const Offset(1.5, 0), end: Offset.zero).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutBack,
-    ));
+    _offsetAnimation = Tween<Offset>(
+      begin: const Offset(1.5, 0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
     _controller.forward();
-    
+
     // Auto decline after 15 seconds
     Future.delayed(const Duration(seconds: 15), () {
       if (mounted) {
@@ -207,9 +232,15 @@ class _ConnectionRequestWidgetState extends State<_ConnectionRequestWidget> with
             decoration: BoxDecoration(
               color: cs.surfaceContainerHigh.withValues(alpha: 0.95),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: cs.outlineVariant.withValues(alpha: 0.5),
+              ),
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 8)),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
               ],
             ),
             child: Column(
@@ -226,8 +257,15 @@ class _ConnectionRequestWidgetState extends State<_ConnectionRequestWidget> with
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(widget.senderName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          Text(widget.message, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          Text(
+                            widget.senderName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            widget.message,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
                     ),
@@ -274,10 +312,12 @@ class SlidableNotificationWidget extends StatefulWidget {
   });
 
   @override
-  State<SlidableNotificationWidget> createState() => _SlidableNotificationWidgetState();
+  State<SlidableNotificationWidget> createState() =>
+      _SlidableNotificationWidgetState();
 }
 
-class _SlidableNotificationWidgetState extends State<SlidableNotificationWidget> with SingleTickerProviderStateMixin {
+class _SlidableNotificationWidgetState extends State<SlidableNotificationWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
 
@@ -292,10 +332,7 @@ class _SlidableNotificationWidgetState extends State<SlidableNotificationWidget>
     _offsetAnimation = Tween<Offset>(
       begin: const Offset(1.5, 0), // Start off-screen right
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutBack,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
     _controller.forward();
 
@@ -324,9 +361,9 @@ class _SlidableNotificationWidgetState extends State<SlidableNotificationWidget>
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    
+
     final isTop = widget.position == NotificationPosition.top;
-    
+
     return Positioned(
       bottom: isTop ? null : 24,
       top: isTop ? 24 : null,
@@ -343,7 +380,8 @@ class _SlidableNotificationWidgetState extends State<SlidableNotificationWidget>
               _dismiss();
             },
             onHorizontalDragEnd: (details) {
-              if (details.primaryVelocity != null && details.primaryVelocity! > 0) {
+              if (details.primaryVelocity != null &&
+                  details.primaryVelocity! > 0) {
                 // Swipe right to dismiss
                 _dismiss();
               }
@@ -354,7 +392,9 @@ class _SlidableNotificationWidgetState extends State<SlidableNotificationWidget>
               decoration: BoxDecoration(
                 color: cs.surfaceContainerHigh.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: cs.outlineVariant.withValues(alpha: 0.3),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.2),
@@ -374,8 +414,15 @@ class _SlidableNotificationWidgetState extends State<SlidableNotificationWidget>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(widget.senderName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        Text(widget.message, maxLines: 2, overflow: TextOverflow.ellipsis),
+                        Text(
+                          widget.senderName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          widget.message,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ),
                   ),

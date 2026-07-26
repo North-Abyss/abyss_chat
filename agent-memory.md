@@ -10,8 +10,8 @@
 
 # Abyss Chat - Agent Memory & Workspace Overview
 
-**Version:** 1.4.0
-**Project Goal:** A cross-platform, decentralized P2P messaging and video calling application (WhatsApp-style) running on Flutter and Riverpod.
+**Version:** 1.1.4
+**Project Goal:** A cross-platform, decentralized P2P messaging and video calling application (WhatsApp-style) running on Flutter and Riverpod. Includes automated CI/CD for Cloud Compilation and GitHub Pages Web Deployment.
 
 | Field               | Value                                             |
 |---------------------|---------------------------------------------------|
