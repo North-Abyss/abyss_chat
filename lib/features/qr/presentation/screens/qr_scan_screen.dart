@@ -12,7 +12,7 @@ class QRScanScreen extends ConsumerStatefulWidget {
 }
 
 class _QRScanScreenState extends ConsumerState<QRScanScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final bool _isUnsupportedPlatform;
   MobileScannerController? cameraController;
   bool _isScanning = true;
@@ -23,6 +23,7 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _isUnsupportedPlatform =
         !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.linux ||
@@ -54,7 +55,16 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan QR Code')),
+      appBar: AppBar(
+        title: const Text('Scan QR Code'),
+        actions: [
+          if (!_isUnsupportedPlatform && _isCameraReady)
+            IconButton(
+              icon: const Icon(Icons.cameraswitch),
+              onPressed: () => cameraController?.switchCamera(),
+            ),
+        ],
+      ),
       body: _isUnsupportedPlatform
           ? Center(
               child: Padding(
@@ -224,7 +234,30 @@ class _QRScanScreenState extends ConsumerState<QRScanScreen>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (cameraController == null) return;
+    
+    switch (state) {
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        cameraController?.stop();
+        break;
+      case AppLifecycleState.resumed:
+        if (_isScanning) {
+          cameraController?.start();
+        }
+        break;
+      case AppLifecycleState.inactive:
+        // Do nothing
+        break;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _animationController.dispose();
     cameraController?.stop();
     cameraController?.dispose();

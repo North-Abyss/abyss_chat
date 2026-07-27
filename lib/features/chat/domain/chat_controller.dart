@@ -281,6 +281,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     if (!state.hasValue) return;
     final threads = state.value!;
     for (final thread in threads) {
+      if (thread.id == myId) continue;
       if (thread.messages.any((m) => m.status == MessageStatus.pending)) {
         if (thread.isGroup) {
           for (final member in thread.members) {
@@ -311,6 +312,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     for (final thread in threads) {
       if (thread.isGroup) continue;
       final peerId = thread.id;
+      if (peerId == myId) continue;
       // Only reconnect to threads that have recent activity (last 24 hours)
       if (thread.messages.isNotEmpty &&
           DateTime.now().difference(thread.messages.last.timestamp).inHours <
@@ -363,26 +365,6 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
 
     int threadIndex = threads.indexWhere((t) => t.id == targetThreadId);
 
-    if (threadIndex == -1 && !isGroup && message.senderName != null) {
-      final sameNameIndex = threads.indexWhere(
-        (t) => !t.isGroup && t.peer.name == message.senderName,
-      );
-      if (sameNameIndex != -1) {
-        final oldThread = threads[sameNameIndex];
-        threads[sameNameIndex] = oldThread.copyWith(
-          id: targetThreadId,
-          peer: oldThread.peer.copyWith(id: targetThreadId),
-        );
-        threadIndex = sameNameIndex;
-        if (currentSelectedId == oldThread.id) {
-          Future.microtask(
-            () => ref
-                .read(selectedThreadIdProvider.notifier)
-                .select(targetThreadId),
-          );
-        }
-      }
-    }
 
     if (threadIndex != -1) {
       final existingIndex = threads[threadIndex].messages.indexWhere(
@@ -550,14 +532,16 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
             .skip(math.max(0, thread.messages.length - 10))
             .map((m) {
               final json = m.toJson();
-              json.remove('fileData'); // Strip heavy base64 strings
+              if (m.type != MessageType.activity && m.type != MessageType.game) {
+                json.remove('fileData'); // Strip heavy base64 strings
+              }
               return json;
             })
             .toList();
 
         final payload = {
           'type': 'history_sync',
-          'threadId': peerId,
+          'threadId': myId,
           'messages': messagesToSend,
         };
         ref.read(peerServiceProvider).sendUrgentSignal(peerId, payload);
@@ -1079,7 +1063,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     }
   }
 
-  void syncActivityUpdate(String threadId, String messageId, String fileData) {
+  void syncActivityUpdate(String threadId, String messageId, String fileData, {bool broadcast = true}) {
     if (!state.hasValue) return;
     final threads = List<ChatThread>.from(state.value!);
     final threadIndex = threads.indexWhere((t) => t.id == threadId);
@@ -1087,6 +1071,10 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       final thread = threads[threadIndex];
       final msgIndex = thread.messages.indexWhere((m) => m.id == messageId);
       if (msgIndex == -1) return;
+      
+      // Check if it's already the same (prevents unnecessary re-builds)
+      if (thread.messages[msgIndex].fileData == fileData) return;
+
       final updatedMessages = List<Message>.from(thread.messages);
       final oldMsg = updatedMessages[msgIndex];
       updatedMessages[msgIndex] = oldMsg.copyWith(fileData: fileData);
@@ -1094,18 +1082,20 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
       state = AsyncData(threads);
       ref.read(storageServiceProvider).saveThreads(threads);
 
-      final payload = {
-        'type': 'activity_sync',
-        'threadId': threadId,
-        'messageId': messageId,
-        'fileData': fileData,
-      };
-      if (thread.isGroup) {
-        for (final member in thread.members) {
-          if (member.id != myId) _trySendSyncPayload(member.id, payload);
+      if (broadcast) {
+        final payload = {
+          'type': 'activity_sync',
+          'threadId': threadId,
+          'messageId': messageId,
+          'fileData': fileData,
+        };
+        if (thread.isGroup) {
+          for (final member in thread.members) {
+            if (member.id != myId) _trySendSyncPayload(member.id, payload);
+          }
+        } else {
+          _trySendSyncPayload(threadId, payload);
         }
-      } else {
-        _trySendSyncPayload(threadId, payload);
       }
     }
   }
@@ -1119,6 +1109,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
   void _handleHistorySync(Map<String, dynamic> data) {
     if (!state.hasValue) return;
     final threadId = data['threadId'] as String;
+    if (threadId == myId) return; // Reject history for our own ID
     final messagesRaw = data['messages'] as List<dynamic>;
     if (messagesRaw.isEmpty) return;
 

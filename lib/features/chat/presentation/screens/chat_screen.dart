@@ -357,88 +357,174 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _showEventPlanningDialog(BuildContext context) {
-    final titleController = TextEditingController();
-    final dateController = TextEditingController();
-    final timeController = TextEditingController();
-    final locationController = TextEditingController();
+    String title = '';
+    String date = '';
+    String time = '';
+    String location = '';
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Plan an Event'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Event Title',
-                  icon: Icon(Icons.event),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Plan an Event'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Event Name'),
+                      onChanged: (v) => title = v,
+                    ),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Date (e.g. Tomorrow)',
+                      ),
+                      onChanged: (v) => date = v,
+                    ),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Time'),
+                      onChanged: (v) => time = v,
+                    ),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Location'),
+                      onChanged: (v) => location = v,
+                    ),
+                  ],
                 ),
               ),
-              TextField(
-                controller: dateController,
-                decoration: const InputDecoration(
-                  labelText: 'Date (e.g., Oct 25)',
-                  icon: Icon(Icons.calendar_today),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
                 ),
-              ),
-              TextField(
-                controller: timeController,
-                decoration: const InputDecoration(
-                  labelText: 'Time (e.g., 7:00 PM)',
-                  icon: Icon(Icons.access_time),
+                ElevatedButton(
+                  onPressed: () {
+                    if (title.trim().isEmpty) return;
+                    final payload = jsonEncode({
+                      'activity': 'event',
+                      'title': title,
+                      'date': date,
+                      'time': time,
+                      'location': location,
+                      'going': <String>[],
+                      'declined': <String>[],
+                    });
+                    ref
+                        .read(chatThreadsProvider.notifier)
+                        .sendMessage(
+                          widget.threadId,
+                          '📅 Planned: $title',
+                          type: MessageType.activity,
+                          fileData: payload,
+                        );
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Create'),
                 ),
-              ),
-              TextField(
-                controller: locationController,
-                decoration: const InputDecoration(
-                  labelText: 'Location',
-                  icon: Icon(Icons.location_on),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (titleController.text.trim().isEmpty) return;
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
-              final payload = jsonEncode({
-                'activity': 'event',
-                'title': titleController.text.trim(),
-                'date': dateController.text.trim().isEmpty
-                    ? 'TBD'
-                    : dateController.text.trim(),
-                'time': timeController.text.trim().isEmpty
-                    ? 'TBD'
-                    : timeController.text.trim(),
-                'location': locationController.text.trim().isEmpty
-                    ? 'TBD'
-                    : locationController.text.trim(),
-                'rsvps': {ref.read(chatThreadsProvider.notifier).myId: 'going'},
-              });
+  void _showPollCreatorDialog(BuildContext context) {
+    String question = '';
+    List<String> options = ['', '']; // Start with 2 options
 
-              ref
-                  .read(chatThreadsProvider.notifier)
-                  .sendMessage(
-                    widget.threadId,
-                    '📅 Planned: ${titleController.text.trim()}',
-                    type: MessageType.activity,
-                    fileData: payload,
-                  );
-              Navigator.pop(context);
-            },
-            child: const Text('Create Event'),
-          ),
-        ],
-      ),
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Create a Poll'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Question'),
+                      onChanged: (v) => question = v,
+                      textCapitalization: TextCapitalization.sentences,
+                    ),
+                    const SizedBox(height: 16),
+                    ...List.generate(options.length, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                decoration: InputDecoration(
+                                  labelText: 'Option ${index + 1}',
+                                ),
+                                onChanged: (v) => options[index] = v,
+                              ),
+                            ),
+                            if (options.length > 2)
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle, color: Colors.red),
+                                onPressed: () {
+                                  setState(() {
+                                    options.removeAt(index);
+                                  });
+                                },
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+                    if (options.length < 5)
+                      TextButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Option'),
+                        onPressed: () {
+                          setState(() {
+                            options.add('');
+                          });
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (question.trim().isEmpty) return;
+                    final validOptions = options.map((o) => o.trim()).where((o) => o.isNotEmpty).toList();
+                    if (validOptions.length < 2) return;
+
+                    final payload = jsonEncode({
+                      'activity': 'poll',
+                      'question': question.trim(),
+                      'options': validOptions,
+                      'votes': {},
+                    });
+                    ref
+                        .read(chatThreadsProvider.notifier)
+                        .sendMessage(
+                          widget.threadId,
+                          '📊 Poll: $question',
+                          type: MessageType.activity,
+                          fileData: payload,
+                        );
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Create Poll'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -586,6 +672,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   () {
                     Navigator.pop(context);
                     _showEventPlanningDialog(context);
+                  },
+                ),
+                _buildAttachIcon(
+                  context,
+                  Icons.poll,
+                  Colors.orange,
+                  'Poll',
+                  () {
+                    Navigator.pop(context);
+                    _showPollCreatorDialog(context);
                   },
                 ),
                 _buildAttachIcon(

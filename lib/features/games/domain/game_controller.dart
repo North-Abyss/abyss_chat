@@ -69,6 +69,15 @@ class GameController extends Notifier<GameState?> {
   }
 
   void handleIncomingGameSync(String payload) {
+    try {
+      final data = jsonDecode(payload);
+      if (data['type'] == 'quit') {
+        if (state != null && state!.gameId == data['gameId']) {
+          state = null;
+        }
+        return;
+      }
+    } catch (_) {}
     state = GameState.fromJson(payload);
   }
 
@@ -138,6 +147,11 @@ class GameController extends Notifier<GameState?> {
         type: MessageType.activity,
         fileData: payload,
       );
+
+      // Auto-quit after 2 seconds so the banner dismisses
+      Future.delayed(const Duration(seconds: 2), () {
+        quitGame();
+      });
     }
   }
 
@@ -167,12 +181,30 @@ class GameController extends Notifier<GameState?> {
           type: MessageType.activity,
           fileData: payload,
         );
+
+        // Auto-quit after 2 seconds so the banner dismisses
+        Future.delayed(const Duration(seconds: 2), () {
+          quitGame();
+        });
       }
     }
   }
 
   void quitGame() {
+    if (state != null) {
+      final myId = ref.read(chatThreadsProvider.notifier).myId;
+      final quitPayload = jsonEncode({'type': 'quit', 'gameId': state!.gameId});
+      final msgMap = {'type': 'game_sync', 'data': quitPayload};
+      
+      final peerService = ref.read(peerServiceProvider);
+      final lanMessenger = ref.read(lanMessengerProvider);
+
+      for (final peerId in state!.participants) {
+        if (peerId == myId) continue;
+        peerService.sendCustomData(peerId, msgMap);
+        lanMessenger.sendCustomData(peerId, msgMap);
+      }
+    }
     state = null;
-    // Optionally notify others
   }
 }

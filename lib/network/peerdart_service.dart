@@ -121,6 +121,9 @@ class PeerDartService {
       if (_isDisposed) return;
       _isPeerOpen = true;
       _reconnectAttempts = 0;
+      _knownPeers.remove(_myId);
+      _pendingConnections.clear();
+      _connectionQueue.clear();
       debugPrint('✅ Connected to Signaling Server. My ID: $id');
       Future.microtask(() {
         if (!_connectionStatus.isClosed) {
@@ -194,7 +197,9 @@ class PeerDartService {
       if (_isDisposed) return;
       final mediaCall = call as MediaConnection;
       debugPrint('📞 Incoming call from ${mediaCall.peer}');
-      if (!_incomingCalls.isClosed) _incomingCalls.add(mediaCall);
+      Future.microtask(() {
+        if (!_incomingCalls.isClosed) _incomingCalls.add(mediaCall);
+      });
     });
 
     _peer!.on("error").listen((err) {
@@ -214,7 +219,21 @@ class PeerDartService {
         Future.delayed(const Duration(seconds: 5), () {
           if (_isDisposed) return;
           if (!_connectionStatus.isClosed) {
+            for (final subs in _subscriptions.values) {
+              for (final sub in subs) {
+                sub.cancel();
+              }
+            }
+            _subscriptions.clear();
+            for (final timer in _pingTimers.values) {
+              timer.cancel();
+            }
+            _pingTimers.clear();
+            _pingMisses.clear();
+            _activeConnections.clear();
+
             _peer?.dispose();
+            _peer = null;
             initialize(_myId); // Retry with SAME ID
           }
         });
@@ -344,7 +363,7 @@ class PeerDartService {
         debugPrint('🤝 Data connection established with ${conn.peer}');
         _activeConnections[conn.peer] = conn;
         _pendingConnections.remove(conn.peer);
-        _knownPeers.add(conn.peer);
+        if (conn.peer != _myId) _knownPeers.add(conn.peer);
 
         // Start ping/pong health check
         _pingMisses[conn.peer] = 0;
@@ -385,7 +404,9 @@ class PeerDartService {
             _connectionStatus.add('Connected to ${conn.peer}');
           }
         });
-        if (!_connectionOpened.isClosed) _connectionOpened.add(conn.peer);
+        Future.microtask(() {
+          if (!_connectionOpened.isClosed) _connectionOpened.add(conn.peer);
+        });
       }),
     );
 
@@ -441,7 +462,9 @@ class PeerDartService {
       final msg = Message.fromJson(decoded['payload']);
       // Fallback: If we don't have the connection object handy in this scope (e.g. from metadata), we rely on msg.senderId
       msg.networkSenderId = msg.senderId;
-      if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
+      Future.microtask(() {
+        if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
+      });
       // Auto-send delivery receipt
       _sendPayload(msg.senderId, {
         'type': 'delivery_receipt',
@@ -449,19 +472,33 @@ class PeerDartService {
         'peerId': _myId,
       });
     } else if (type == 'delivery_receipt') {
-      if (!_deliveryReceipts.isClosed) _deliveryReceipts.add(decoded);
+      Future.microtask(() {
+        if (!_deliveryReceipts.isClosed) _deliveryReceipts.add(decoded);
+      });
     } else if (type == 'read_receipt') {
-      if (!_readReceipts.isClosed) _readReceipts.add(decoded);
+      Future.microtask(() {
+        if (!_readReceipts.isClosed) _readReceipts.add(decoded);
+      });
     } else if (type == 'call_ended') {
-      if (!_callEnded.isClosed) _callEnded.add(decoded['peerId']);
+      Future.microtask(() {
+        if (!_callEnded.isClosed) _callEnded.add(decoded['peerId']);
+      });
     } else if (type == 'media_status') {
-      if (!_mediaStatus.isClosed) _mediaStatus.add(decoded);
+      Future.microtask(() {
+        if (!_mediaStatus.isClosed) _mediaStatus.add(decoded);
+      });
     } else if (type == 'typing') {
-      if (!_typingIndicators.isClosed) _typingIndicators.add(decoded['peerId']);
+      Future.microtask(() {
+        if (!_typingIndicators.isClosed) _typingIndicators.add(decoded['peerId']);
+      });
     } else if (type == 'profile_sync') {
-      if (!_profileSyncs.isClosed) _profileSyncs.add(decoded);
+      Future.microtask(() {
+        if (!_profileSyncs.isClosed) _profileSyncs.add(decoded);
+      });
     } else if (type == 'call_request') {
-      if (!_callRequests.isClosed) _callRequests.add(decoded);
+      Future.microtask(() {
+        if (!_callRequests.isClosed) _callRequests.add(decoded);
+      });
     } else if (type == 'ping') {
       // Respond with pong to keep connection alive
       _sendPayload(sourcePeerId, {'type': 'pong'});
@@ -469,7 +506,9 @@ class PeerDartService {
       _pingMisses[sourcePeerId] = 0;
     } else {
       // Broadcast unhandled raw JSON for generic listeners (e.g., custom call signaling)
-      if (!_dataMessages.isClosed) _dataMessages.add(decoded);
+      Future.microtask(() {
+        if (!_dataMessages.isClosed) _dataMessages.add(decoded);
+      });
     }
   }
 

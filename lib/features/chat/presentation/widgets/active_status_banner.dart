@@ -5,23 +5,30 @@ import 'package:abyss_chat/features/games/domain/game_controller.dart';
 import 'package:abyss_chat/features/games/domain/models/game_state.dart';
 import 'package:abyss_chat/features/chat/domain/chat_controller.dart';
 
-class ActiveStatusBanner extends ConsumerWidget {
+class ActiveStatusBanner extends ConsumerStatefulWidget {
   final String threadId;
   const ActiveStatusBanner({super.key, required this.threadId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ActiveStatusBanner> createState() => _ActiveStatusBannerState();
+}
+
+class _ActiveStatusBannerState extends ConsumerState<ActiveStatusBanner> {
+  bool _isMinimized = false;
+
+  @override
+  Widget build(BuildContext context) {
     final callState = ref.watch(callProvider);
     final gameState = ref.watch(gameControllerProvider);
 
     if (callState != null &&
         callState.isGroup &&
-        callState.peers.any((p) => p.id == threadId || threadId == p.name)) {
-      return _buildCallBanner(context, ref, callState);
+        callState.peers.any((p) => p.id == widget.threadId || widget.threadId == p.name)) {
+      return _buildCallBanner(context, callState);
     }
 
-    if (gameState != null && gameState.participants.contains(threadId)) {
-      return _buildGameBanner(context, ref, gameState);
+    if (gameState != null && gameState.participants.contains(widget.threadId)) {
+      return _buildGameBanner(context, gameState);
     }
 
     return const SizedBox.shrink();
@@ -29,7 +36,6 @@ class ActiveStatusBanner extends ConsumerWidget {
 
   Widget _buildCallBanner(
     BuildContext context,
-    WidgetRef ref,
     CallSession callState,
   ) {
     final cs = Theme.of(context).colorScheme;
@@ -90,7 +96,6 @@ class ActiveStatusBanner extends ConsumerWidget {
 
   Widget _buildGameBanner(
     BuildContext context,
-    WidgetRef ref,
     GameState gameState,
   ) {
     final cs = Theme.of(context).colorScheme;
@@ -163,14 +168,23 @@ class ActiveStatusBanner extends ConsumerWidget {
                   ),
                 ),
               IconButton(
-                icon: const Icon(Icons.close),
+                icon: Icon(_isMinimized ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up),
                 color: cs.onTertiaryContainer,
+                onPressed: () {
+                  setState(() {
+                    _isMinimized = !_isMinimized;
+                  });
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.power_settings_new),
+                color: cs.error,
                 onPressed: () =>
                     ref.read(gameControllerProvider.notifier).quitGame(),
               ),
             ],
           ),
-          if (gameState.type == GameType.ticTacToe) ...[
+          if (!_isMinimized && gameState.type == GameType.ticTacToe) ...[
             const SizedBox(height: 12),
             _buildTicTacToeBoard(context, ref, gameState, myId),
           ],

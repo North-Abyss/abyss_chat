@@ -200,7 +200,9 @@ class LocalWebrtcService {
       dataConn.onData.listen((data) {
         try {
           final json = jsonDecode(data);
-          _incomingMessages.add(Message.fromJson(json));
+          Future.microtask(() {
+            _incomingMessages.add(Message.fromJson(json));
+          });
         } catch (e) {
           debugPrint('Failed to parse local webrtc data: $e');
         }
@@ -300,7 +302,9 @@ class LocalWebrtcService {
           dataConn.onData.listen((data) {
             try {
               final json = jsonDecode(data);
-              _incomingMessages.add(Message.fromJson(json));
+              Future.microtask(() {
+                _incomingMessages.add(Message.fromJson(json));
+              });
             } catch (e) {
               debugPrint('Failed to parse local webrtc data: $e');
             }

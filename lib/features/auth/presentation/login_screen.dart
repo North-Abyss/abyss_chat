@@ -23,6 +23,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLoading = false;
 
   String _myHash = '';
+  int _avatarIcon = 0xe491;
+  int _avatarColor = 0xFF6750A4;
+  String? _profileImagePath;
 
   @override
   void initState() {
@@ -35,12 +38,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final profile = await storage.loadUserProfile();
     if (profile != null) {
       setState(() {
-        _myHash = profile['id']!;
-        _nameController.text = profile['name']!;
-        if (profile['username'] != null) {
-          _usernameController.text = profile['username']!;
-        }
-      });
+      _myHash = profile['id']!;
+      _nameController.text = profile['name']!;
+      if (profile['username'] != null) {
+        _usernameController.text = profile['username']!;
+      }
+      _avatarIcon = profile['avatarIcon'] ?? 0xe491;
+      _avatarColor = profile['avatarColor'] ?? 0xFF6750A4;
+      _profileImagePath = profile['profileImagePath'];
+    });
       // Optionally auto-login here if they've already set a name
       if (_nameController.text.isNotEmpty) {
         _login();
@@ -87,7 +93,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final storage = ref.read(storageServiceProvider);
 
       await CryptoService.init(_myHash);
-      await storage.saveUserProfile(_myHash, name, username: username);
+      await storage.saveUserProfile(
+        _myHash,
+        name,
+        username: username,
+        avatarIcon: _avatarIcon,
+        avatarColor: _avatarColor,
+        profileImagePath: _profileImagePath,
+      );
 
       await storage.preloadCache();
 

@@ -68,6 +68,8 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
         return _buildPoll(context);
       case 'event':
         return _buildEvent(context);
+      case 'guessing':
+        return _buildGuessingGame(context);
       default:
         return const Text('Unknown activity');
     }
@@ -79,6 +81,62 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
       isMe: widget.isMe,
       msgId: widget.msg.id,
       threadId: widget.threadId,
+    );
+  }
+
+  Widget _buildGuessingGame(BuildContext context) {
+    final winnerId = data['winnerId'] as String?;
+    final answer = data['answer'] as String? ?? 'Unknown';
+    final cs = Theme.of(context).colorScheme;
+    final myId = ref.read(chatThreadsProvider.notifier).myId;
+    final threads = ref.read(chatThreadsProvider).value ?? [];
+    final thread = threads.where((t) => t.id == widget.threadId).firstOrNull;
+
+    String winnerName = 'Someone';
+    if (winnerId == myId) {
+      winnerName = 'You';
+    } else if (thread != null) {
+      if (thread.isGroup) {
+        winnerName = thread.members.where((m) => m.id == winnerId).firstOrNull?.name ?? 'Someone';
+      } else {
+        winnerName = thread.peer.name;
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: widget.isMe
+            ? cs.onPrimaryContainer.withValues(alpha: 0.1)
+            : cs.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.psychology, color: Colors.purple),
+              SizedBox(width: 8),
+              Text(
+                'Guessing Game Ended',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '🎉 $winnerName guessed the word!',
+            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'The answer was: $answer',
+            style: const TextStyle(fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
     );
   }
 

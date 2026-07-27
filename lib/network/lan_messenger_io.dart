@@ -129,7 +129,9 @@ class LanMessenger {
           } else if (type == 'p2p_message') {
             final msg = Message.fromJson(decoded['payload']);
             msg.networkSenderId = _getPeerId(socket);
-            if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
+            Future.microtask(() {
+              if (!_incomingMessages.isClosed) _incomingMessages.add(msg);
+            });
 
             // Auto-send delivery receipt
             final remoteId = msg.networkSenderId ?? msg.senderId;

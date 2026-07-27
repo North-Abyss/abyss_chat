@@ -663,9 +663,10 @@ class CallNotifier extends Notifier<CallSession?> {
             });
             final newTrack = newStream.getVideoTracks().first;
 
-            // Remove old dead tracks
             for (final track in videoTracks.toList()) {
-              _localStream!.removeTrack(track);
+              try {
+                _localStream!.removeTrack(track);
+              } catch (_) {}
             }
 
             _localStream!.addTrack(newTrack);
@@ -732,9 +733,10 @@ class CallNotifier extends Notifier<CallSession?> {
             });
             final newTrack = newStream.getAudioTracks().first;
 
-            // Remove old dead tracks
             for (final track in audioTracks.toList()) {
-              _localStream!.removeTrack(track);
+              try {
+                _localStream!.removeTrack(track);
+              } catch (_) {}
             }
 
             _localStream!.addTrack(newTrack);
