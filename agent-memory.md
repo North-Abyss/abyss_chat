@@ -139,6 +139,9 @@ Houses reusable utilities, UI elements, and constants that are shared across mul
 - [x] Smart Peer Reconnection & Duplicate Contact Mitigation
 - [x] Call Glare Collision Resolution
 - [x] Hardware Permission Leak Prevention (Camera/Mic full release)
+- [x] Robust Stream Dispatching (Microtask queues to prevent re-entrancy crashes)
+- [x] Strict ID-Based Thread Deduplication (Prevents ghost threads)
+- [x] Safe History Synchronization (Prevents self-connection loops)
 
 ---
 

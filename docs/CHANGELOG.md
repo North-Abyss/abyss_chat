@@ -16,7 +16,10 @@ All notable changes to this project will be documented in this file.
 - **QR Contact Naming**: The QR scanner now correctly parses the contact's real display name from the JSON payload instead of hardcoding "Scanned Peer".
 - **Notification Toggle Desync**: Fixed mismatched default values between UI toggles and the notification service, ensuring system and in-app notifications obey user preferences perfectly.
 - **App Name Presentation**: Fixed the launcher label to read "Abyss Chat" instead of the raw `abyss_chat` identifier.
-
+- **Self-Connection Spam**: Resolved a critical issue in WebRTC history synchronization where sending the wrong `threadId` caused receivers to create endless self-chat loops and flood the network with reconnect attempts.
+- **Profile Cosmetic Wipe**: Fixed a bug where refreshing the page would reset the user's custom avatar icon and color to default values during auto-login.
+- **Duplicate Threads**: Removed dangerous name-matching thread duplication logic. All threads are now strictly and reliably keyed by Peer ID.
+- **Zombie Stream Exceptions**: Wrapped all WebRTC stream dispatchers in `Future.microtask()` to completely eliminate `Bad state: Cannot fire new event` crashes during heavy data payloads.
 
 ## [1.1.3] - 2026-07-20
 ### Added
