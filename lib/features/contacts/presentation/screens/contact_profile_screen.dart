@@ -12,24 +12,68 @@ class ContactProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final livePeer = ref.watch(contactsProvider).value?.firstWhere(
+              (u) => u.id == peer.id,
+              orElse: () => peer,
+            ) ??
+        peer;
+
+    void renameContact(String currentName) {
+      final controller = TextEditingController(text: currentName);
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Rename Contact'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(hintText: 'Contact Name'),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ).then((newName) {
+        if (newName != null && newName.isNotEmpty && newName != currentName) {
+          ref.read(contactsProvider.notifier).updateContactMetadata(
+                livePeer.id,
+                newName: newName,
+              );
+        }
+      });
+    }
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 300,
             pinned: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () => renameContact(livePeer.name),
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
-              title: Text(peer.name),
+              title: Text(livePeer.name),
               background: Container(
                 color: Theme.of(context).colorScheme.primaryContainer,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const SizedBox(height: 40),
-                    UserAvatar(user: peer, radius: 60),
+                    UserAvatar(user: livePeer, radius: 60),
                     const SizedBox(height: 8),
                     Text(
-                      'ID: ${peer.id}',
+                      'ID: ${livePeer.id}',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
@@ -55,6 +99,22 @@ class ContactProfileScreen extends ConsumerWidget {
                   ],
                 ),
                 const Divider(height: 32),
+                ListTile(
+                  leading: Icon(
+                    livePeer.isFavorite ? Icons.star : Icons.star_border,
+                    color: livePeer.isFavorite ? Colors.amber : null,
+                  ),
+                  title: const Text('Favorite contact'),
+                  trailing: Switch(
+                    value: livePeer.isFavorite,
+                    onChanged: (val) {
+                      ref.read(contactsProvider.notifier).updateContactMetadata(
+                            livePeer.id,
+                            isFavorite: val,
+                          );
+                    },
+                  ),
+                ),
                 ListTile(
                   leading: const Icon(Icons.photo),
                   title: const Text('Media, links, and docs'),

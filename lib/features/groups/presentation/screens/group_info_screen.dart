@@ -158,11 +158,17 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
                   ),
                   title: const Text('Add Participants'),
                   onTap: () {
-                    showModalBottomSheet(
+                    showDialog(
                       context: context,
-                      isScrollControlled: true,
-                      builder: (context) =>
-                          _AddParticipantsSheet(thread: liveThread),
+                      builder: (context) => Dialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Container(
+                          constraints: const BoxConstraints(maxWidth: 400),
+                          child: _AddParticipantsSheet(thread: liveThread),
+                        ),
+                      ),
                     );
                   },
                 ),

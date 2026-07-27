@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:typed_data';
 import 'package:abyss_chat/features/settings/domain/settings_controller.dart';
 import 'package:abyss_chat/core/widgets/abyss_snackbar.dart';
 import 'package:abyss_chat/features/chat/data/chat_repository.dart';
@@ -44,6 +45,140 @@ class _StorageManagementScreenState
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
+
+  Future<String?> _showPasswordDialog(BuildContext context, String title, String action) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          decoration: InputDecoration(
+            labelText: 'Encryption Password',
+            border: const OutlineInputBorder(),
+            helperText: 'Keep this safe! If you lose it, your backup cannot be restored.',
+            helperMaxLines: 2,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, controller.text),
+            child: Text(action),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
+    final password = await _showPasswordDialog(context, 'Export Backup', 'Export');
+    if (password == null || password.isEmpty) return;
+
+    if (!context.mounted) return;
+    
+    // Show a loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Generating backup...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final backupService = ref.read(backupServiceProvider);
+      await backupService.exportBackup(password);
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        AbyssSnackBar.show(context, 'Backup exported successfully!', type: SnackBarType.success);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        AbyssSnackBar.show(context, 'Export failed: $e', type: SnackBarType.error);
+      }
+    }
+  }
+
+  Future<void> _importBackup(BuildContext context, WidgetRef ref) async {
+    final backupService = ref.read(backupServiceProvider);
+    
+    // 1. Pick file first
+    Uint8List? fileBytes;
+    try {
+      fileBytes = await backupService.pickBackupFile();
+    } catch (e) {
+      if (context.mounted) AbyssSnackBar.show(context, 'Failed to read file: $e', type: SnackBarType.error);
+      return;
+    }
+
+    if (fileBytes == null) return; // Cancelled
+
+    if (!context.mounted) return;
+
+    // 2. Ask for password
+    final password = await _showPasswordDialog(context, 'Import Backup', 'Restore');
+    if (password == null || password.isEmpty) return;
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Restoring backup...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await backupService.restoreBackup(fileBytes, password);
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (c) => AlertDialog(
+            title: const Text('Restore Complete'),
+            content: const Text('Your backup has been restored successfully! The app needs to restart to load your data.'),
+            actions: [
+              FilledButton(
+                onPressed: () {
+                  // The user can manually restart or we can force hot restart in some environments
+                  // On web, they can just refresh
+                  Navigator.pop(c);
+                  AbyssSnackBar.show(context, 'Please restart the app to see your restored data.', type: SnackBarType.info);
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        AbyssSnackBar.show(context, 'Restore failed. Incorrect password or corrupted file.', type: SnackBarType.error);
+      }
+    }
   }
 
   @override
@@ -183,6 +318,42 @@ class _StorageManagementScreenState
                   },
                 ),
               ],
+
+              const Divider(height: 48),
+
+              Text(
+                'Data Backup & Recovery',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: cs.primary),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Export your text data (chats, contacts, call logs) to an encrypted .abysschat file. Media files are NOT included in backups.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.download),
+                      label: const Text('Import Backup'),
+                      onPressed: () => _importBackup(context, ref),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.upload),
+                      label: const Text('Export Backup'),
+                      onPressed: () => _exportBackup(context, ref),
+                    ),
+                  ),
+                ],
+              ),
 
               const Divider(height: 48),
 

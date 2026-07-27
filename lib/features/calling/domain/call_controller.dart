@@ -20,6 +20,7 @@ import 'package:abyss_chat/network/mdns_service.dart';
 import 'package:abyss_chat/features/calling/domain/models/call_log.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' hide MessageType;
 import 'package:abyss_chat/features/chat/domain/models/message.dart';
+import 'package:abyss_chat/features/chat/data/chat_repository.dart';
 
 // Global navigator key to insert the overlay anywhere
 final GlobalKey<NavigatorState> globalNavigatorKey =
@@ -34,6 +35,7 @@ class CallSession {
   final DateTime? startTime;
   final Duration? currentDuration;
   final bool isGroup;
+  final String? threadId;
 
   CallSession({
     required this.peers,
@@ -42,6 +44,7 @@ class CallSession {
     this.startTime,
     this.currentDuration,
     this.isGroup = false,
+    this.threadId,
   });
 
   CallSession copyWith({
@@ -51,6 +54,7 @@ class CallSession {
     DateTime? startTime,
     Duration? currentDuration,
     bool? isGroup,
+    String? threadId,
   }) {
     return CallSession(
       peers: peers ?? this.peers,
@@ -59,6 +63,7 @@ class CallSession {
       startTime: startTime ?? this.startTime,
       currentDuration: currentDuration ?? this.currentDuration,
       isGroup: isGroup ?? this.isGroup,
+      threadId: threadId ?? this.threadId,
     );
   }
 }
@@ -170,12 +175,11 @@ class CallNotifier extends Notifier<CallSession?> {
     _audioPlayer?.stop();
   }
 
-  Future<void> startCall(
-    List<User> peers,
-    bool isVideo, {
-    bool isGroup = false,
-  }) async {
-    if (state != null) return; // Already in a call
+  Future<void> startCall(List<User> peers, bool isVideo, {bool isGroup = false, String? threadId}) async {
+    if (state != null) {
+      debugPrint('Already in a call');
+      return;
+    }
 
     final peerService = ref.read(peerServiceProvider);
 
@@ -184,6 +188,7 @@ class CallNotifier extends Notifier<CallSession?> {
       isVideo: isVideo,
       state: CallState.ringing,
       isGroup: isGroup,
+      threadId: threadId,
     );
 
     try {
@@ -244,6 +249,7 @@ class CallNotifier extends Notifier<CallSession?> {
           'callerName': myProfile,
           'isVideo': isVideo,
           'isGroup': isGroup,
+          'threadId': threadId,
         };
         ref.read(lanMessengerProvider).sendCustomData(peer.id, payload);
         peerService.sendUrgentSignal(peer.id, payload);
@@ -382,6 +388,7 @@ class CallNotifier extends Notifier<CallSession?> {
     final callerName = request['callerName'] as String;
     final isVideo = request['isVideo'] as bool;
     final isGroup = request['isGroup'] == true;
+    final threadId = request['threadId'] as String?;
 
     if (state != null) {
       // GLARE: We're already in a call. Check if it's with this same peer.
@@ -429,6 +436,7 @@ class CallNotifier extends Notifier<CallSession?> {
       isVideo: isVideo,
       state: CallState.ringing,
       isGroup: isGroup,
+      threadId: threadId,
     );
 
     if (!isGroup) {
@@ -1210,14 +1218,16 @@ class _MiniCallOverlayState extends ConsumerState<MiniCallOverlay> {
 class CallLogsNotifier extends AsyncNotifier<List<CallLog>> {
   @override
   Future<List<CallLog>> build() async {
-    return []; // We will fix the implementation during import fixes
+    final storage = ref.read(storageServiceProvider);
+    return await storage.loadCallLogs();
   }
 
-  void addCallLog(CallLog log) {
-    if (!state.hasValue) return;
-    final logs = List<CallLog>.from(state.value!);
+  Future<void> addCallLog(CallLog log) async {
+    final currentLogs = state.value ?? await future;
+    final logs = List<CallLog>.from(currentLogs);
     logs.insert(0, log);
     state = AsyncData(logs);
+    ref.read(storageServiceProvider).saveCallLogs(logs);
   }
 }
 

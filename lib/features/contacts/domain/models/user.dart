@@ -10,6 +10,7 @@ class User {
   final int? port;
   final String? profileImagePath;
   final DateTime? profileUpdatedAt;
+  final bool isFavorite;
 
   User({
     required this.id,
@@ -23,6 +24,7 @@ class User {
     this.port,
     this.profileImagePath,
     this.profileUpdatedAt,
+    this.isFavorite = false,
   });
 
   User copyWith({
@@ -37,6 +39,7 @@ class User {
     int? port,
     String? profileImagePath,
     DateTime? profileUpdatedAt,
+    bool? isFavorite,
   }) {
     return User(
       id: id ?? this.id,
@@ -50,6 +53,7 @@ class User {
       port: port ?? this.port,
       profileImagePath: profileImagePath ?? this.profileImagePath,
       profileUpdatedAt: profileUpdatedAt ?? this.profileUpdatedAt,
+      isFavorite: isFavorite ?? this.isFavorite,
     );
   }
 
@@ -68,6 +72,7 @@ class User {
       profileUpdatedAt: json['profileUpdatedAt'] != null
           ? DateTime.parse(json['profileUpdatedAt'])
           : null,
+      isFavorite: json['isFavorite'] ?? false,
     );
   }
 
@@ -84,6 +89,7 @@ class User {
       'port': port,
       'profileImagePath': profileImagePath,
       'profileUpdatedAt': profileUpdatedAt?.toIso8601String(),
+      'isFavorite': isFavorite,
     };
   }
 }

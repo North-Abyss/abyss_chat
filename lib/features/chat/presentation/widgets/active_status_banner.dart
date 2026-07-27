@@ -23,7 +23,7 @@ class _ActiveStatusBannerState extends ConsumerState<ActiveStatusBanner> {
 
     if (callState != null &&
         callState.isGroup &&
-        callState.peers.any((p) => p.id == widget.threadId || widget.threadId == p.name)) {
+        (callState.threadId == widget.threadId || callState.peers.any((p) => p.id == widget.threadId || widget.threadId == p.name))) {
       return _buildCallBanner(context, callState);
     }
 
@@ -79,16 +79,29 @@ class _ActiveStatusBannerState extends ConsumerState<ActiveStatusBanner> {
               ],
             ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(callProvider.notifier).answerCall();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: cs.primary,
-              foregroundColor: cs.onPrimary,
+          if (callState.state == CallState.connected || callState.state == CallState.ringing) ...[
+            ElevatedButton(
+              onPressed: () {
+                ref.read(callProvider.notifier).endCall();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cs.error,
+                foregroundColor: cs.onError,
+              ),
+              child: const Text('End'),
             ),
-            child: const Text('Join'),
-          ),
+          ] else ...[
+            ElevatedButton(
+              onPressed: () {
+                ref.read(callProvider.notifier).answerCall();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cs.primary,
+                foregroundColor: cs.onPrimary,
+              ),
+              child: const Text('Join'),
+            ),
+          ]
         ],
       ),
     );

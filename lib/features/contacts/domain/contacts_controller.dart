@@ -87,6 +87,25 @@ class ContactsNotifier extends AsyncNotifier<List<User>> {
     }
   }
 
+  void updateContactMetadata(String id, {String? newName, bool? isFavorite}) {
+    if (!state.hasValue) return;
+    final contacts = List<User>.from(state.value!);
+    final idx = contacts.indexWhere((c) => c.id == id);
+    if (idx != -1) {
+      contacts[idx] = contacts[idx].copyWith(
+        name: newName,
+        isFavorite: isFavorite,
+      );
+      state = AsyncData(contacts);
+      ref.read(storageServiceProvider).saveContacts(contacts);
+      
+      // Update in chat threads too so the UI reflects the new name immediately
+      if (newName != null) {
+        ref.read(chatThreadsProvider.notifier).updatePeerName(id, newName);
+      }
+    }
+  }
+
   void deleteContact(String id) {
     if (!state.hasValue) return;
     final contacts = List<User>.from(state.value!);

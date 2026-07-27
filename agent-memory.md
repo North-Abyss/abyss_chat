@@ -10,7 +10,7 @@
 
 # Abyss Chat - Agent Memory & Workspace Overview
 
-**Version:** 1.1.4
+**Version:** 1.1.5
 **Project Goal:** A cross-platform, decentralized P2P messaging and video calling application (WhatsApp-style) running on Flutter and Riverpod. Includes automated CI/CD for Cloud Compilation and GitHub Pages Web Deployment.
 
 | Field               | Value                                             |
@@ -142,6 +142,9 @@ Houses reusable utilities, UI elements, and constants that are shared across mul
 - [x] Robust Stream Dispatching (Microtask queues to prevent re-entrancy crashes)
 - [x] Strict ID-Based Thread Deduplication (Prevents ghost threads)
 - [x] Safe History Synchronization (Prevents self-connection loops)
+- [x] Full-Screen Immersive Media Viewer with Video Controls & 5:4 Audio Cards
+- [x] Contextual Chat Search with Scrollable Positioned Navigation
+- [x] In-Chat Mini-Game History Tracking (Wins, Losses, Draws)
 
 ---
 

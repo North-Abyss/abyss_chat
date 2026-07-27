@@ -47,6 +47,8 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:abyss_chat/features/chat/presentation/widgets/audio_message_bubble.dart';
+import 'package:abyss_chat/features/chat/presentation/widgets/media_preview_widget.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String threadId;
@@ -63,8 +65,9 @@ enum VoiceRecordState { idle, recording, preview }
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
+  final ItemScrollController _itemScrollController = ItemScrollController();
+  final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
   final FocusNode _focusNode = FocusNode();
-  final ScrollController _scrollController = ScrollController();
 
   bool _showEmojiPicker = false;
   final Set<String> _selectedMessageIds = {};
@@ -84,6 +87,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isSearchMode = false;
   String _searchQuery = '';
   DateTime? _searchDate;
+  final List<int> _searchMatchIndices = [];
+  int _currentSearchMatchIndex = -1;
   bool _showScrollToBottom = false;
   bool _isDragging = false;
 
@@ -123,18 +128,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     });
 
-    _scrollController.addListener(() {
-      if (_scrollController.offset > 200) {
-        if (!_showScrollToBottom) setState(() => _showScrollToBottom = true);
-      } else {
-        if (_showScrollToBottom) setState(() => _showScrollToBottom = false);
+    _itemPositionsListener.itemPositions.addListener(() {
+      final positions = _itemPositionsListener.itemPositions.value;
+      if (positions.isNotEmpty) {
+        final min = positions.where((ItemPosition position) => position.itemTrailingEdge > 0)
+                             .fold<int>(999999, (min, position) => position.index < min ? position.index : min);
+        if (min > 3) {
+          if (!_showScrollToBottom) setState(() => _showScrollToBottom = true);
+        } else {
+          if (_showScrollToBottom) setState(() => _showScrollToBottom = false);
+        }
       }
     });
 
     _searchController.addListener(() {
-      setState(
-        () => _searchQuery = _searchController.text.trim().toLowerCase(),
-      );
+      setState(() {
+        _searchQuery = _searchController.text.trim().toLowerCase();
+        _updateSearchMatches();
+      });
     });
 
     _focusNode.onKeyEvent = (node, event) {
@@ -155,6 +166,61 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
       return KeyEventResult.ignored;
     };
+  }
+
+  void _updateSearchMatches() {
+    _searchMatchIndices.clear();
+    if (_searchQuery.isEmpty) {
+      _currentSearchMatchIndex = -1;
+      return;
+    }
+    final thread = ref.read(chatThreadsProvider).value?.firstWhere((t) => t.id == widget.threadId);
+    if (thread == null) return;
+    
+    for (int i = 0; i < thread.messages.length; i++) {
+      final msgIndex = thread.messages.length - 1 - i;
+      final msg = thread.messages[msgIndex];
+      if (msg.text.toLowerCase().contains(_searchQuery)) {
+        _searchMatchIndices.add(i);
+      }
+    }
+    if (_searchMatchIndices.isNotEmpty) {
+      _currentSearchMatchIndex = 0;
+      _scrollToMatch();
+    } else {
+      _currentSearchMatchIndex = -1;
+    }
+  }
+
+  void _scrollToMatch() {
+    if (_currentSearchMatchIndex >= 0 && _currentSearchMatchIndex < _searchMatchIndices.length) {
+      final index = _searchMatchIndices[_currentSearchMatchIndex];
+      if (_itemScrollController.isAttached) {
+        _itemScrollController.scrollTo(
+          index: index,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+  }
+  
+  void _nextMatch() {
+    if (_searchMatchIndices.isNotEmpty) {
+      setState(() {
+        _currentSearchMatchIndex = (_currentSearchMatchIndex + 1) % _searchMatchIndices.length;
+      });
+      _scrollToMatch();
+    }
+  }
+
+  void _prevMatch() {
+    if (_searchMatchIndices.isNotEmpty) {
+      setState(() {
+        _currentSearchMatchIndex = (_currentSearchMatchIndex - 1 + _searchMatchIndices.length) % _searchMatchIndices.length;
+      });
+      _scrollToMatch();
+    }
   }
 
   void _onWebPaste(ClipboardReadEvent event) async {
@@ -220,7 +286,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _textController.dispose();
     _searchController.dispose();
     _focusNode.dispose();
-    _scrollController.dispose();
     _audioRecorder.dispose();
     _previewPlayer.dispose();
     super.dispose();
@@ -244,11 +309,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ref.read(chatThreadsProvider.notifier).sendMessage(widget.threadId, text);
     _textController.clear();
 
-    // Scroll to bottom after sending
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          0.0,
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_itemScrollController.isAttached) {
+        _itemScrollController.scrollTo(
+          index: 0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -342,10 +406,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _recordedFilePath = null;
       });
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (_itemScrollController.isAttached) {
+          _itemScrollController.scrollTo(
+            index: 0,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
@@ -1096,6 +1160,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ),
                     ),
                     actions: [
+                      if (_searchMatchIndices.isNotEmpty) ...[
+                        Text(
+                          '${_currentSearchMatchIndex + 1}/${_searchMatchIndices.length}',
+                          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.keyboard_arrow_up),
+                          onPressed: _prevMatch,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.keyboard_arrow_down),
+                          onPressed: _nextMatch,
+                        ),
+                      ],
                       IconButton(
                         icon: Icon(
                           _searchDate == null
@@ -1307,15 +1385,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: Builder(
                         builder: (context) {
                           var displayMsgs = thread.messages;
-                          if (_searchQuery.isNotEmpty) {
-                            displayMsgs = displayMsgs
-                                .where(
-                                  (m) => m.text.toLowerCase().contains(
-                                    _searchQuery,
-                                  ),
-                                )
-                                .toList();
-                          }
+                          
                           if (_searchDate != null) {
                             displayMsgs = displayMsgs
                                 .where(
@@ -1327,9 +1397,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 .toList();
                           }
 
-                          return ListView.builder(
+                          return ScrollablePositionedList.builder(
                             reverse: true,
-                            controller: _scrollController,
+                            itemScrollController: _itemScrollController,
+                            itemPositionsListener: _itemPositionsListener,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 8,
@@ -1724,15 +1795,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                                     else if (msg.type ==
                                                             MessageType.file &&
                                                         msg.fileName != null)
-                                                      Column(
-                                                        crossAxisAlignment: isMe
-                                                            ? CrossAxisAlignment
-                                                                  .end
-                                                            : CrossAxisAlignment
-                                                                  .start,
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
+                                                      if ((msg.localFilePath != null || msg.fileData != null) && ['mp4', 'mkv', 'avi', 'mov', 'mp3', 'wav', 'm4a', 'aac', 'ogg'].contains(msg.fileName!.split('.').last.toLowerCase()))
+                                                        GestureDetector(
+                                                          behavior: HitTestBehavior.opaque,
+                                                          onTap: () {
+                                                            final mediaMessages = thread.messages.where((m) => m.type == MessageType.image || m.type == MessageType.file).toList();
+                                                            final index = mediaMessages.indexOf(msg);
+                                                            Navigator.push(
+                                                              context,
+                                                              MaterialPageRoute(
+                                                                builder: (_) => MediaViewerScreen(
+                                                                  mediaMessages: mediaMessages,
+                                                                  initialIndex: index == -1 ? 0 : index,
+                                                                ),
+                                                              ),
+                                                            );
+                                                          },
+                                                          child: ClipRRect(
+                                                            borderRadius: BorderRadius.circular(12),
+                                                            child: SizedBox(
+                                                              width: 250,
+                                                              child: MediaPreviewWidget(
+                                                                filePath: msg.localFilePath,
+                                                                fileData: msg.fileData,
+                                                                fileName: msg.fileName!,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        )
+                                                      else
+                                                        Column(
+                                                          crossAxisAlignment: isMe
+                                                              ? CrossAxisAlignment
+                                                                    .end
+                                                              : CrossAxisAlignment
+                                                                    .start,
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
                                                           GestureDetector(
                                                             onTap: () async {
                                                               if (msg.localFilePath !=
@@ -2319,11 +2419,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     bottom: _isSelectionMode ? 16 : 80, // Above the input bar
                     child: FloatingActionButton.small(
                       onPressed: () {
-                        _scrollController.animateTo(
-                          0.0,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOut,
-                        );
+                        if (_itemScrollController.isAttached) {
+                          _itemScrollController.scrollTo(
+                            index: 0,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOut,
+                          );
+                        }
                       },
                       child: const Icon(Icons.arrow_downward),
                     ),
@@ -2507,54 +2609,60 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _showForwardBottomSheet(List<Message> selectedMsgs) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
       builder: (context) {
         return Consumer(
           builder: (context, ref, child) {
             final threads = ref.watch(chatThreadsProvider).value ?? [];
-            return SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      'Forward to...',
-                      style: Theme.of(context).textTheme.titleLarge,
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 400, maxHeight: 500),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        'Forward to...',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: threads.length,
-                      itemBuilder: (context, index) {
-                        final t = threads[index];
-                        if (t.id == widget.threadId) {
-                          return const SizedBox.shrink(); // Don't show current thread
-                        }
-                        return ListTile(
-                          leading: UserAvatar(user: t.peer, radius: 20),
-                          title: Text(
-                            t.isGroup ? (t.groupName ?? 'Group') : t.peer.name,
-                          ),
-                          onTap: () {
-                            ref
-                                .read(chatThreadsProvider.notifier)
-                                .forwardMessages(t.id, selectedMsgs);
-                            AbyssSnackBar.show(
-                              context,
-                              'Messages forwarded',
-                              type: SnackBarType.success,
-                            );
-                            setState(() => _selectedMessageIds.clear());
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: threads.length,
+                        itemBuilder: (context, index) {
+                          final t = threads[index];
+                          if (t.id == widget.threadId) {
+                            return const SizedBox.shrink(); // Don't show current thread
+                          }
+                          return ListTile(
+                            leading: UserAvatar(user: t.peer, radius: 20),
+                            title: Text(
+                              t.isGroup ? (t.groupName ?? 'Group') : t.peer.name,
+                            ),
+                            onTap: () {
+                              ref
+                                  .read(chatThreadsProvider.notifier)
+                                  .forwardMessages(t.id, selectedMsgs);
+                              AbyssSnackBar.show(
+                                context,
+                                'Messages forwarded',
+                                type: SnackBarType.success,
+                              );
+                              setState(() => _selectedMessageIds.clear());
+                              Navigator.pop(context);
+                            },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },

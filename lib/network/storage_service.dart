@@ -9,6 +9,7 @@ import 'package:abyss_chat/features/calling/domain/models/call_log.dart';
 import 'package:abyss_chat/network/crypto_service.dart';
 import 'package:abyss_chat/network/web_storage.dart';
 
+
 class StorageService {
   static const String _threadsFile = 'conversations.abyss';
   static const String _contactsFile = 'contacts.abyss';
@@ -43,19 +44,23 @@ class StorageService {
       final ciphertext = await file.readAsString();
       if (ciphertext.isEmpty) return null;
       return CryptoService.decryptData(ciphertext);
-    } catch (e) {
-      debugPrint('Error reading encrypted file $filename: $e');
-      try {
-        if (kIsWeb) {
-          final prefs = await SharedPrefsHelper.instance;
-          await prefs.remove('web_$filename');
-        } else {
-          final file = await _getFile(filename);
-          if (await file.exists()) await file.delete();
-        }
-      } catch (_) {}
-      return null;
-    }
+      } catch (e) {
+        debugPrint('Error reading encrypted file $filename: $e');
+        try {
+          if (kIsWeb) {
+            final prefs = await SharedPrefsHelper.instance;
+            await prefs.remove('web_$filename');
+          } else {
+            final file = await _getFile(filename);
+            if (await file.exists()) {
+              // Instead of deleting, we rename it to .bak to preserve the user's data
+              // in case they can recover the encryption key later.
+              await file.rename('${file.path}.bak');
+            }
+          }
+        } catch (_) {}
+        return null;
+      }
   }
 
   Future<void> _writeEncryptedFile(String filename, String plaintext) async {
@@ -266,6 +271,28 @@ class StorageService {
       return targetPath;
     } catch (e) {
       debugPrint('Error saving media file: $e');
+      return null;
+    }
+  }
+
+  Future<String?> moveMediaFile(
+    String messageId,
+    String sourcePath,
+    String fileName,
+  ) async {
+    if (kIsWeb) return null; // No direct file moving on web
+    try {
+      final path = await _getAppDirPath();
+      final mediaDir = Directory('$path/media');
+      if (!await mediaDir.exists()) await mediaDir.create(recursive: true);
+
+      final targetPath = '${mediaDir.path}/$messageId-$fileName';
+      final file = File(sourcePath);
+      await file.copy(targetPath);
+      await file.delete();
+      return targetPath;
+    } catch (e) {
+      debugPrint('Error moving media file: $e');
       return null;
     }
   }

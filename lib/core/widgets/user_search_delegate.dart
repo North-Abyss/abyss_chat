@@ -4,6 +4,7 @@ import 'package:abyss_chat/features/chat/domain/chat_controller.dart';
 import 'package:abyss_chat/features/contacts/domain/contacts_controller.dart';
 import 'package:abyss_chat/network/mdns_service.dart';
 import 'package:abyss_chat/core/widgets/user_avatar.dart';
+import 'package:flutter/services.dart';
 
 class UserSearchDelegate extends SearchDelegate<String?> {
   final WidgetRef ref;
@@ -69,22 +70,80 @@ class UserSearchDelegate extends SearchDelegate<String?> {
       return const Center(child: Text('No users found.'));
     }
 
-    return ListView.builder(
-      itemCount: filteredUsers.length,
-      itemBuilder: (context, index) {
-        final user = filteredUsers[index];
-        final isNearby = nearbyPeers.any((p) => p.id == user.id);
+    int selectedIndex = 0;
+    final ScrollController scrollController = ScrollController();
 
-        return ListTile(
-          leading: UserAvatar(user: user, radius: 20),
-          title: Text(user.name),
-          subtitle: Text(isNearby ? 'Nearby' : 'Contact'),
-          onTap: () {
-            ref
-                .read(chatThreadsProvider.notifier)
-                .startNewChat(user.id, peerName: user.name);
-            close(context, user.id);
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return Focus(
+          autofocus: true,
+          onKeyEvent: (node, event) {
+            if (event is KeyDownEvent) {
+              if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                setState(() {
+                  selectedIndex = (selectedIndex + 1).clamp(0, filteredUsers.length - 1);
+                });
+                // Calculate scroll position
+                final offset = selectedIndex * 72.0; // Approx height of ListTile
+                if (offset > scrollController.offset + scrollController.position.viewportDimension - 72.0) {
+                   scrollController.animateTo(
+                     offset - scrollController.position.viewportDimension + 72.0,
+                     duration: const Duration(milliseconds: 100),
+                     curve: Curves.easeOut,
+                   );
+                }
+                return KeyEventResult.handled;
+              } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                setState(() {
+                  selectedIndex = (selectedIndex - 1).clamp(0, filteredUsers.length - 1);
+                });
+                final offset = selectedIndex * 72.0;
+                if (offset < scrollController.offset) {
+                   scrollController.animateTo(
+                     offset,
+                     duration: const Duration(milliseconds: 100),
+                     curve: Curves.easeOut,
+                   );
+                }
+                return KeyEventResult.handled;
+              } else if (event.logicalKey == LogicalKeyboardKey.enter) {
+                final user = filteredUsers[selectedIndex];
+                ref
+                    .read(chatThreadsProvider.notifier)
+                    .startNewChat(user.id, peerName: user.name);
+                close(context, user.id);
+                return KeyEventResult.handled;
+              }
+            }
+            return KeyEventResult.ignored;
           },
+          child: ListView.builder(
+            controller: scrollController,
+            itemCount: filteredUsers.length,
+            itemBuilder: (context, index) {
+              final user = filteredUsers[index];
+              final isNearby = nearbyPeers.any((p) => p.id == user.id);
+              final isSelected = index == selectedIndex;
+
+              return Container(
+                color: isSelected 
+                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15) 
+                    : null,
+                child: ListTile(
+                  leading: UserAvatar(user: user, radius: 20),
+                  title: Text(user.name),
+                  subtitle: Text(isNearby ? 'Nearby' : 'Contact'),
+                  selected: isSelected,
+                  onTap: () {
+                    ref
+                        .read(chatThreadsProvider.notifier)
+                        .startNewChat(user.id, peerName: user.name);
+                    close(context, user.id);
+                  },
+                ),
+              );
+            },
+          ),
         );
       },
     );

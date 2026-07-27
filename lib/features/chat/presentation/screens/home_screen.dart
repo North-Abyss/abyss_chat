@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/features/chat/domain/chat_controller.dart';
+import 'package:abyss_chat/features/chat/domain/models/chat_thread.dart';
 import 'package:abyss_chat/features/chat/presentation/screens/chat_screen.dart';
 import 'package:abyss_chat/network/mdns_service.dart';
 import 'package:abyss_chat/core/widgets/abyss_snackbar.dart';
@@ -107,9 +108,8 @@ class HomeScreen extends ConsumerWidget {
   }
 
   void _showNearbyPeersDialog(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
       builder: (context) {
         String searchQuery = '';
         return StatefulBuilder(
@@ -125,14 +125,15 @@ class HomeScreen extends ConsumerWidget {
                   return nameMatches || usernameMatches;
                 }).toList();
 
-                return Padding(
-                  padding: EdgeInsets.only(
-                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                return Dialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     constraints: BoxConstraints(
                       maxHeight: MediaQuery.of(context).size.height * 0.7,
+                      maxWidth: 400,
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -433,8 +434,8 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       body: asyncThreads.when(
-        data: (threads) {
-          if (threads.isEmpty) {
+        data: (rawThreads) {
+          if (rawThreads.isEmpty) {
             return Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(32.0),
@@ -473,6 +474,19 @@ class HomeScreen extends ConsumerWidget {
               ),
             );
           }
+
+          final threads = List<ChatThread>.from(rawThreads);
+          threads.sort((a, b) {
+            final aFav = !a.isGroup && a.peer.isFavorite;
+            final bFav = !b.isGroup && b.peer.isFavorite;
+            
+            if (aFav && !bFav) return -1;
+            if (!aFav && bFav) return 1;
+            
+            final aTime = a.messages.isNotEmpty ? a.messages.last.timestamp : DateTime.fromMillisecondsSinceEpoch(0);
+            final bTime = b.messages.isNotEmpty ? b.messages.last.timestamp : DateTime.fromMillisecondsSinceEpoch(0);
+            return bTime.compareTo(aTime); // Descending
+          });
 
           return ListView.builder(
             itemCount: threads.length,
@@ -574,59 +588,68 @@ class HomeScreen extends ConsumerWidget {
                       ],
                     ),
                     onLongPress: () {
-                      showModalBottomSheet(
+                      showDialog(
                         context: context,
-                        builder: (context) => SafeArea(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ListTile(
-                                leading: const Icon(Icons.person),
-                                title: const Text('View Profile'),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ContactProfileScreen(
-                                        peer: thread.peer,
-                                      ),
+                        builder: (context) => Dialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Container(
+                            constraints: const BoxConstraints(maxWidth: 350),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ListTile(
+                                    leading: const Icon(Icons.person),
+                                    title: const Text('View Profile'),
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => ContactProfileScreen(
+                                            peer: thread.peer,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  ListTile(
+                                    leading: const Icon(Icons.clear_all),
+                                    title: const Text('Clear Messages'),
+                                    onTap: () {
+                                      ref
+                                          .read(chatThreadsProvider.notifier)
+                                          .clearMessages(thread.id);
+                                      Navigator.pop(context);
+                                    },
+                                  ),
+                                  ListTile(
+                                    leading: const Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
                                     ),
-                                  );
-                                },
+                                    title: const Text(
+                                      'Delete Chat',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                    onTap: () {
+                                      ref
+                                          .read(chatThreadsProvider.notifier)
+                                          .deleteThread(thread.id);
+                                      if (isDesktop && selectedId == thread.id) {
+                                        ref
+                                            .read(selectedThreadIdProvider.notifier)
+                                            .select(null);
+                                      }
+                                      Navigator.pop(context);
+                                    },
+                                  ),
+                                ],
                               ),
-                              ListTile(
-                                leading: const Icon(Icons.clear_all),
-                                title: const Text('Clear Messages'),
-                                onTap: () {
-                                  ref
-                                      .read(chatThreadsProvider.notifier)
-                                      .clearMessages(thread.id);
-                                  Navigator.pop(context);
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                ),
-                                title: const Text(
-                                  'Delete Chat',
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                                onTap: () {
-                                  ref
-                                      .read(chatThreadsProvider.notifier)
-                                      .deleteThread(thread.id);
-                                  if (isDesktop && selectedId == thread.id) {
-                                    ref
-                                        .read(selectedThreadIdProvider.notifier)
-                                        .select(null);
-                                  }
-                                  Navigator.pop(context);
-                                },
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       );
@@ -658,77 +681,86 @@ class HomeScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton(
         heroTag: null,
         onPressed: () {
-          showModalBottomSheet(
+          showDialog(
             context: context,
-            builder: (context) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.person_add),
-                    title: const Text('New Chat'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showNewChatDialog(context, ref);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.contacts),
-                    title: const Text('Contacts'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ContactsScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.group_add),
-                    title: const Text('New Group'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const CreateGroupScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  if (!kIsWeb)
-                    ListTile(
-                      leading: const Icon(Icons.radar),
-                      title: const Text('Scan Nearby (mDNS)'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showNearbyPeersDialog(context, ref);
-                      },
-                    )
-                  else
-                    ListTile(
-                      leading: Icon(
-                        Icons.radar,
-                        color: Theme.of(context).disabledColor,
+            builder: (context) => Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 350),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.person_add),
+                        title: const Text('New Chat'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showNewChatDialog(context, ref);
+                        },
                       ),
-                      title: Text(
-                        'Scan Nearby (Native Only)',
-                        style: TextStyle(
-                          color: Theme.of(context).disabledColor,
-                        ),
+                      ListTile(
+                        leading: const Icon(Icons.contacts),
+                        title: const Text('Contacts'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ContactsScreen(),
+                            ),
+                          );
+                        },
                       ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        AbyssSnackBar.show(
-                          context,
-                          'Local network scanning (mDNS) is not supported in web browsers due to security restrictions. Please use Connect via ID.',
-                          type: SnackBarType.info,
-                        );
-                      },
-                    ),
-                ],
+                      ListTile(
+                        leading: const Icon(Icons.group_add),
+                        title: const Text('New Group'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CreateGroupScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      if (!kIsWeb)
+                        ListTile(
+                          leading: const Icon(Icons.radar),
+                          title: const Text('Scan Nearby (mDNS)'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            _showNearbyPeersDialog(context, ref);
+                          },
+                        )
+                      else
+                        ListTile(
+                          leading: Icon(
+                            Icons.radar,
+                            color: Theme.of(context).disabledColor,
+                          ),
+                          title: Text(
+                            'Scan Nearby (Native Only)',
+                            style: TextStyle(
+                              color: Theme.of(context).disabledColor,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            AbyssSnackBar.show(
+                              context,
+                              'Local network scanning (mDNS) is not supported in web browsers due to security restrictions. Please use Connect via ID.',
+                              type: SnackBarType.info,
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
           );

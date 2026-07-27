@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:abyss_chat/features/chat/domain/models/message.dart';
 import 'package:abyss_chat/features/chat/presentation/widgets/web_media_image.dart';
 import 'package:abyss_chat/network/web_storage.dart';
+import 'package:abyss_chat/features/chat/presentation/widgets/media_preview_widget.dart';
 
 class MediaViewerScreen extends StatefulWidget {
   final List<Message> mediaMessages;
@@ -37,6 +38,12 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
     if (msg.fileName == null) return false;
     final ext = msg.fileName!.split('.').last.toLowerCase();
     return ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(ext);
+  }
+
+  bool _isAudio(Message msg) {
+    if (msg.fileName == null) return false;
+    final ext = msg.fileName!.split('.').last.toLowerCase();
+    return ['mp3', 'wav', 'ogg', 'm4a', 'aac'].contains(ext);
   }
 
   bool _isDocument(Message msg) {
@@ -378,7 +385,22 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(2),
-                              child: WebMediaImage(msg: msg, fit: BoxFit.cover),
+                              child: _isVideo(msg)
+                                  ? Container(
+                                      color: Colors.grey.shade900,
+                                      child: const Icon(Icons.videocam, color: Colors.white54, size: 24),
+                                    )
+                                  : _isAudio(msg)
+                                      ? Container(
+                                          color: Colors.grey.shade900,
+                                          child: const Icon(Icons.music_note, color: Colors.white54, size: 24),
+                                        )
+                                      : _isDocument(msg)
+                                          ? Container(
+                                              color: Colors.grey.shade900,
+                                              child: const Icon(Icons.insert_drive_file, color: Colors.white54, size: 24),
+                                            )
+                                          : WebMediaImage(msg: msg, fit: BoxFit.cover),
                             ),
                             if (isMultiSelected)
                               Positioned(
@@ -434,31 +456,13 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
               itemBuilder: (context, index) {
                 final msg = widget.mediaMessages[index];
 
-                if (_isVideo(msg)) {
+                if (_isVideo(msg) || _isAudio(msg)) {
                   return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.videocam,
-                          size: 100,
-                          color: Colors.white54,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          msg.fileName ?? 'Video',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Video playback not supported yet.\nPlease download to view.',
-                          style: TextStyle(color: Colors.white54),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                    child: MediaPreviewWidget(
+                      filePath: msg.localFilePath,
+                      fileData: msg.fileData,
+                      fileName: msg.fileName ?? 'Media',
+                      isFullScreen: true,
                     ),
                   );
                 }

@@ -1,6 +1,18 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.1.5] - 2026-07-27
+### Added
+- **Full-Screen Media Experience**: Complete overhaul of the Media Viewer. Videos now play directly in full screen with a new comprehensive control bar (volume slider, play/pause, progress scrubber). Audio files display as a stunning 5:4 ratio aesthetic player card with built-in controls.
+- **Smart Search Traversal**: Chat search has been completely reimagined using a scrollable positioned list. Instead of destructively filtering your chat, search now highlights matching messages and provides smooth up/down arrow traversal directly within the chat's context.
+- **Dynamic Media Icons**: The media carousel now intelligently recognizes non-image files and displays clean, modern Video, Audio, and Document icons instead of broken image placeholders.
+- **Draw Match History**: Mini-game ties (like in Tic-Tac-Toe) are now officially logged to the permanent chat history, so both players can keep track of their attempts!
+
+### Fixed
+- **Group Call Banner Misfire**: Fixed a major bug where Active Group Call banners would mistakenly appear in direct P2P chats instead of the designated Group Chat UI.
+- **Call Disconnect Button**: Added a dedicated "End" button directly to the Active Call banner, allowing users to cleanly hang up an active call without needing to maximize the call screen.
+- **Media Layout Overflows**: Fixed multiple `RenderFlex` overflow errors in the chat UI associated with extremely long audio file names and video rendering constraints.
+
 ## [1.1.4+] - 2026-07-26
 ### Added
 - **Multi-Tier TURN/STUN Infrastructure**: Implemented a robust, free fallback connection system utilizing Google STUN and Metered Open Relay TURN. This provides ultra-fast direct P2P connections.

@@ -21,3 +21,9 @@ To maintain a clean and professional repository, all future documentation must a
 - **Consistent Code Blocks**: All code blocks must explicitly define the language (e.g., ````dart`, ````yaml`) for proper syntax highlighting.
 - **Mermaid Diagrams**: Use Mermaid graphs for complex architecture flowcharts (like the signaling architecture).
 - **Absolute Paths**: When linking to local project files, ensure the paths are relative to the repository root for clickable links in modern IDEs.
+
+## 4. Data Backup & Recovery (.abysschat files)
+To ensure user data is never lost due to encryption key changes (e.g., reinstalling the app or switching to the web version), we will implement a portable and secure data backup system.
+- **Fail-safe `.bak` Files**: The `StorageService` will stop ruthlessly deleting encrypted storage files upon decryption failure. Instead, it will append `.bak` to the corrupted/unreadable files to preserve the raw data just in case.
+- **E2EE Portable Backups**: Users will be able to export their chat history, contacts, and logs to a single `.abysschat` file. The user will be required to provide a password, and the exported file will be end-to-end encrypted (E2EE) utilizing PBKDF2/AES.
+- **Text-Only By Default**: For speed and portability, the initial version of `.abysschat` backups will exclusively contain text data. Heavy media files (images, videos, audio) will be omitted, and this will be explicitly communicated to the user in the export/import dialogue menus.

@@ -126,7 +126,7 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
         _handleActivitySync(data);
       } else if (data['type'] == 'history_sync') {
         _handleHistorySync(data);
-      } else if (data['type'] == 'file_meta' || data['type'] == 'file_chunk') {
+      } else if (data['type'] == 'file_meta' || data['type'] == 'file_chunk' || data['type'] == 'large_file_meta') {
         ref.read(fileTransferProvider).handleIncomingPayload(data);
       } else if (data['type'] == 'game_sync') {
         ref
@@ -153,6 +153,32 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
             msgs[mIdx] = msgs[mIdx].copyWith(
               localFilePath: kIsWeb ? null : path,
               fileData: kIsWeb ? path : null, // on Web, path is the base64 URI
+              status: MessageStatus.delivered,
+            );
+            threads[i] = threads[i].copyWith(messages: msgs);
+            updated = true;
+            break;
+          }
+        }
+        if (updated) {
+          state = AsyncData(threads);
+          storage.saveThreads(threads);
+        }
+      }
+    };
+
+    ref.read(fileTransferProvider).onFileDownloaded = (fileId, fileName, path) async {
+      final savedPath = await storage.moveMediaFile(fileId, path, fileName);
+      if (savedPath != null && state.hasValue) {
+        final threads = List<ChatThread>.from(state.value!);
+        bool updated = false;
+        for (int i = 0; i < threads.length; i++) {
+          final msgs = List<Message>.from(threads[i].messages);
+          final mIdx = msgs.indexWhere((m) => m.id == fileId);
+          if (mIdx != -1) {
+            msgs[mIdx] = msgs[mIdx].copyWith(
+              localFilePath: kIsWeb ? null : savedPath,
+              fileData: kIsWeb ? savedPath : null,
               status: MessageStatus.delivered,
             );
             threads[i] = threads[i].copyWith(messages: msgs);
@@ -1269,6 +1295,19 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     if (unreadIds.isNotEmpty) {
       // Let sendReadReceipt handle the status updates since it already modifies state.
       sendReadReceipt(threadId, unreadIds);
+    }
+  }
+
+  void updatePeerName(String threadId, String newName) {
+    if (!state.hasValue) return;
+    final threads = List<ChatThread>.from(state.value!);
+    final idx = threads.indexWhere((t) => t.id == threadId);
+    if (idx != -1 && !threads[idx].isGroup) {
+      threads[idx] = threads[idx].copyWith(
+        peer: threads[idx].peer.copyWith(name: newName),
+      );
+      state = AsyncData(threads);
+      ref.read(storageServiceProvider).saveThreads(threads);
     }
   }
 

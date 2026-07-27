@@ -27,15 +27,27 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
   Duration _position = Duration.zero;
   String? _playableFilePath;
 
+  bool get _isTransferring => widget.msg.fileData == '[MEDIA_TRANSFERRING]' || widget.msg.localFilePath == '[MEDIA_TRANSFERRING]';
+
   @override
   void initState() {
     super.initState();
     _initAudio();
   }
 
+  @override
+  void didUpdateWidget(AudioMessageBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((oldWidget.msg.fileData == '[MEDIA_TRANSFERRING]' || oldWidget.msg.localFilePath == '[MEDIA_TRANSFERRING]') &&
+        !_isTransferring) {
+      _initAudio();
+    }
+  }
+
   Future<void> _initAudio() async {
+    if (_isTransferring) return;
     try {
-      if (widget.msg.localFilePath != null && !kIsWeb) {
+      if (widget.msg.localFilePath != null && widget.msg.localFilePath != '[MEDIA_TRANSFERRING]' && !kIsWeb) {
         _playableFilePath = widget.msg.localFilePath;
         await _audioPlayer.setFilePath(widget.msg.localFilePath!);
       } else if (widget.msg.fileData != null) {
@@ -92,19 +104,32 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          icon: Icon(
-            _isPlaying ? Icons.pause : Icons.play_arrow,
-            color: widget.isMe ? cs.onPrimaryContainer : cs.onSurface,
-          ),
-          onPressed: () {
-            if (_isPlaying) {
-              _audioPlayer.pause();
-            } else {
-              _audioPlayer.play();
-            }
-          },
-        ),
+        _isTransferring
+            ? Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        widget.isMe ? cs.onPrimaryContainer : cs.onSurface),
+                  ),
+                ),
+              )
+            : IconButton(
+                icon: Icon(
+                  _isPlaying ? Icons.pause : Icons.play_arrow,
+                  color: widget.isMe ? cs.onPrimaryContainer : cs.onSurface,
+                ),
+                onPressed: () {
+                  if (_isPlaying) {
+                    _audioPlayer.pause();
+                  } else {
+                    _audioPlayer.play();
+                  }
+                },
+              ),
         SizedBox(
           width: 150,
           child: TweenAnimationBuilder<double>(

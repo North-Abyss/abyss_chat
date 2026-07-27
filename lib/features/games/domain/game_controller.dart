@@ -138,7 +138,7 @@ class GameController extends Notifier<GameState?> {
         'activity': 'tictactoe',
         'board': newBoard,
         'turn': 'X',
-        'state': hasWon ? 'won_X' : 'draw',
+        'state': hasWon ? 'won_$mySymbol' : 'draw',
         'initiator': state!.hostId,
       });
       ref.read(chatThreadsProvider.notifier).sendMessage(
