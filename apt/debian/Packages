@@ -1,14 +1,14 @@
 Package: abyss-chat
 Architecture: amd64
-Version: 1.1.4
+Version: 1.1.5
 Priority: optional
 Section: base
 Maintainer: Abyss Chat Developer
 Filename: pool/main/abyss-chat-linux-x64.deb
-Size: 19553906
-MD5sum: 90af352913d7e033d2368d9ff142af0a
-SHA1: 7f6eed23a78eee058c76c34f53701a80bb47c82b
-SHA256: b2e286c4e763c79235125e5dfcca16d40f2d36f6e61a1aae137ba6ca07252fbe
-SHA512: 8cc936df3fffed562c2bc083447b991b5039f3c546c058318996547453dd019639491496a56bbf32b5a1a6ec72ec4ddcb139ab808add3898247e672b49cd4395
+Size: 19601828
+MD5sum: 01f615e5b87bea1b80c306acc047178a
+SHA1: 7030e185aa697ce1c800ee97db3f7906faea7be1
+SHA256: d38e828f001e431b71416434f8d65dd2cee0b80ccfbb90206c36754e78819050
+SHA512: 8250e45b8352fdfb37cd7d93a2d38a8196fd1962c508998c4b265da6ce9d1e7cb975d5cdf3c9a3614ad032fa6586e80599bdd3163e9a23eb7b2f7d98b1bce3f9
 Description: Abyss Chat - A secure P2P chat application.
 
