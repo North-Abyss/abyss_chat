@@ -15,6 +15,7 @@ import 'package:peerdart/peerdart.dart';
 import 'package:abyss_chat/features/chat/domain/models/message.dart';
 import 'package:uuid/uuid.dart';
 import 'package:abyss_chat/core/constants/app_constants.dart';
+import 'package:abyss_chat/core/utils/shared_prefs_helper.dart';
 
 // --- SERVICE DEFINITION ---
 
@@ -93,20 +94,52 @@ class PeerDartService {
     _isPeerOpen = false;
     // Inject reliable free TURN/STUN servers to bypass strict NAT/Hairpinning
     // without requiring users to change browser mDNS flags
-    final customConfig = {
-      'iceServers': [
-        // Tier 1: Google STUN (fastest, most reliable, direct P2P)
-        {
-          'urls': [
-            'stun:stun.l.google.com:19302',
-            'stun:stun1.l.google.com:19302',
-          ],
-        },
-        // Tier 2: Cloudflare STUN (fast CDN-backed fallback)
-        {
-          'urls': ['stun:stun.cloudflare.com:3478'],
-        },
+    final prefs = await SharedPrefsHelper.instance;
+    final customUrl = prefs.getString('customTurnUrl');
+    final customUser = prefs.getString('customTurnUsername');
+    final customPass = prefs.getString('customTurnPassword');
+
+    final List<Map<String, dynamic>> iceServersList = [
+      // Tier 1: Google STUN (fastest, most reliable, direct P2P)
+      {
+        'urls': [
+          'stun:stun.l.google.com:19302',
+          'stun:stun1.l.google.com:19302',
+        ],
+      },
+      // Tier 2: Cloudflare STUN (fast CDN-backed fallback)
+      {
+        'urls': ['stun:stun.cloudflare.com:3478'],
+      },
+    ];
+
+    // Inject User's Custom TURN Server if provided
+    if (customUrl != null && customUrl.isNotEmpty) {
+      final Map<String, dynamic> customTurnConfig = {
+        'urls': [customUrl],
+      };
+      if (customUser != null && customUser.isNotEmpty) {
+        customTurnConfig['username'] = customUser;
+      }
+      if (customPass != null && customPass.isNotEmpty) {
+        customTurnConfig['credential'] = customPass;
+      }
+      iceServersList.add(customTurnConfig);
+    }
+
+    // Tier 3: OpenRelayProject TURN (free relay for strict NATs)
+    iceServersList.add({
+      'urls': [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp',
       ],
+      'username': 'openrelayproject',
+      'credential': 'openrelayproject',
+    });
+
+    final customConfig = {
+      'iceServers': iceServersList,
       'sdpSemantics': 'unified-plan',
     };
 

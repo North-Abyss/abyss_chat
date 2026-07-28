@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/features/settings/presentation/screens/privacy_policy_screen.dart';
+import 'package:abyss_chat/features/settings/presentation/screens/welcome_guide_screen.dart';
 import 'package:abyss_chat/features/chat/domain/chat_controller.dart';
 import 'package:abyss_chat/app/responsive_layout.dart';
+import 'package:abyss_chat/features/calling/domain/call_controller.dart';
 import 'package:abyss_chat/core/widgets/abyss_snackbar.dart';
 import 'package:abyss_chat/network/crypto_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -21,6 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _nameController = TextEditingController();
   final _usernameController = TextEditingController();
   bool _isLoading = false;
+  bool _isFirstTime = false;
 
   String _myHash = '';
   int _avatarIcon = 0xe491;
@@ -52,6 +55,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _login();
       }
     } else {
+      _isFirstTime = true;
       setState(() {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         final rnd = Random();
@@ -113,6 +117,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context,
         MaterialPageRoute(builder: (context) => const ResponsiveLayout()),
       );
+      if (_isFirstTime) {
+        globalNavigatorKey.currentState?.push(
+          MaterialPageRoute(builder: (_) => const WelcomeGuideScreen()),
+        );
+      }
     } catch (e) {
       AbyssSnackBar.show(
         context,

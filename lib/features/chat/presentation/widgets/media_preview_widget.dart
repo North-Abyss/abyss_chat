@@ -34,6 +34,8 @@ class _MediaPreviewWidgetState extends State<MediaPreviewWidget> {
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   double _volume = 1.0;
+  bool _hasError = false;
+  String _errorMessage = '';
 
   late String _extension;
 
@@ -71,48 +73,68 @@ class _MediaPreviewWidgetState extends State<MediaPreviewWidget> {
       }
       
       if (_videoController != null) {
-        await _videoController!.initialize();
-        _videoController!.setVolume(_volume);
-        _videoController!.addListener(() {
+        try {
+          await _videoController!.initialize();
+          _videoController!.setVolume(_volume);
+          _videoController!.addListener(() {
+            if (mounted) {
+              setState(() {
+                _isPlaying = _videoController!.value.isPlaying;
+                _position = _videoController!.value.position;
+                _duration = _videoController!.value.duration;
+              });
+            }
+          });
+        } catch (e) {
+          debugPrint('Video init error: $e');
           if (mounted) {
             setState(() {
-              _isPlaying = _videoController!.value.isPlaying;
-              _position = _videoController!.value.position;
-              _duration = _videoController!.value.duration;
+              _hasError = true;
+              _errorMessage = 'Video format not supported on this platform';
             });
           }
-        });
+        }
       }
       if (mounted) setState(() {});
     } else if (_isAudio) {
       _audioPlayer = AudioPlayer();
-      if (kIsWeb && webUrl != null) {
-        await _audioPlayer!.setUrl(webUrl);
-      } else if (widget.filePath != null) {
-        await _audioPlayer!.setFilePath(widget.filePath!);
+      try {
+        if (kIsWeb && webUrl != null) {
+          await _audioPlayer!.setUrl(webUrl);
+        } else if (widget.filePath != null) {
+          await _audioPlayer!.setFilePath(widget.filePath!);
+        }
+        
+        _audioPlayer!.playerStateStream.listen((state) {
+          if (mounted) {
+            setState(() {
+              _isPlaying = state.playing;
+            });
+          }
+        });
+        _audioPlayer!.positionStream.listen((pos) {
+          if (mounted) {
+            setState(() {
+              _position = pos;
+            });
+          }
+        });
+        _audioPlayer!.durationStream.listen((dur) {
+          if (mounted) {
+            setState(() {
+              _duration = dur ?? Duration.zero;
+            });
+          }
+        });
+      } catch (e) {
+        debugPrint('Audio init error: $e');
+        if (mounted) {
+          setState(() {
+            _hasError = true;
+            _errorMessage = 'Audio format not supported on this platform';
+          });
+        }
       }
-      
-      _audioPlayer!.playerStateStream.listen((state) {
-        if (mounted) {
-          setState(() {
-            _isPlaying = state.playing;
-          });
-        }
-      });
-      _audioPlayer!.positionStream.listen((pos) {
-        if (mounted) {
-          setState(() {
-            _position = pos;
-          });
-        }
-      });
-      _audioPlayer!.durationStream.listen((dur) {
-        if (mounted) {
-          setState(() {
-            _duration = dur ?? Duration.zero;
-          });
-        }
-      });
     }
   }
 
@@ -159,6 +181,31 @@ class _MediaPreviewWidgetState extends State<MediaPreviewWidget> {
     }
 
     if (_isVideo) {
+      if (_hasError) {
+        return Container(
+          width: widget.width ?? 250,
+          height: 150,
+          decoration: BoxDecoration(
+            color: Colors.black12,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red),
+              const SizedBox(height: 8),
+              Text(
+                _errorMessage,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ],
+          ),
+        );
+      }
+
       if (_videoController == null || !_videoController!.value.isInitialized) {
         return Container(
           width: widget.width ?? 250,

@@ -12,6 +12,10 @@ class AppSettings {
   final bool inAppNotificationsEnabled;
   final bool mediaAutoDownloadWifi;
   final bool mediaAutoDownloadCellular;
+  final String? customTurnUrl;
+  final String? customTurnUsername;
+  final String? customTurnPassword;
+  final bool hasSeenWelcomeGuide;
 
   AppSettings({
     required this.notificationPosition,
@@ -19,6 +23,10 @@ class AppSettings {
     required this.inAppNotificationsEnabled,
     required this.mediaAutoDownloadWifi,
     required this.mediaAutoDownloadCellular,
+    this.customTurnUrl,
+    this.customTurnUsername,
+    this.customTurnPassword,
+    this.hasSeenWelcomeGuide = false,
   });
 
   AppSettings copyWith({
@@ -27,6 +35,10 @@ class AppSettings {
     bool? inAppNotificationsEnabled,
     bool? mediaAutoDownloadWifi,
     bool? mediaAutoDownloadCellular,
+    String? customTurnUrl,
+    String? customTurnUsername,
+    String? customTurnPassword,
+    bool? hasSeenWelcomeGuide,
   }) {
     return AppSettings(
       notificationPosition: notificationPosition ?? this.notificationPosition,
@@ -38,6 +50,10 @@ class AppSettings {
           mediaAutoDownloadWifi ?? this.mediaAutoDownloadWifi,
       mediaAutoDownloadCellular:
           mediaAutoDownloadCellular ?? this.mediaAutoDownloadCellular,
+      customTurnUrl: customTurnUrl ?? this.customTurnUrl,
+      customTurnUsername: customTurnUsername ?? this.customTurnUsername,
+      customTurnPassword: customTurnPassword ?? this.customTurnPassword,
+      hasSeenWelcomeGuide: hasSeenWelcomeGuide ?? this.hasSeenWelcomeGuide,
     );
   }
 }
@@ -57,6 +73,10 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettings> {
       mediaAutoDownloadWifi: prefs.getBool('mediaAutoDownloadWifi') ?? true,
       mediaAutoDownloadCellular:
           prefs.getBool('mediaAutoDownloadCellular') ?? false,
+      customTurnUrl: prefs.getString('customTurnUrl'),
+      customTurnUsername: prefs.getString('customTurnUsername'),
+      customTurnPassword: prefs.getString('customTurnPassword'),
+      hasSeenWelcomeGuide: prefs.getBool('hasSeenWelcomeGuide') ?? false,
     );
   }
 
@@ -82,6 +102,22 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettings> {
       'mediaAutoDownloadCellular',
       newSettings.mediaAutoDownloadCellular,
     );
+    if (newSettings.customTurnUrl != null) {
+      await prefs.setString('customTurnUrl', newSettings.customTurnUrl!);
+    } else {
+      await prefs.remove('customTurnUrl');
+    }
+    if (newSettings.customTurnUsername != null) {
+      await prefs.setString('customTurnUsername', newSettings.customTurnUsername!);
+    } else {
+      await prefs.remove('customTurnUsername');
+    }
+    if (newSettings.customTurnPassword != null) {
+      await prefs.setString('customTurnPassword', newSettings.customTurnPassword!);
+    } else {
+      await prefs.remove('customTurnPassword');
+    }
+    await prefs.setBool('hasSeenWelcomeGuide', newSettings.hasSeenWelcomeGuide);
     state = AsyncData(newSettings);
   }
 }

@@ -307,22 +307,11 @@ class _ActivityBubbleState extends ConsumerState<ActivityBubble> {
       'initiator': initiator,
     });
 
-    String msgText = 'Played Tic-Tac-Toe';
-    if (newState == 'draw') {
-      msgText = '🤝 Tic-Tac-Toe ended in a draw.';
-    } else if (newState.startsWith('won_')) {
-      final winner = newState.split('_')[1];
-      msgText = '🎉 Tic-Tac-Toe ($winner Won)';
-    }
+    // removed unused msgText variable
 
     ref
         .read(chatThreadsProvider.notifier)
-        .sendMessage(
-          widget.threadId,
-          msgText,
-          type: MessageType.activity,
-          fileData: payload,
-        );
+        .syncActivityUpdate(widget.threadId, widget.msg.id, payload);
   }
 
   Widget _buildPoll(BuildContext context) {

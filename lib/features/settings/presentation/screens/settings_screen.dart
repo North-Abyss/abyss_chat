@@ -19,6 +19,8 @@ import 'package:abyss_chat/features/calling/domain/call_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:abyss_chat/features/settings/presentation/screens/storage_management_screen.dart';
 
+import 'package:abyss_chat/features/settings/presentation/screens/welcome_guide_screen.dart';
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -730,6 +732,24 @@ class SettingsScreen extends ConsumerWidget {
                 },
               ),
               const Divider(height: 32),
+              
+              Text(
+                'Networking (Advanced)',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: cs.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.router),
+                title: const Text('Custom TURN Server'),
+                subtitle: const Text('Configure private WebRTC relay'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _showCustomTurnDialog(context, ref),
+              ),
+              
+              const Divider(height: 32),
 
               // App Info
               Text(
@@ -740,6 +760,18 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.menu_book),
+                title: const Text('How Abyss Chat Works'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const WelcomeGuideScreen(),
+                    ),
+                  );
+                },
+              ),
               ListTile(
                 leading: const Icon(Icons.info_outline),
                 title: const Text('About Abyss Chat'),
@@ -877,6 +909,79 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+
+  void _showCustomTurnDialog(BuildContext context, WidgetRef ref) {
+    final settingsAsync = ref.read(appSettingsProvider);
+    if (settingsAsync is! AsyncData) return;
+    
+    final settings = settingsAsync.value!;
+    final urlCtrl = TextEditingController(text: settings.customTurnUrl ?? '');
+    final userCtrl = TextEditingController(text: settings.customTurnUsername ?? '');
+    final passCtrl = TextEditingController(text: settings.customTurnPassword ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Custom TURN Server'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Leave blank to use default STUN & free Open Relay.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: urlCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'TURN URL',
+                  hintText: 'turn:server.com:3478',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: userCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Username',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: passCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                ),
+                obscureText: true,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final newSettings = settings.copyWith(
+                customTurnUrl: urlCtrl.text.trim().isEmpty ? null : urlCtrl.text.trim(),
+                customTurnUsername: userCtrl.text.trim().isEmpty ? null : userCtrl.text.trim(),
+                customTurnPassword: passCtrl.text.trim().isEmpty ? null : passCtrl.text.trim(),
+              );
+              ref.read(appSettingsProvider.notifier).updateSettings(newSettings);
+              Navigator.pop(context);
+              NotificationService.showMessageNotification(
+                'Settings Saved',
+                'Custom TURN configured successfully.',
+              );
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class NotificationsScreen extends ConsumerWidget {
@@ -958,6 +1063,7 @@ class NotificationsScreen extends ConsumerWidget {
       ),
     );
   }
+
 }
 
 // StorageManagementScreen was moved to its own file

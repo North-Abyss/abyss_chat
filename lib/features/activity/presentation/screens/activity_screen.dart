@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/core/utils/shared_prefs_helper.dart';
 import 'package:abyss_chat/core/widgets/abyss_snackbar.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ActivityScreen extends ConsumerStatefulWidget {
   const ActivityScreen({super.key});
@@ -17,6 +19,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
   final TextEditingController _statusController = TextEditingController();
   final TextEditingController _todoController = TextEditingController();
   List<String> _todos = [];
+  bool _isMarkdownPreview = false;
 
   @override
   void initState() {
@@ -105,15 +108,61 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Personal Scratchpad',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(color: cs.primary),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Personal Scratchpad',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleLarge?.copyWith(color: cs.primary),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(_isMarkdownPreview ? Icons.edit : Icons.remove_red_eye),
+                          tooltip: _isMarkdownPreview ? 'Edit' : 'Preview Markdown',
+                          onPressed: () {
+                            setState(() {
+                              _isMarkdownPreview = !_isMarkdownPreview;
+                            });
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.share),
+                          tooltip: 'Share Note',
+                          onPressed: () {
+                            if (_notesController.text.trim().isNotEmpty) {
+                              // ignore: deprecated_member_use
+                              Share.share(_notesController.text);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 Expanded(
-                  child: TextField(
+                  child: _isMarkdownPreview
+                      ? Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: cs.surfaceContainerHighest.withValues(
+                              alpha: 0.5,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: SingleChildScrollView(
+                            child: MarkdownBody(
+                              data: _notesController.text.isEmpty
+                                  ? 'No content to preview.'
+                                  : _notesController.text,
+                            ),
+                          ),
+                        )
+                      : TextField(
                     controller: _notesController,
                     maxLines: null,
                     expands: true,

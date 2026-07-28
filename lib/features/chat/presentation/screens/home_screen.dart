@@ -18,6 +18,8 @@ import 'package:abyss_chat/features/qr/presentation/screens/qr_scan_screen.dart'
 import 'package:abyss_chat/features/qr/presentation/screens/my_qr_screen.dart';
 import 'package:abyss_chat/features/contacts/presentation/screens/contacts_screen.dart';
 import 'package:abyss_chat/features/contacts/domain/models/user.dart';
+import 'package:abyss_chat/features/settings/domain/settings_controller.dart';
+import 'package:abyss_chat/features/settings/presentation/screens/welcome_guide_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   final bool isDesktop;
@@ -228,6 +230,22 @@ class HomeScreen extends ConsumerWidget {
     final selectedId = ref.watch(selectedThreadIdProvider);
     final myId = ref.read(chatThreadsProvider.notifier).myId;
 
+    final appSettingsAsync = ref.watch(appSettingsProvider);
+    if (appSettingsAsync is AsyncData) {
+      final settings = appSettingsAsync.value!;
+      if (!settings.hasSeenWelcomeGuide) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(appSettingsProvider.notifier).updateSettings(
+                settings.copyWith(hasSeenWelcomeGuide: true),
+              );
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const WelcomeGuideScreen()),
+          );
+        });
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
@@ -305,11 +323,9 @@ class HomeScreen extends ConsumerWidget {
             tooltip: 'Refresh Connection',
             onPressed: () {
               ref.read(chatThreadsProvider.notifier).reconnectSignaling();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Reconnecting to signaling server...'),
-                  duration: Duration(seconds: 2),
-                ),
+              NotificationService.showMessageNotification(
+                'Abyss Chat',
+                'Reconnecting to signaling server...',
               );
             },
           ),

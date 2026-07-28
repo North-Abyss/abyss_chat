@@ -6,7 +6,6 @@ import 'package:abyss_chat/features/calling/domain/call_controller.dart';
 import 'package:abyss_chat/features/chat/presentation/screens/home_screen.dart';
 import 'package:abyss_chat/features/chat/presentation/screens/chat_screen.dart';
 import 'package:abyss_chat/features/settings/presentation/screens/settings_screen.dart';
-import 'package:abyss_chat/features/calling/presentation/screens/call_log_screen.dart';
 import 'package:abyss_chat/core/widgets/floating_dock.dart';
 import 'package:abyss_chat/features/activity/presentation/screens/activity_screen.dart';
 
@@ -118,26 +117,20 @@ class ResponsiveLayout extends ConsumerWidget {
                 onTap: () =>
                     ref.read(navigationIndexProvider.notifier).setIndex(0),
               ),
-              FloatingDockItem(
-                icon: Icons.call_outlined,
-                selectedIcon: Icons.call,
-                label: 'Calls',
-                onTap: () =>
-                    ref.read(navigationIndexProvider.notifier).setIndex(1),
-              ),
+              // Calls tab removed
               FloatingDockItem(
                 icon: Icons.checklist_rtl_outlined,
                 selectedIcon: Icons.checklist_rtl,
                 label: 'Activity',
                 onTap: () =>
-                    ref.read(navigationIndexProvider.notifier).setIndex(2),
+                    ref.read(navigationIndexProvider.notifier).setIndex(1),
               ),
               FloatingDockItem(
                 icon: Icons.settings_outlined,
                 selectedIcon: Icons.settings,
                 label: 'Settings',
                 onTap: () =>
-                    ref.read(navigationIndexProvider.notifier).setIndex(3),
+                    ref.read(navigationIndexProvider.notifier).setIndex(2),
               ),
             ];
 
@@ -311,10 +304,8 @@ class ResponsiveLayout extends ConsumerWidget {
           );
         }
       case 1:
-        return const CallLogScreen(key: ValueKey('calls'));
-      case 2:
         return const ActivityScreen(key: ValueKey('activity'));
-      case 3:
+      case 2:
         return const SettingsScreen(key: ValueKey('settings'));
       default:
         return const Center(child: Text('Unknown Tab'));
