@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective Date:** July 21, 2026
+**Effective Date:** July 28, 2026 (v1.1.5)
 
 Welcome to Abyss Chat! Your privacy is not just a priority—it is the foundational design principle of this application.
 

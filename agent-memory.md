@@ -38,12 +38,10 @@ abyss_chat/
 │   ├── features/             ← Feature modules (auth, calling, chat, contacts, groups, qr, settings)
 │   └── network/              ← Infrastructure services (WebRTC, LAN, Storage, Crypto)
 ├── docs/                     ← Documentation and architecture deep dives
-│   ├── CHANGELOG.md              ← Log of releases and development sessions
-│   ├── EXPLANATION.md            ← Detailed technical explanation of the codebase
-│   ├── local_signaling_architecture.md ← Details on the v1.4.0 local offline handshakes
-│   ├── PRIVACY.md                ← Privacy policy and data handling details
-│   ├── RELEASE_NOTES.md          ← Notes for specific releases
-│   └── Ref.md                    ← Miscellaneous references
+│   ├── architecture/         ← Technical deep-dives and network diagrams
+│   ├── guides/               ← End-user manuals (e.g., how_it_works.md)
+│   ├── meta/                 ← Project roadmaps, changelogs, and privacy policies
+│   └── README.md             ← Central index linking everything
 ├── agent-memory.md           ← Persistent AI context tracking
 └── README.md                 ← Project setup and overview
 ```

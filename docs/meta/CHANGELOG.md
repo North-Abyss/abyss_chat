@@ -1,6 +1,15 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.1.6] - 2026-07-28
+### Added
+- **Welcome Guide & Onboarding**: Added a beautiful new "How it Works" Welcome screen that triggers automatically for new users and explains the core P2P features, network limits, and UI Dock structure.
+- **Markdown Scratchpad**: Upgraded the personal Activity scratchpad to natively support Markdown parsing. Includes a seamless live-preview toggle and an instant export/share button.
+- **Documentation Restructure**: Completely reorganized the `docs/` repository into `architecture`, `guides`, and `meta` subdirectories with a central clickable index, making the codebase highly professional and approachable for open-source contributors.
+
+### Fixed
+- **Media Format Fallbacks**: Implemented robust error handling in the `MediaPreviewWidget` for unsupported video/audio codecs (such as Linux desktop missing native media bindings). This gracefully displays an error icon and prevents the UI from getting permanently stuck in an infinite loading spinner loop.
+
 ## [1.1.5] - 2026-07-27
 ### Added
 - **Full-Screen Media Experience**: Complete overhaul of the Media Viewer. Videos now play directly in full screen with a new comprehensive control bar (volume slider, play/pause, progress scrubber). Audio files display as a stunning 5:4 ratio aesthetic player card with built-in controls.

@@ -1,4 +1,4 @@
-# Abyss Chat
+# Abyss Chat (v1.1.5)
 
 A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clone. It uses WebRTC and local network discovery (mDNS) to connect peers without a central server. Built for all platforms simultaneously.
 
@@ -56,7 +56,8 @@ A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clo
 Abyss Chat follows a clean architecture pattern with a clear separation of concerns, built for all platforms.
 
 > **📚 Deep Dives:**
-> - Check out [EXPLANATION.md](EXPLANATION.md) for a comprehensive Q&A and a visual Mermaid diagram of the architecture (great for interviews!).
+> - Check out [docs/README.md](docs/README.md) for our beautifully organized documentation hub.
+> - Check out [EXPLANATION.md](docs/architecture/EXPLANATION.md) for a comprehensive Q&A and a visual Mermaid diagram of the architecture.
 > - Check out [agent-memory.md](agent-memory.md) for a full breakdown of the directory structure and project session logs.
 
 ### State Management
