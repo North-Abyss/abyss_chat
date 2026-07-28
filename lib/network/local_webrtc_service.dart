@@ -242,17 +242,6 @@ class LocalWebrtcService {
         {
           'urls': ['stun:stun.cloudflare.com:3478'],
         },
-        // Tier 3: Metered Open Relay TURN (free relay for NAT traversal)
-        {
-          'urls': [
-            'turn:standard.relay.metered.ca:80',
-            'turn:standard.relay.metered.ca:80?transport=tcp',
-            'turn:standard.relay.metered.ca:443',
-            'turns:standard.relay.metered.ca:443?transport=tcp',
-          ],
-          'username': 'e8dd65b92f60390b0f8fa187',
-          'credential': '6bFMhgkl7sWIz1Nw',
-        },
       ],
       'sdpSemantics': 'unified-plan',
     });

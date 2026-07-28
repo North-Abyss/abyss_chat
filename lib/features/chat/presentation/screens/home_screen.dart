@@ -301,6 +301,19 @@ class HomeScreen extends ConsumerWidget {
         centerTitle: false,
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh Connection',
+            onPressed: () {
+              ref.read(chatThreadsProvider.notifier).reconnectSignaling();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Reconnecting to signaling server...'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.qr_code_scanner),
             onPressed: () async {
               final result = await Navigator.push(

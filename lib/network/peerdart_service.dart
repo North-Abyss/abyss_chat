@@ -95,18 +95,16 @@ class PeerDartService {
     // without requiring users to change browser mDNS flags
     final customConfig = {
       'iceServers': [
-        // Tier 1: Google STUN
-        {
-          'urls': ['stun:stun.l.google.com:19302'],
-        },
-        // Tier 2: Metered Open Relay TURN (free relay for NAT traversal)
+        // Tier 1: Google STUN (fastest, most reliable, direct P2P)
         {
           'urls': [
-            'turn:standard.relay.metered.ca:80',
-            'turns:standard.relay.metered.ca:443?transport=tcp',
+            'stun:stun.l.google.com:19302',
+            'stun:stun1.l.google.com:19302',
           ],
-          'username': 'e8dd65b92f60390b0f8fa187',
-          'credential': '6bFMhgkl7sWIz1Nw',
+        },
+        // Tier 2: Cloudflare STUN (fast CDN-backed fallback)
+        {
+          'urls': ['stun:stun.cloudflare.com:3478'],
         },
       ],
       'sdpSemantics': 'unified-plan',

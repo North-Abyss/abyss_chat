@@ -740,6 +740,14 @@ class ChatThreadsNotifier extends AsyncNotifier<List<ChatThread>> {
     }
   }
 
+  Future<void> reconnectSignaling() async {
+    final currentId = myId;
+    if (currentId != null) {
+      debugPrint('🔄 Manually reconnecting signaling for ID: $currentId');
+      await ref.read(peerServiceProvider).initialize(currentId);
+    }
+  }
+
   Future<void> connectToPeer(String peerId) async {
     final now = DateTime.now();
     if (_lastConnectAttempt.containsKey(peerId)) {
