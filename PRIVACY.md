@@ -4,6 +4,9 @@
 
 Welcome to Abyss Chat! Your privacy is not just a priority—it is the foundational design principle of this application.
 
+> [!NOTE]
+> This is a quick overview of our privacy principles. For the complete, detailed terms of use and liability limitations, please read our [Full Privacy Policy & Terms of Use](docs/meta/PRIVACY.md).
+
 > [!IMPORTANT]
 > Your privacy is our top priority. We do not collect, store, or monitor your personal data, messages, or calls. All communications are strictly peer-to-peer.
 ## 1. Information We Collect

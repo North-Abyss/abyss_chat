@@ -1,5 +1,6 @@
 # 🧠 Agent Memory — Abyss Chat
 
+> [!IMPORTANT]
 > **Purpose**: This file is the persistent memory store for AI agents working on this project.
 > It tracks project context, architectural decisions, known issues, naming conventions, and working state.
 > **Always read this before making changes. Always update this after making changes.**
@@ -7,8 +8,6 @@
 ---
 
 ## 📋 Project Identity
-
-# Abyss Chat - Agent Memory & Workspace Overview
 
 **Version:** 1.1.5
 **Project Goal:** A cross-platform, decentralized P2P messaging and video calling application (WhatsApp-style) running on Flutter and Riverpod. Includes automated CI/CD for Cloud Compilation and GitHub Pages Web Deployment.
@@ -40,9 +39,10 @@ abyss_chat/
 ├── docs/                     ← Documentation and architecture deep dives
 │   ├── architecture/         ← Technical deep-dives and network diagrams
 │   ├── guides/               ← End-user manuals (e.g., how_it_works.md)
-│   ├── meta/                 ← Project roadmaps, changelogs, and privacy policies
+│   ├── meta/                 ← Project roadmaps, changelogs, assets guides, and privacy policies
 │   └── README.md             ← Central index linking everything
 ├── agent-memory.md           ← Persistent AI context tracking
+├── PRIVACY.md                ← Quick Privacy & Legal Overview (linked from app). 
 └── README.md                 ← Project setup and overview
 ```
 

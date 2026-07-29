@@ -55,7 +55,8 @@ A modern, cross-platform Flutter application serving as a P2P WhatsApp-style clo
 
 Abyss Chat follows a clean architecture pattern with a clear separation of concerns, built for all platforms.
 
-> **📚 Deep Dives:**
+> [!TIP]
+> **Deep Dives:**
 > - Check out [docs/README.md](docs/README.md) for our beautifully organized documentation hub.
 > - Check out [EXPLANATION.md](docs/architecture/EXPLANATION.md) for a comprehensive Q&A and a visual Mermaid diagram of the architecture.
 > - Check out [agent-memory.md](agent-memory.md) for a full breakdown of the directory structure and project session logs.
@@ -447,4 +448,5 @@ graph TD
     end
 ```
 
+> [!IMPORTANT]
 > **Key insight:** The signaling server and STUN/TURN servers are only used during the initial WebRTC handshake (seconds). Once peers are connected, **all data flows directly between devices** with no server involvement. On a local network, the app works **100% offline** with zero cloud dependency.

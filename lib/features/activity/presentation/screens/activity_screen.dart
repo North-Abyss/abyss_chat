@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:abyss_chat/core/utils/shared_prefs_helper.dart';
 import 'package:abyss_chat/core/widgets/abyss_snackbar.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ActivityScreen extends ConsumerStatefulWidget {

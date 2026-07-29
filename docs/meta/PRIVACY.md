@@ -4,6 +4,9 @@
 
 Welcome to Abyss Chat. This application is an open-source, decentralized, peer-to-peer (P2P) messaging and communication platform.
 
+> [!NOTE]
+> This document contains our extended terms of use and liability limitations. For a simplified summary of our privacy practices, see the [Basic Privacy Overview](../../PRIVACY.md).
+
 > [!IMPORTANT]
 > Your privacy is our top priority. We do not collect, store, or monitor your personal data, messages, or calls. All communications are strictly peer-to-peer.
 ## 1. Free and Open Source
